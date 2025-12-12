@@ -48,6 +48,8 @@ Logging and Monitoring
 - Implement proper log levels (ERROR, WARN, INFO, DEBUG).
 - Use Spring Boot Actuator for application monitoring and metrics.
 
+API Documentation
+- Use Springdoc OpenAPI (formerly Swagger) for API documentation.
 
 Data Access and ORM
 - Use Spring Data JPA for database operations.
