@@ -43,13 +43,20 @@ dependencies {
 	// OAuth2 Client (소셜 로그인 구현 시 필수)
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
-	// 1. JWT (JSON Web Token) - jjwt 라이브러리 (0.12.x 버전)
+	// JWT (JSON Web Token) - jjwt 라이브러리 (0.12.x 버전)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6' // JSON 파싱용
 
-	// 2. SpringDoc OpenAPI (Swagger UI) - Spring Boot 3 전용 스타터
+	// SpringDoc OpenAPI (Swagger UI) - Spring Boot 3 전용 스타터
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+
+	// Firebase Cloud Messaging (푸시 알림용 - PRD 3.9)
+	// Admin SDK를 써야 서버에서 메시지를 보낼 수 있습니다.
+	implementation 'com.google.firebase:firebase-admin:9.2.0'
+
+	// AWS S3 (이미지 업로드용 - PRD 3.10)
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1' // 버전에 맞게 조정
 }
 
 tasks.named('test') {
