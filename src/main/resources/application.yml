@@ -43,6 +43,11 @@ spring:
               - email
               - profile
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 # ===================================================================
 # MYBATIS & JWT & SPRINGDOC CONFIGURATION
 # ===================================================================
