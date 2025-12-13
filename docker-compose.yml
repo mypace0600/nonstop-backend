@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: nonstop-app
+    ports:
+      - "8080:8080"   # 나중에 nginx 앞에 두면 제거 가능
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    networks:
+      - app-net
+
+  db:
+    image: postgres:15-alpine
+    container_name: nonstop-db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+    # ❌ ports 노출 없음 (외부 완전 차단)
+
+  redis:
+    image: redis:7-alpine
+    container_name: nonstop-redis
+    restart: always
+    networks:
+      - app-net
+    # ❌ ports 노출 없음
+
+volumes:
+  postgres_data:
+
+networks:
+  app-net:
+    driver: bridge
