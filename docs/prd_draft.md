@@ -1,205 +1,200 @@
-# Product Requirements Document (PRD): **Nonstop App**
-
----
+# Nonstop App – Product Requirements Document
+**Golden Master v2.0 (2025.12 최종 실서비스 반영 버전)**
 
 ## 1. Overview
+대학생 전용 실명 기반 커뮤니티 모바일 앱  
+핵심 가치: 학교 인증 없이도 바로 사용 가능 → 자연스럽게 학교 입력 및 학생 인증 유도
 
-**Nonstop App** is a university community mobile application designed to help students connect, share information, and manage their academic life efficiently.
-
-The application provides features such as authentication, university-based communities, boards, chat, friend management, timetable management, and real-time notifications.
-
----
-
-## 2. User Personas
-
-### 2.1 New Student
-* Wants to get information about the university
-* Wants to find friends and communities
-* Needs help with courses, majors, and campus life
-
-### 2.2 Existing Student
-* Wants to share knowledge and experience
-* Actively participates in boards and discussions
-* Manages personal schedule and timetables
-* Uses chat and notifications frequently
-
----
+## 2. Target Users & Core Journey
+- 신입생 → 학교·전공 선택 → 학생 인증 → 커뮤니티/시간표 이용
+- 재학생 → 친구·채팅·게시판·시간표 공유 중심
 
 ## 3. Functional Requirements
 
-## 3.1 Authentication
+### 3.1 Authentication (핵심)
 
-### 3.1.1 Authentication Strategy
-* The system shall use **JWT (JSON Web Token)** based authentication for all login methods.
-* Two types of tokens shall be issued:
-  * **Access Token**: Short-lived, sent via `Authorization: Bearer {accessToken}` header for HTTP APIs
-  * **Refresh Token**: Long-lived, stored securely on client and server-side for validation/revocation
-* All protected APIs shall require a valid Access Token.
-* Authentication flow (email/password or Google OAuth) must end with issuing the same format JWT tokens.
+#### 3.1.1 인증 방식 및 토큰 정책
+- 모든 로그인 방식 동일 JWT 기반
+- Access Token: 30분 (payload에 universityId null 허용)
+- Refresh Token: 30일, DB 저장 (`refresh_tokens`), 개별 무효화 가능
+- 모든 보호 API: `Authorization: Bearer <accessToken>` 필수
 
-### 3.1.2 Email & Password Authentication
-* Users shall sign up with email, password (bcrypt), nickname, university (optional).
-* Duplication checks for email and nickname.
-* Login issues Access + Refresh Token.
-* Logout invalidates Refresh Token server-side.
+#### 3.1.2 지원 로그인 방식
+- 이메일 + 비밀번호 (bcrypt)
+- Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
+- Apple Sign In (2025년 추가 예정)
 
-### 3.1.3 Google OAuth 2.0 Authentication
-* Preferred mobile flow: Google Sign-In SDK → credential → POST /api/v1/auth/google
-* Backend verifies credential, creates/finds user (`authProvider: "google"`), issues same JWT tokens.
-* New users created with `universityId: null`, no password.
-* Additional info (nickname, university) collected post-login if missing.
+#### 3.1.3 Access Token Payload (표준)
+```
+{
+  "sub": 12345,
+  "email": "hello@korea.ac.kr",
+  "nickname": "코알라",
+  "universityId": 52,        // null 허용
+  "isVerified": true,        // 대학생 인증 여부 (v2 신규)
+  "authProvider": "EMAIL|GOOGLE|APPLE",
+  "iat": 1735999999,
+  "exp": 1736001799
+}
+```
 
-### 3.1.4 Token Refresh & Payload
-* Access Token contains: user_id, email, nickname, universityId (nullable), authProvider, iat, exp
-* Refresh endpoint validates server-side Refresh Token and issues new tokens.
-* Password endpoints forbidden for Google users.
+#### 3.1.4 universityId = null 허용 정책 (Graceful Degradation)
+가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리  
+제한 기능 (universityRequired = true 반환):
+- 커뮤니티/게시판 이용
+- 공개 시간표 조회/공개
+- 일부 익명 게시판 (운영 정책에 따라)
 
-### 3.1.5 University Handling
-* When universityId is null, restricted features (communities, boards, timetables) return limited/empty data with `universityRequired: true` flag.
-* Client shows non-intrusive prompt to select university.
+### 3.2 User Management
+- 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
+- 이메일 유저만 비밀번호 변경 가능
+- 회원 탈퇴 → soft delete (deleted_at)
 
-## 3.2 User Management
-* View/update profile (including university selection and preferred language via PATCH /users/me)
-* Change password (email users only)
-* Delete account
+### 3.3 University Verification (대학생 인증) – v2 신규 핵심 기능
+| 방식                | 설명                                      | 자동/수동 | is_verified |
+|---------------------|-------------------------------------------|-----------|-------------|
+| 이메일 도메인 인증   | @*.ac.kr, 대학별 도메인 목록 자동 매칭     | 자동      | true        |
+| 학생증 사진 인증     | 사진 업로드 → 관리자 수동 검토             | 수동      | true        |
+| 수동 승인 (운영자)   | 특수 케이스                               | 수동      | true        |
 
-## 3.3 University Information
-* Select university anytime after login
-* View university details and majors list
+### 3.4 Community & Boards
+학교별 커뮤니티 → 게시판 계층 구조  
+university_id = null → 빈 배열 + universityRequired 플래그 반환
 
-## 3.4 Community & Boards
-* View university communities and boards (limited if universityId null)
+### 3.5 Posts & Comments
+- 제목(150자), 내용, 다중 이미지, 익명/비밀글 옵션
+- 좋아요 토글 (soft delete 방식)
+- 계층형 댓글 (최대 2단계 대댓글 권장, 3단계 이상 차단)
+- 댓글에도 이미지 첨부 가능
+- 신고·조회수·삭제(soft delete)
 
-## 3.5 Posts & Comments
-* CRUD, like, report, pagination, search, nested comments
+### 3.6 Friends & Block
+- 친구 요청 → 대기/수락/거절/차단
+- 차단 시: 새 1:1 채팅방 생성 불가, 기존 채팅방은 유지되나 새 메시지 전송 403
 
-## 3.7 Friends
-* Send/accept/reject/cancel/block requests
+### 3.7 Chat (1:1 + 그룹 실시간 채팅)
 
-## 3.8 Chat
-* 1:1 rooms, real-time messaging via WebSocket
-* WebSocket auth: `wss://api.nonstop.app/ws/v1/chat?access_token={accessToken}`
-* Server closes invalid/expired connections (code 4001)
-* Reconnect on token refresh
+#### 3.7.1 채팅방 생성 (1:1 전용)
+POST /api/v1/chat/rooms  
+→ 요청 바디 { "targetUserId": 999 }  
+→ 서버는 (userA, userB) 정규화하여 기존 방 조회 → 있으면 기존 roomId 반환, 없으면 생성
 
-## 3.9 Timetable
-* Per-semester management, entries, public sharing (limited if universityId null)
+#### 3.7.2 실시간 채팅
+WebSocket: wss://api.nonstop.app/ws/v1/chat?access_token=xxx
+- Access Token 만료 시 서버 → close code 4001 ("token_expired")
 
-## 3.10 Notifications
-* Push notifications via **Firebase Cloud Messaging (FCM)** for announcements, chat, comments
-* Server-triggered only (internal endpoints)
-* In-app notification list with read marking
+#### 3.7.3 메시지 나에게만 삭제 (카카오톡식)
+DELETE /api/v1/chat/rooms/{roomId}/messages/{messageId}
 
-## 3.11 System
-* Preferred language set via profile update
+#### 3.7.4 읽음 처리
+last_read_message_id + unread_count 자동 관리
 
----
+### 3.8 Timetable
+- 학기별 시간표 CRUD
+- 공개 설정 시 동일 university_id & is_verified=true 인 사용자만 조회 가능
+- GET /api/v1/timetables/public → 요청자의 university_id 가 null 이면 403 + universityRequired
 
-## 4. API Endpoint Summary
+### 3.9 Notifications & Push
+- FCM 사용, 서버에서만 푸시 트리거
+- 알림 생성 시 actor의 nickname 스냅샷 저장 (탈퇴·닉변 대비)
+- 인앱 알림 목록 + 개별/전체 읽음 처리
+
+### 3.10 Rate Limit & Security
+- 모든 쓰기 API: 사용자당 분당 60회 제한
+- 이미지 업로드: S3 presigned URL 방식
+
+## 4. API Endpoint Summary – Golden Master v2.0 (완전 목록)
 
 ### Authentication
-| Method | URI                               | Description                          |
-|--------|-----------------------------------|--------------------------------------|
-| POST   | /api/v1/auth/signup               | Register new user (email/password)   |
-| POST   | /api/v1/auth/google               | Google OAuth login (send credential)|
-| GET    | /api/v1/policy/list               | Policy Inquiry                       |
-| POST   | /api/v1/policy/consent            | Policy consent                       |
-| GET    | /api/v1/auth/email/check          | Email duplicate check                |
-| GET    | /api/v1/auth/nickname/check       | Nickname duplicate check             |
-| POST   | /api/v1/auth/login                | Email/PW login (Issue token)         |
-| POST   | /api/v1/auth/logout               | Invalidate Refresh Token             |
-| POST   | /api/v1/auth/refresh              | Refresh Access Token                 |
-| POST   | /api/v1/auth/email/send           | Send university email verification code |
-| GET    | /api/v1/auth/email/verify         | Handle email verification link click |
+| Method | URI                                    | Description                     |
+|--------|----------------------------------------|---------------------------------|
+| POST   | /api/v1/auth/signup                    | 이메일 회원가입                  |
+| POST   | /api/v1/auth/login                     | 이메일 로그인                   |
+| POST   | /api/v1/auth/google                    | Google 로그인                   |
+| POST   | /api/v1/auth/apple                     | Apple 로그인 (예정)             |
+| POST   | /api/v1/auth/refresh                   | Access Token 재발급             |
+| POST   | /api/v1/auth/logout                    | Refresh Token 무효화               |
+| GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
+| GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
 
 ### User & Device
-| Method | URI                               | Description                                      |
-|--------|-----------------------------------|--------------------------------------------------|
-| GET    | /api/v1/users/me                  | Get My Info                                      |
-| PATCH  | /api/v1/users/me                  | Update My Info (university, language, etc.)      |
-| PATCH  | /api/v1/users/me/password         | Change Password                                  |
-| DELETE | /api/v1/users/me                  | Delete Account                                   |
-| POST   | /api/v1/devices/fcm-token         | Register or update FCM device token (called on app launch/login) |
+| Method | URI                                       | Description                              |
+|--------|-------------------------------------------|------------------------------------------|
+| GET    | /api/v1/users/me                          | 내 정보 조회                             |
+| PATCH  | /api/v1/users/me                          | 프로필 수정 (학교·전공·닉네임·사진·언어) |
+| PATCH  | /api/v1/users/me/password                 | 비밀번호 변경                            |
+| DELETE | /api/v1/users/me                          | 회원 탈퇴                                |
+| POST   | /api/v1/devices/fcm-token                 | FCM 토큰 등록·갱신 (upsert)              |
+| GET    | /api/v1/users/me/verification-status      | 인증 상태 조회 (v2 신규)                 |
+| POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
 
 ### University
-| Method | URI                               | Description       |
-|--------|-----------------------------------|-------------------|
-| GET    | /api/v1/universities              | University List   |
-| GET    | /api/v1/universities/{id}         | University Detail |
-| GET    | /api/v1/universities/{id}/majors  | Major List        |
+| Method | URI                                   | Description   |
+|--------|---------------------------------------|---------------|
+| GET    | /api/v1/universities                  | 대학 목록     |
+| GET    | /api/v1/universities/{id}/majors      | 전공 목록     |
 
-### Community
-| Method | URI                                       | Description   |
-|--------|-------------------------------------------|---------------|
-| GET    | /api/v1/communities                       | Community List|
-| GET    | /api/v1/communities/{communityId}/boards  | Board List    |
+### Community & Board
+| Method | URI                                          | Description      |
+|--------|----------------------------------------------|------------------|
+| GET    | /api/v1/communities                          | 커뮤니티 목록    |
+| GET    | /api/v1/communities/{id}/boards              | 게시판 목록      |
 
-### Post
-| Method | URI                                           | Description      |
-|--------|-----------------------------------------------|------------------|
-| GET    | /api/v1/boards/{boardId}/posts                | Post List        |
-| GET    | /api/v1/boards/{boardId}/posts/{searchText}   | Post search      |
-| POST   | /api/v1/boards/{boardId}/posts                | Create Post      |
-| GET    | /api/v1/posts/{postId}                        | Post Detail      |
-| PATCH  | /api/v1/posts/{postId}                        | Update Post      |
-| DELETE | /api/v1/posts/{postId}                        | Delete Post      |
-| POST   | /api/v1/posts/report/{postId}                 | Report the post  |
-| POST   | /api/v1/posts/{postId}/like                   | Like Post        |
+### Post & Comment
+| Method | URI                                          | Description           |
+|--------|----------------------------------------------|-----------------------|
+| GET    | /api/v1/boards/{boardId}/posts               | 게시글 목록           |
+| POST   | /api/v1/boards/{boardId}/posts               | 게시글 작성           |
+| GET    | /api/v1/posts/{postId}                       | 게시글 상세           |
+| PATCH  | /api/v1/posts/{postId}                       | 게시글 수정           |
+| DELETE | /api/v1/posts/{postId}                       | 게시글 삭제           |
+| POST   | /api/v1/posts/{postId}/like                  | 좋아요 토글           |
+| POST   | /api/v1/posts/{postId}/report                | 게시글 신고           |
+| GET    | /api/v1/posts/{postId}/comments              | 댓글 목록             |
+| POST   | /api/v1/posts/{postId}/comments              | 댓글·대댓글 작성      |
+| PATCH  | /api/v1/comments/{commentId}                 | 댓글 수정             |
+| DELETE | /api/v1/comments/{commentId}                 | 댓글 삭제             |
+| POST   | /api/v1/comments/{commentId}/like            | 댓글 좋아요 토글      |
+| POST   | /api/v1/comments/{commentId}/report        | 댓글 신고             |
 
-### Comment
-| Method | URI                                  | Description       |
-|--------|--------------------------------------|-------------------|
-| GET    | /api/v1/posts/{postId}/comments      | Comment List      |
-| POST   | /api/v1/posts/{postId}/comments      | Create Comment    |
-| PATCH  | /api/v1/comments/{commentId}         | Update Comment    |
-| DELETE | /api/v1/comments/{commentId}         | Delete Comment    |
-| POST   | /api/v1/comments/like/{commentId}    | Like Comment      |
-| POST   | /api/v1/comments/report/{commentId}  | Report Comment    |
-
-### Friend
+### Friend & Block
 | Method | URI                                       | Description         |
 |--------|-------------------------------------------|---------------------|
-| GET    | /api/v1/friends                           | Friend List         |
-| POST   | /api/v1/friends/request                   | Request Friend      |
-| GET    | /api/v1/friends/requests                  | Request List        |
-| POST   | /api/v1/friends/requests/{requestId}/accept | Accept Request    |
-| POST   | /api/v1/friends/requests/{requestId}/reject | Reject Request    |
-| DELETE | /api/v1/friends/requests/{requestId}       | Cancel Request      |
-| POST   | /api/v1/friends/block                     | Block User          |
+| GET    | /api/v1/friends                           | 친구 목록           |
+| GET    | /api/v1/friends/requests                  | 받은 친구 요청      |
+| POST   | /api/v1/friends/request                   | 친구 요청           |
+| POST   | /api/v1/friends/requests/{id}/accept      | 수락                |
+| POST   | /api/v1/friends/requests/{id}/reject      | 거절                |
+| DELETE | /api/v1/friends/requests/{id}             | 요청 취소           |
+| POST   | /api/v1/friends/block                     | 차단                |
 
 ### Chat
-| Method | URI                                     | Description                              |
-|--------|-----------------------------------------|------------------------------------------|
-| GET    | /api/v1/chat/rooms                      | Chat Room List                           |
-| POST   | /api/v1/chat/rooms                      | Create Room                              |
-| DELETE | /api/v1/chat/rooms/{roomId}             | Leave / Delete 1:1 chat room             |
-| GET    | /api/v1/chat/rooms/{roomId}/messages    | Message History (via REST)               |
-| WS     | /ws/v1/chat?access_token={accessToken}  | Real-time messaging and read receipts    |
+| Method | URI                                           | Description                        |
+|--------|-----------------------------------------------|------------------------------------|
+| GET    | /api/v1/chat/rooms                            | 채팅방 목록                        |
+| POST   | /api/v1/chat/rooms                            | 1:1 채팅방 생성 (targetUserId)     |
+| DELETE | /api/v1/chat/rooms/{roomId}                   | 채팅방 나가기                      |
+| GET    | /api/v1/chat/rooms/{roomId}/messages          | 과거 메시지 (offset pagination)    |
+| DELETE | /api/v1/chat/rooms/{roomId}/messages/{msgId}  | 나에게만 메시지 삭제 (v2 신규)     |
+| WS     | wss://api.nonstop.app/ws/v1/chat              | 실시간 채팅                        |
 
 ### Timetable
-| Method | URI                                      | Description         |
-|--------|------------------------------------------|---------------------|
-| GET    | /api/v1/semesters                        | Semester List       |
-| GET    | /api/v1/timetables                       | Timetable List      |
-| POST   | /api/v1/timetables                       | Create Timetable    |
-| GET    | /api/v1/timetables/{id}                  | Timetable Detail    |
-| PATCH  | /api/v1/timetables/{id}                  | Update Config       |
-| DELETE | /api/v1/timetables/{id}                  | Delete Timetable    |
-| POST   | /api/v1/timetables/{id}/entries          | Add Entry           |
-| PATCH  | /api/v1/timetables/entries/{entryId}     | Update Entry        |
-| DELETE | /api/v1/timetables/entries/{entryId}     | Delete Entry        |
-| GET    | /api/v1/timetables/public                | Public Timetables   |
+| Method | URI                                    | Description                     |
+|--------|----------------------------------------|---------------------------------|
+| GET    | /api/v1/semesters                      | 학기 목록                       |
+| GET    | /api/v1/timetables                     | 내 시간표 목록                  |
+| POST   | /api/v1/timetables                     | 시간표 생성                     |
+| GET    | /api/v1/timetables/{id}                | 시간표 상세                     |
+| PATCH  | /api/v1/timetables/{id}                | 시간표 제목·공개여부 수정       |
+| DELETE | /api/v1/timetables/{id}                | 시간표 삭제                     |
+| POST   | /api/v1/timetables/{id}/entries        | 수업 추가                       |
+| PATCH  | /api/v1/timetables/entries/{id}        | 수업 수정                       |
+| DELETE | /api/v1/timetables/entries/{id}        | 수업 삭제                       |
+| GET    | /api/v1/timetables/public              | 공개 시간표 목록 (같은 학교만)  |
 
-### Notification (Client-facing)
-| Method | URI                               | Description                        |
-|--------|-----------------------------------|------------------------------------|
-| GET    | /api/v1/notifications             | My notification list               |
-| PATCH  | /api/v1/notifications/{id}/read   | Mark notification as read          |
-| PATCH  | /api/v1/notifications/read-all    | Mark all notifications as read     |
-
-### Internal Push Triggers (Not exposed to clients)
-| Method | URI                     | Description                                      |
-|--------|-------------------------|--------------------------------------------------|
-| POST   | /api/v1/push/notice     | (Internal/Admin) Send announcement push via FCM  |
-| POST   | /api/v1/push/chat       | (Internal) Trigger chat message push             |
-| POST   | /api/v1/push/comment    | (Internal) Trigger comment/interaction push      |
+### Notification
+| Method | URI                                    | Description           |
+|--------|----------------------------------------|-----------------------|
+| GET    | /api/v1/notifications                  | 알림 목록             |
+| PATCH  | /api/v1/notifications/{id}/read        | 개별 읽음             |
+| PATCH  | /api/v1/notifications/read-all         | 전체 읽음             |
