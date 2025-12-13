@@ -1,380 +1,380 @@
-# ERD – Nonstop App
+# 🟦 Nonstop App ERD
 
-## 1. Enum Definitions
+**Golden Master v2.1**
 
-### 1.1 Authentication Provider
+---
 
-```text
-auth_provider
-- EMAIL
-- GOOGLE
-```
+## 📌 Enum Definitions
 
-### 1.2 Friend Status
-
-```text
-friend_status
-- WAITING
-- ACCEPTED
-- BLOCKED
-- REJECTED
-```
-
-### 1.3 Board Type
-
-```text
-board_type
-- GENERAL
-- NOTICE
-- QNA
-- ANONYMOUS
-```
-
-### 1.4 Notification Type
-
-```text
-notification_type
-- FRIEND_REQUEST
-- FRIEND_ACCEPT
-- POST_LIKE
-- COMMENT_LIKE
-- NEW_COMMENT
-- NEW_REPLY
-- CHAT_MESSAGE
-- ANNOUNCEMENT
-```
-
-### 1.5 Semester Type
-
-```text
-semester_type
-- FIRST
-- SECOND
-- SUMMER
-- WINTER
+```sql
+Enum auth_provider        { EMAIL, GOOGLE }
+Enum friend_status        { WAITING, ACCEPTED, REJECTED, BLOCKED }
+Enum board_type           { GENERAL, NOTICE, QNA, ANONYMOUS }
+Enum notification_type    { FRIEND_REQUEST, FRIEND_ACCEPT, POST_LIKE, COMMENT_LIKE, NEW_COMMENT, NEW_REPLY, CHAT_MESSAGE, ANNOUNCEMENT }
+Enum semester_type        { FIRST, SECOND, SUMMER, WINTER }
+Enum report_target_type   { POST, COMMENT, USER, CHAT_MESSAGE }
+Enum report_reason_type   { SPAM, ABUSE, SEXUAL, HATE, ILLEGAL, PRIVACY, IMPERSONATION, ETC }
+Enum report_status        { PENDING, REVIEWED, ACTION_TAKEN, REJECTED }
+Enum chat_room_type       { ONE_TO_ONE, GROUP }
+Enum verification_method  { EMAIL_DOMAIN, MANUAL_REVIEW, STUDENT_ID_PHOTO }
+Enum user_role            { USER, ADMIN, MANAGER }
 ```
 
 ---
 
-## 2. User & Authentication Domain
+## 1️⃣ User & Authentication
 
-### 2.1 users
+### users
 
-| Column         | Type             | Description                                   |
-| -------------- | ---------------- | --------------------------------------------- |
-| id             | bigint (PK)      | User ID                                       |
-| email          | varchar (Unique) | User email                                    |
-| password       | varchar          | Encrypted password (nullable for OAuth users) |
-| nickname       | varchar          | Display name                                  |
-| auth_provider  | enum             | EMAIL / GOOGLE                                |
-| student_number | varchar (Unique) | Student number                                |
-| university_id  | bigint (FK)      | University                                    |
-| major_id       | bigint (FK)      | Major                                         |
-| profile_image  | varchar          | Profile image URL                             |
-| introduction   | text             | Self introduction                             |
-| is_active      | boolean          | Active status                                 |
-| is_verified    | boolean          | University email verified                     |
-| last_login_at  | timestamp        | Last login time                               |
-| created_at     | timestamp        | Created time                                  |
-| updated_at     | timestamp        | Updated time                                  |
-| deleted_at     | timestamp        | Soft delete                                   |
+| 컬럼명                 | 타입                  | 설명                     |
+| ------------------- | ------------------- | ---------------------- |
+| id                  | bigint PK           | 사용자 ID                 |
+| role                | user_role           | USER / ADMIN / MANAGER |
+| email               | varchar             | 이메일 (nullable)         |
+| password            | varchar             | 비밀번호                   |
+| auth_provider       | auth_provider       | 로그인 방식                 |
+| nickname            | varchar(30)         | 닉네임                    |
+| student_number      | varchar             | 학번                     |
+| university_id       | bigint FK           | 대학                     |
+| major_id            | bigint FK           | 전공                     |
+| profile_image_url   | varchar             | 프로필 이미지                |
+| introduction        | text                | 자기소개                   |
+| preferred_language  | varchar(5)          | 언어                     |
+| is_active           | boolean             | 활성 여부                  |
+| is_verified         | boolean             | 대학생 인증 여부              |
+| verification_method | verification_method | 인증 방식                  |
+| last_login_at       | timestamp           | 마지막 로그인                |
+| created_at          | timestamp           | 생성일                    |
+| updated_at          | timestamp           | 수정일                    |
+| deleted_at          | timestamp           | 탈퇴 (Soft Delete)       |
 
----
+**Indexes**
 
-### 2.2 refresh_tokens
-
-| Column     | Type             | Description   |
-| ---------- | ---------------- | ------------- |
-| id         | bigint (PK)      | Token ID      |
-| user_id    | bigint (FK)      | User          |
-| token      | varchar (Unique) | Refresh token |
-| expires_at | timestamp        | Expiration    |
-| revoked_at | timestamp        | Revoked time  |
-| created_at | timestamp        | Issued time   |
+* email (unique, not null)
+* nickname (unique, deleted_at IS NULL)
+* student_number (unique, not null)
+* university_id
+* is_verified
 
 ---
 
-### 2.3 device_tokens
+### refresh_tokens
 
-| Column      | Type             | Description      |
-| ----------- | ---------------- | ---------------- |
-| id          | bigint (PK)      | Device token ID  |
-| user_id     | bigint (FK)      | User             |
-| token       | varchar (Unique) | FCM device token |
-| device_type | varchar          | iOS / Android    |
-| is_active   | boolean          | Active status    |
-| created_at  | timestamp        | Created time     |
-| updated_at  | timestamp        | Updated time     |
-
----
-
-## 3. University Domain
-
-### 3.1 universities
-
-| Column     | Type             | Description     |
-| ---------- | ---------------- | --------------- |
-| id         | bigint (PK)      | University ID   |
-| name       | varchar (Unique) | University name |
-| region     | varchar          | Region          |
-| logo_image | varchar          | Logo image      |
-| created_at | timestamp        | Created time    |
+| 컬럼명        | 타입             | 설명            |
+| ---------- | -------------- | ------------- |
+| id         | bigint PK      |               |
+| user_id    | bigint FK      |               |
+| token      | varchar UNIQUE | Refresh Token |
+| expires_at | timestamp      | 만료 시각         |
+| revoked_at | timestamp      | 무효화 시각        |
+| created_at | timestamp      | 생성일           |
 
 ---
 
-### 3.2 university_email_domains
+### device_tokens
 
-| Column        | Type        | Description  |
-| ------------- | ----------- | ------------ |
-| id            | bigint (PK) | ID           |
-| university_id | bigint (FK) | University   |
-| domain        | varchar     | Email domain |
-
-> Unique constraint: `(university_id, domain)`
-
----
-
-### 3.3 majors
-
-| Column        | Type        | Description |
-| ------------- | ----------- | ----------- |
-| id            | bigint (PK) | Major ID    |
-| university_id | bigint (FK) | University  |
-| name          | varchar     | Major name  |
-
-> Unique constraint: `(university_id, name)`
+| 컬럼명         | 타입             | 설명            |
+| ----------- | -------------- | ------------- |
+| id          | bigint PK      |               |
+| user_id     | bigint FK      |               |
+| device_type | varchar(20)    | iOS / Android |
+| token       | varchar UNIQUE | FCM 토큰        |
+| is_active   | boolean        | 활성 여부         |
+| created_at  | timestamp      |               |
+| updated_at  | timestamp      |               |
 
 ---
 
-## 4. Community & Board Domain
+### student_verification_requests
 
-### 4.1 communities
+| 컬럼명           | 타입            | 설명      |
+| ------------- | ------------- | ------- |
+| id            | bigint PK     |         |
+| user_id       | bigint FK     |         |
+| image_url     | varchar       | 학생증 이미지 |
+| status        | report_status | 인증 상태   |
+| reject_reason | varchar       | 반려 사유   |
+| reviewed_by   | bigint FK     | 관리자     |
+| reviewed_at   | timestamp     | 처리 시각   |
+| created_at    | timestamp     |         |
+| updated_at    | timestamp     |         |
 
-| Column        | Type        | Description       |
-| ------------- | ----------- | ----------------- |
-| id            | bigint (PK) | Community ID      |
-| university_id | bigint (FK) | University        |
-| name          | varchar     | Community name    |
-| description   | text        | Description       |
-| icon          | varchar     | Icon image        |
-| is_anonymous  | boolean     | Anonymous allowed |
-| sort_order    | integer     | Sorting order     |
-| created_at    | timestamp   | Created time      |
+**Indexes**
 
----
-
-### 4.2 boards
-
-| Column       | Type        | Description  |
-| ------------ | ----------- | ------------ |
-| id           | bigint (PK) | Board ID     |
-| community_id | bigint (FK) | Community    |
-| name         | varchar     | Board name   |
-| type         | enum        | Board type   |
-| is_secret    | boolean     | Secret board |
-| created_at   | timestamp   | Created time |
+* user_id (unique)
+* status
+* created_at DESC
 
 ---
 
-## 5. Post & Comment Domain
+## 2️⃣ University
 
-### 5.1 posts
+### universities
 
-| Column       | Type        | Description    |
-| ------------ | ----------- | -------------- |
-| id           | bigint (PK) | Post ID        |
-| board_id     | bigint (FK) | Board          |
-| user_id      | bigint (FK) | Author         |
-| title        | varchar     | Title          |
-| content      | text        | Content        |
-| view_count   | bigint      | View count     |
-| is_anonymous | boolean     | Anonymous post |
-| is_secret    | boolean     | Secret post    |
-| is_deleted   | boolean     | Soft delete    |
-| deleted_at   | timestamp   | Deleted time   |
-| created_at   | timestamp   | Created time   |
-| updated_at   | timestamp   | Updated time   |
+| 컬럼명            | 타입             | 설명  |
+| -------------- | -------------- | --- |
+| id             | bigint PK      |     |
+| name           | varchar UNIQUE | 대학명 |
+| region         | varchar        | 지역  |
+| logo_image_url | varchar        | 로고  |
+| created_at     | timestamp      |     |
 
 ---
 
-### 5.2 post_images
+### university_email_domains
 
-| Column     | Type        | Description  |
-| ---------- | ----------- | ------------ |
-| id         | bigint (PK) | Image ID     |
-| post_id    | bigint (FK) | Post         |
-| image_url  | varchar     | Image URL    |
-| sort_order | integer     | Order        |
-| created_at | timestamp   | Created time |
+| 컬럼명           | 타입        |
+| ------------- | --------- |
+| id            | bigint PK |
+| university_id | bigint FK |
+| domain        | varchar   |
 
----
-
-### 5.3 comments
-
-| Column           | Type        | Description    |
-| ---------------- | ----------- | -------------- |
-| id               | bigint (PK) | Comment ID     |
-| post_id          | bigint (FK) | Post           |
-| user_id          | bigint (FK) | Author         |
-| upper_comment_id | bigint (FK) | Parent comment |
-| content          | text        | Content        |
-| is_anonymous     | boolean     | Anonymous      |
-| is_deleted       | boolean     | Soft delete    |
-| deleted_at       | timestamp   | Deleted time   |
-| created_at       | timestamp   | Created time   |
-| updated_at       | timestamp   | Updated time   |
+**Unique**: (university_id, domain)
 
 ---
 
-### 5.4 comment_images
+### majors
 
-| Column     | Type        | Description  |
-| ---------- | ----------- | ------------ |
-| id         | bigint (PK) | Image ID     |
-| comment_id | bigint (FK) | Comment      |
-| image_url  | varchar     | Image URL    |
-| sort_order | integer     | Order        |
-| created_at | timestamp   | Created time |
+| 컬럼명           | 타입        |
+| ------------- | --------- |
+| id            | bigint PK |
+| university_id | bigint FK |
+| name          | varchar   |
 
----
-
-### 5.5 Likes
-
-#### user_post_likes
-
-| user_id | post_id | created_at |
-| ------- | ------- | ---------- |
-
-#### user_comment_likes
-
-| user_id | comment_id | created_at |
-| ------- | ---------- | ---------- |
+**Unique**: (university_id, name)
 
 ---
 
-## 6. Friend Domain
+## 3️⃣ Community & Board
 
-### 6.1 friends
+### communities
 
-| Column      | Type        | Description        |
-| ----------- | ----------- | ------------------ |
-| id          | bigint (PK) | Friend relation ID |
-| sender_id   | bigint (FK) | Request sender     |
-| receiver_id | bigint (FK) | Request receiver   |
-| status      | enum        | Friend status      |
-| created_at  | timestamp   | Created time       |
-| updated_at  | timestamp   | Updated time       |
-
----
-
-## 7. Chat Domain
-
-### 7.1 chat_rooms
-
-| Column     | Type        | Description  |
-| ---------- | ----------- | ------------ |
-| id         | bigint (PK) | Chat room ID |
-| created_at | timestamp   | Created time |
-| updated_at | timestamp   | Updated time |
+| 컬럼명           | 타입        |
+| ------------- | --------- |
+| id            | bigint PK |
+| university_id | bigint FK |
+| name          | varchar   |
+| description   | text      |
+| icon          | varchar   |
+| is_anonymous  | boolean   |
+| sort_order    | int       |
+| created_at    | timestamp |
 
 ---
 
-### 7.2 chat_room_users
+### boards
 
-| Column               | Type            | Description       |
-| -------------------- | --------------- | ----------------- |
-| chat_room_id         | bigint (PK, FK) | Chat room         |
-| user_id              | bigint (PK, FK) | User              |
-| last_read_message_id | bigint (FK)     | Last read message |
-| unread_count         | integer         | Unread messages   |
-| joined_at            | timestamp       | Joined time       |
-
----
-
-### 7.3 messages
-
-| Column       | Type        | Description  |
-| ------------ | ----------- | ------------ |
-| id           | bigint (PK) | Message ID   |
-| chat_room_id | bigint (FK) | Chat room    |
-| sender_id    | bigint (FK) | Sender       |
-| content      | text        | Message      |
-| sent_at      | timestamp   | Sent time    |
-| is_deleted   | boolean     | Deleted flag |
+| 컬럼명          | 타입         |
+| ------------ | ---------- |
+| id           | bigint PK  |
+| community_id | bigint FK  |
+| name         | varchar    |
+| type         | board_type |
+| is_secret    | boolean    |
+| created_at   | timestamp  |
 
 ---
 
-## 8. Timetable Domain
+## 4️⃣ Post & Comment
 
-### 8.1 semesters
+### posts
 
-| Column        | Type        | Description   |
-| ------------- | ----------- | ------------- |
-| id            | bigint (PK) | Semester ID   |
-| university_id | bigint (FK) | University    |
-| year          | integer     | Year          |
-| semester      | enum        | Semester type |
-| start_date    | date        | Start date    |
-| end_date      | date        | End date      |
-
----
-
-### 8.2 time_tables
-
-| Column      | Type        | Description  |
-| ----------- | ----------- | ------------ |
-| id          | bigint (PK) | Timetable ID |
-| user_id     | bigint (FK) | User         |
-| semester_id | bigint (FK) | Semester     |
-| title       | varchar     | Title        |
-| is_public   | boolean     | Public       |
-| created_at  | timestamp   | Created time |
+| 컬럼명          | 타입           |
+| ------------ | ------------ |
+| id           | bigint PK    |
+| board_id     | bigint FK    |
+| user_id      | bigint FK    |
+| title        | varchar(150) |
+| content      | text         |
+| view_count   | bigint       |
+| is_anonymous | boolean      |
+| is_secret    | boolean      |
+| deleted_at   | timestamp    |
+| created_at   | timestamp    |
+| updated_at   | timestamp    |
 
 ---
 
-### 8.3 time_table_entries
+### comments
 
-| Column        | Type        | Description |
-| ------------- | ----------- | ----------- |
-| id            | bigint (PK) | Entry ID    |
-| time_table_id | bigint (FK) | Timetable   |
-| subject_name  | varchar     | Subject     |
-| professor     | varchar     | Professor   |
-| day_of_week   | varchar     | Day         |
-| start_time    | time        | Start       |
-| end_time      | time        | End         |
-| place         | varchar     | Location    |
-| color         | varchar     | UI Color    |
-
----
-
-## 9. Notification Domain
-
-### 9.1 notifications
-
-| Column       | Type        | Description       |
-| ------------ | ----------- | ----------------- |
-| id           | bigint (PK) | Notification ID   |
-| user_id      | bigint (FK) | Target user       |
-| actor_id     | bigint (FK) | Action user       |
-| type         | enum        | Notification type |
-| post_id      | bigint (FK) | Related post      |
-| comment_id   | bigint (FK) | Related comment   |
-| chat_room_id | bigint (FK) | Related chat      |
-| message      | text        | Message           |
-| is_read      | boolean     | Read flag         |
-| created_at   | timestamp   | Created time      |
+| 컬럼명              | 타입        |
+| ---------------- | --------- |
+| id               | bigint PK |
+| post_id          | bigint FK |
+| user_id          | bigint FK |
+| upper_comment_id | bigint FK |
+| content          | text      |
+| type             | varchar   |
+| is_anonymous     | boolean   |
+| depth            | int       |
+| deleted_at       | timestamp |
+| created_at       | timestamp |
+| updated_at       | timestamp |
 
 ---
 
-## 10. Relationships Summary
+### Likes
 
-* User → University / Major
-* University → Communities → Boards → Posts → Comments
-* User ↔ Friend (Self-referencing)
-* User ↔ ChatRoom (via chat_room_users)
-* User → Timetable → Entries
-* User → Notifications
-* User → Refresh Tokens / Device Tokens
+* **user_post_likes** (PK: user_id + post_id, soft delete)
+* **user_comment_likes** (PK: user_id + comment_id, soft delete)
+
+---
+
+## 5️⃣ Chat
+
+### chat_rooms
+
+| 컬럼명        | 타입             |
+| ---------- | -------------- |
+| id         | bigint PK      |
+| type       | chat_room_type |
+| name       | varchar        |
+| creator_id | bigint FK      |
+| created_at | timestamp      |
+| updated_at | timestamp      |
+
+---
+
+### one_to_one_chat_rooms
+
+| 컬럼명       | 타입        |
+| --------- | --------- |
+| room_id   | bigint PK |
+| user_a_id | bigint FK |
+| user_b_id | bigint FK |
+
+**Unique**
+
+```
+least(user_a_id, user_b_id),
+greatest(user_a_id, user_b_id)
+```
+
+---
+
+### messages
+
+| 컬럼명          | 타입        |
+| ------------ | --------- |
+| id           | bigint PK |
+| chat_room_id | bigint FK |
+| sender_id    | bigint FK |
+| content      | text      |
+| sent_at      | timestamp |
+
+---
+
+### message_deletions
+
+| 컬럼명        | 타입        |
+| ---------- | --------- |
+| message_id | bigint FK |
+| user_id    | bigint FK |
+| deleted_at | timestamp |
+
+---
+
+## 6️⃣ Timetable
+
+### time_tables
+
+| 컬럼명         | 타입        |
+| ----------- | --------- |
+| id          | bigint PK |
+| user_id     | bigint FK |
+| semester_id | bigint FK |
+| title       | varchar   |
+| is_public   | boolean   |
+| created_at  | timestamp |
+
+**Unique**: (user_id, semester_id)
+
+---
+
+### time_table_entries
+
+| 컬럼명           | 타입        |
+| ------------- | --------- |
+| id            | bigint PK |
+| time_table_id | bigint FK |
+| subject_name  | varchar   |
+| professor     | varchar   |
+| day_of_week   | varchar   |
+| start_time    | time      |
+| end_time      | time      |
+| place         | varchar   |
+| color         | varchar   |
+
+---
+
+## 7️⃣ Friend & Block
+
+### friends
+
+| 컬럼명         | 타입            |
+| ----------- | ------------- |
+| id          | bigint PK     |
+| sender_id   | bigint FK     |
+| receiver_id | bigint FK     |
+| status      | friend_status |
+| created_at  | timestamp     |
+| updated_at  | timestamp     |
+| deleted_at  | timestamp     |
+
+**Unique**
+
+```
+least(sender_id, receiver_id),
+greatest(sender_id, receiver_id),
+deleted_at
+```
+
+---
+
+### user_blocks
+
+| 컬럼명        | 타입        |
+| ---------- | --------- |
+| blocker_id | bigint FK |
+| blocked_id | bigint FK |
+| created_at | timestamp |
+
+---
+
+## 8️⃣ Notification & Report
+
+### notifications
+
+| 컬럼명            | 타입                |
+| -------------- | ----------------- |
+| id             | bigint PK         |
+| user_id        | bigint FK         |
+| actor_id       | bigint            |
+| actor_nickname | varchar           |
+| type           | notification_type |
+| post_id        | bigint FK         |
+| comment_id     | bigint FK         |
+| chat_room_id   | bigint FK         |
+| message        | text              |
+| is_read        | boolean           |
+| created_at     | timestamp         |
+
+---
+
+### reports
+
+| 컬럼명         | 타입                 |
+| ----------- | ------------------ |
+| id          | bigint PK          |
+| reporter_id | bigint FK          |
+| target_type | report_target_type |
+| target_id   | bigint             |
+| reason      | report_reason_type |
+| description | text               |
+| status      | report_status      |
+| handled_by  | bigint FK          |
+| handled_at  | timestamp          |
+| created_at  | timestamp          |
+| updated_at  | timestamp          |
 
 ---
