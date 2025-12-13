@@ -27,7 +27,7 @@ Enum user_role            { USER, ADMIN, MANAGER }
 ### users
 
 | 컬럼명                 | 타입                  | 설명                     |
-| ------------------- | ------------------- | ---------------------- |
+| ------------------- | ------------------- |------------------------|
 | id                  | bigint PK           | 사용자 ID                 |
 | role                | user_role           | USER / ADMIN / MANAGER |
 | email               | varchar             | 이메일 (nullable)         |
@@ -35,8 +35,8 @@ Enum user_role            { USER, ADMIN, MANAGER }
 | auth_provider       | auth_provider       | 로그인 방식                 |
 | nickname            | varchar(30)         | 닉네임                    |
 | student_number      | varchar             | 학번                     |
-| university_id       | bigint FK           | 대학                     |
-| major_id            | bigint FK           | 전공                     |
+| university_id       | bigint FK           | 대학(nullable)           |
+| major_id            | bigint FK           | 전공(nullable)           |
 | profile_image_url   | varchar             | 프로필 이미지                |
 | introduction        | text                | 자기소개                   |
 | preferred_language  | varchar(5)          | 언어                     |
@@ -53,7 +53,6 @@ Enum user_role            { USER, ADMIN, MANAGER }
 * email (unique, not null)
 * nickname (unique, deleted_at IS NULL)
 * student_number (unique, not null)
-* university_id
 * is_verified
 
 ---
