@@ -5,6 +5,8 @@ server:
   port: 8080
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: nonstop
 
@@ -88,4 +90,4 @@ spring:
   # In local environment, you might want to see the SQL queries
 logging:
   level:
-    com.app.nonstop.domain.dao: trace
+    com.app.nonstop.domain.dao: trace # 이거 config 설정 수정해야 할 것 같아
