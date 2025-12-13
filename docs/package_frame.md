@@ -2,52 +2,46 @@
 Application
 
 com.app.nonstop
- ├── NonstopApplication.java
- │
  ├── global
  │   ├── config
- │   │   ├── SecurityConfig.java
- │   │   ├── WebSocketConfig.java
- │   │   ├── RedisConfig.java
- │   │   ├── SwaggerConfig.java
- │   │   └── MyBatisConfig.java
+ │   │   ├── SecurityConfig.java      // URL별 권한 제어 (Graceful Degradation)
+ │   │   ├── WebSocketConfig.java     // /ws/chat 엔드포인트 설정
+ │   │   ├── RedisConfig.java         // RedisTemplate 설정
+ │   │   ├── WebMvcConfig.java        // CORS 등 설정
+ │   │   └── AwsS3Config.java         // (New) S3 설정
  │   │
  │   ├── security
  │   │   ├── jwt
  │   │   │   ├── JwtTokenProvider.java
- │   │   │   ├── JwtAuthenticationFilter.java
- │   │   │   └── JwtExceptionHandler.java
- │   │   │
- │   │   ├── oauth
- │   │   │   ├── CustomOAuth2UserService.java
- │   │   │   └── OAuth2SuccessHandler.java
- │   │   │
- │   │   └── UserPrincipal.java
+ │   │   │   └── JwtAuthenticationFilter.java
+ │   │   └── user
+ │   │       └── CustomUserDetails.java // UserPrincipal 대체
  │   │
- │   ├── exception
- │   │   ├── GlobalExceptionHandler.java
- │   │   ├── ErrorCode.java
- │   │   └── BusinessException.java
- │   │
- │   ├── response
- │   │   ├── ApiResponse.java
- │   │   └── ErrorResponse.java
+ │   ├── common
+ │   │   ├── response
+ │   │   │   └── ApiResponse.java
+ │   │   └── exception
+ │   │       └── GlobalExceptionHandler.java
  │   │
  │   └── util
- │       ├── DateUtils.java
- │       └── RedisKeyUtils.java
+ │       └── FileUtils.java
  │
- ├── domain
+ ├── infra                            // 외부 시스템 연동 (구현체 분리)
+ │   ├── s3
+ │   │   └── S3Uploader.java          // (New) 이미지 업로드
+ │   └── fcm
+ │       └── FcmPushService.java      // (New) 푸시 알림 발송
+ │
+ ├── domain                           // 도메인 주도 설계 (DDD)
  │   ├── auth
  │   │   ├── controller
  │   │   │   └── AuthController.java
  │   │   ├── service
  │   │   │   └── AuthService.java
  │   │   ├── dto
- │   │   │   ├── LoginRequest.java
- │   │   │   └── TokenResponse.java
+ │   │   │   └── AuthDto.java         // (New) Inner Class로 LoginReq, TokenRes 관리
  │   │   └── mapper
- │   │       └── AuthMapper.xml
+ │   │       └── AuthMapper.java      // (New) Interface는 여기에 위치
  │   │
  │   ├── user
  │   │   ├── controller
@@ -55,30 +49,22 @@ com.app.nonstop
  │   │   ├── dto
  │   │   └── mapper
  │   │
- │   ├── community
- │   ├── board
- │   ├── post
- │   ├── comment
- │   ├── friend
  │   ├── chat
- │   │   ├── websocket
- │   │   │   ├── ChatWebSocketHandler.java
- │   │   │   └── ChatMessageHandler.java
+ │   │   ├── controller
  │   │   ├── service
- │   │   └── dto
+ │   │   │   └── ChatService.java     // 메시지 저장, Redis Pub, FCM 트리거
+ │   │   ├── handler
+ │   │   │   └── ChatWebSocketHandler.java // WS 연결 관리
+ │   │   ├── dto
+ │   │   │   └── ChatDto.java         // MessageReq, RoomRes 등
+ │   │   └── mapper
+ │   │       └── ChatMapper.java      // (New) chat_room_members 조회 포함
  │   │
- │   ├── timetable
+ │   ├── community (board, post, comment...)
  │   ├── notification
- │   └── university
+ │   └── timetable
  │
- └── infra
-     ├── mail
-     │   └── MailService.java
-     ├── push
-     │   └── FcmPushService.java
-     └── redis
-         └── RedisService.java
-
+ └── NonstopApplication.java
 ```
 
 ```

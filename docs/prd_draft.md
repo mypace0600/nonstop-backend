@@ -22,7 +22,6 @@
 #### 3.1.2 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
 - Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
-- Apple Sign In (2025년 추가 예정)
 
 #### 3.1.3 Access Token Payload (표준)
 ```
@@ -32,7 +31,7 @@
   "nickname": "코알라",
   "universityId": 52,        // null 허용
   "isVerified": true,        // 대학생 인증 여부 (v2 신규)
-  "authProvider": "EMAIL|GOOGLE|APPLE",
+  "authProvider": "EMAIL|GOOGLE",
   "iat": 1735999999,
   "exp": 1736001799
 }
@@ -111,7 +110,6 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/auth/signup                    | 이메일 회원가입                  |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   |
 | POST   | /api/v1/auth/google                    | Google 로그인                   |
-| POST   | /api/v1/auth/apple                     | Apple 로그인 (예정)             |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             |
 | POST   | /api/v1/auth/logout                    | Refresh Token 무효화               |
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
