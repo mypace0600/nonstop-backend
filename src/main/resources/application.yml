@@ -10,6 +10,16 @@ spring:
   application:
     name: nonstop
 
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-northeast-2} # 환경변수 없으면 서울(ap-northeast-2) 기본값
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+      s3:
+        enabled: true
+
   # --- Datasource (PostgreSQL) ---
   datasource:
     driver-class-name: org.postgresql.Driver
@@ -51,11 +61,19 @@ spring:
       max-request-size: 10MB
 
 # ===================================================================
-# MYBATIS & JWT & SPRINGDOC CONFIGURATION
+# MYBATIS CONFIGURATION (XML Free)
 # ===================================================================
 mybatis:
-  config-location: classpath:mybatis/mybatis-config.xml
   mapper-locations: classpath:mybatis/mappers/**/*.xml
+  type-aliases-package: com.app.nonstop.domain.model
+  configuration:
+    map-underscore-to-camel-case: true
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+
+# ===================================================================
+# JWT & SPRINGDOC CONFIGURATION
+# ===================================================================
 
 jwt:
   secret: ${JWT_SECRET_KEY}
