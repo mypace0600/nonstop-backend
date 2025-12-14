@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.domain.verification.mapper.VerificationMapper">
+
+    <resultMap id="verificationRequestResultMap" type="com.app.nonstop.domain.verification.entity.StudentVerificationRequest">
+        <id property="id" column="req_id"/>
+        <result property="imageUrl" column="req_image_url"/>
+        <result property="status" column="req_status" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="rejectReason" column="req_reject_reason"/>
+        <result property="reviewedAt" column="req_reviewed_at"/>
+        <result property="createdAt" column="req_created_at"/>
+        <result property="updatedAt" column="req_updated_at"/>
+        <association property="user" javaType="com.app.nonstop.domain.user.entity.User">
+            <id property="id" column="user_id"/>
+        </association>
+        <association property="reviewedBy" javaType="com.app.nonstop.domain.user.entity.User">
+            <id property="id" column="reviewed_by_id"/>
+        </association>
+    </resultMap>
+
+    <select id="findPendingRequestByUserId" resultMap="verificationRequestResultMap">
+        SELECT
+            id AS req_id,
+            user_id,
+            image_url AS req_image_url,
+            status AS req_status,
+            reject_reason AS req_reject_reason,
+            reviewed_by AS reviewed_by_id,
+            reviewed_at AS req_reviewed_at,
+            created_at AS req_created_at,
+            updated_at AS req_updated_at
+        FROM
+            student_verification_requests
+        WHERE
+            user_id = #{userId} AND status = 'PENDING'
+        LIMIT 1
+    </select>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO student_verification_requests (user_id, image_url, status, created_at, updated_at)
+        VALUES (#{user.id}, #{imageUrl}, #{status}, NOW(), NOW())
+    </insert>
+
+</mapper>
