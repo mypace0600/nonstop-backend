@@ -3,6 +3,7 @@ package com.app.nonstop.domain.user.controller;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
+import com.app.nonstop.domain.user.dto.VerificationStatusResponseDto;
 import com.app.nonstop.domain.user.service.UserService;
 import com.app.nonstop.global.common.response.ApiResponse;
 import com.app.nonstop.global.security.user.CustomUserDetails;
@@ -74,5 +75,15 @@ public class UserController {
     ) {
         userService.deactivateAccount(customUserDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(summary = "인증 상태 조회", description = "현재 로그인된 사용자의 대학생 인증 상태 및 인증 방식을 조회합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/me/verification-status")
+    public ResponseEntity<ApiResponse<VerificationStatusResponseDto>> getMyVerificationStatus(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        VerificationStatusResponseDto responseDto = userService.getVerificationStatus(customUserDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
 }

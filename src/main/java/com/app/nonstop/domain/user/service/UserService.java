@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.user.service;
 
 import com.app.nonstop.domain.user.dto.UserResponseDto;
+import com.app.nonstop.domain.user.dto.VerificationStatusResponseDto;
 
 public interface UserService {
 
@@ -34,4 +35,12 @@ public interface UserService {
      * @param userId 탈퇴할 사용자의 ID
      */
     void deactivateAccount(Long userId);
+
+    /**
+     * 현재 로그인된 사용자의 대학생 인증 상태 및 인증 방식을 조회합니다.
+     *
+     * @param userId 현재 로그인된 사용자의 ID
+     * @return 인증 상태 응답 DTO
+     */
+    VerificationStatusResponseDto getVerificationStatus(Long userId);
 }

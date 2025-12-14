@@ -6,6 +6,7 @@ import com.app.nonstop.domain.university.entity.University;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
+import com.app.nonstop.domain.user.dto.VerificationStatusResponseDto;
 import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
@@ -119,5 +120,16 @@ public class UserServiceImpl implements UserService {
         
         // 2. 사용자의 deleted_at 필드를 현재 시간으로 업데이트하여 비활성화합니다.
         userMapper.softDelete(userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VerificationStatusResponseDto getVerificationStatus(Long userId) {
+        // 1. Mapper를 통해 DB에서 사용자 정보를 조회합니다.
+        User user = userMapper.findById(userId)
+                .orElseThrow(UserNotFoundException::new); // 사용자를 찾을 수 없을 경우 예외 발생
+
+        // 2. 조회된 User 엔티티의 인증 관련 필드를 VerificationStatusResponseDto로 변환하여 반환합니다.
+        return VerificationStatusResponseDto.of(user);
     }
 }
