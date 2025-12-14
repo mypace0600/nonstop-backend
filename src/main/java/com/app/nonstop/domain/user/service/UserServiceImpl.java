@@ -1,5 +1,6 @@
 package com.app.nonstop.domain.user.service;
 
+import com.app.nonstop.domain.device.mapper.DeviceMapper;
 import com.app.nonstop.domain.major.entity.Major;
 import com.app.nonstop.domain.university.entity.University;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final DeviceMapper deviceMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -105,5 +107,17 @@ public class UserServiceImpl implements UserService {
 
         // 5. DB에 암호화된 새 비밀번호 업데이트
         userMapper.updatePassword(userId, encodedNewPassword);
+    }
+
+    @Override
+    @Transactional
+    public void deactivateAccount(Long userId) {
+        // TODO: 회원 탈퇴 시, 해당 사용자의 Refresh Token을 모두 무효화하는 로직이 필요합니다.
+
+        // 1. 사용자와 연결된 모든 FCM 디바이스 토큰을 삭제합니다.
+        deviceMapper.deleteAllByUserId(userId);
+        
+        // 2. 사용자의 deleted_at 필드를 현재 시간으로 업데이트하여 비활성화합니다.
+        userMapper.softDelete(userId);
     }
 }

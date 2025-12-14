@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.domain.device.mapper.DeviceMapper">
+
+    <resultMap id="deviceTokenResultMap" type="com.app.nonstop.domain.device.entity.DeviceToken">
+        <id property="id" column="dt_id"/>
+        <result property="deviceType" column="dt_device_type"/>
+        <result property="token" column="dt_token"/>
+        <result property="isActive" column="dt_is_active"/>
+        <result property="createdAt" column="dt_created_at"/>
+        <result property="updatedAt" column="dt_updated_at"/>
+        <association property="user" javaType="com.app.nonstop.domain.user.entity.User">
+            <id property="id" column="user_id"/>
+        </association>
+    </resultMap>
+
+    <select id="findByToken" resultMap="deviceTokenResultMap">
+        SELECT
+            id AS dt_id,
+            user_id,
+            device_type AS dt_device_type,
+            token AS dt_token,
+            is_active AS dt_is_active,
+            created_at AS dt_created_at,
+            updated_at AS dt_updated_at
+        FROM
+            device_tokens
+        WHERE
+            token = #{token}
+    </select>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO device_tokens (user_id, device_type, token, is_active, created_at, updated_at)
+        VALUES (#{user.id}, #{deviceType}, #{token}, #{isActive}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE device_tokens
+        SET
+            user_id = #{user.id},
+            is_active = #{isActive},
+            updated_at = NOW()
+        WHERE
+            id = #{id}
+    </update>
+
+    <delete id="deleteAllByUserId">
+        DELETE FROM device_tokens
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

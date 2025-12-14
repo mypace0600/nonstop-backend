@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -62,6 +63,16 @@ public class UserController {
             @RequestBody @Valid PasswordUpdateRequestDto requestDto
     ) {
         userService.updatePassword(customUserDetails.getUserId(), requestDto);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 비활성화(soft delete)합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<?>> deactivateMyAccount(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        userService.deactivateAccount(customUserDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success());
     }
 }

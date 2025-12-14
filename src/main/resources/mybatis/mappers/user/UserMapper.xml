@@ -149,4 +149,17 @@
             id = #{userId}
     </update>
 
+    <!--
+        [Update: softDelete]
+        사용자 계정을 비활성화(soft delete)합니다.
+        - 실제 데이터를 삭제하는 대신 deleted_at 필드에 현재 시간을 기록합니다.
+    -->
+    <update id="softDelete">
+        UPDATE users
+        SET
+            deleted_at = NOW()
+        WHERE
+            id = #{userId}
+    </update>
+
 </mapper>

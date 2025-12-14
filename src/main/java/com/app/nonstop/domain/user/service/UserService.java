@@ -27,4 +27,11 @@ public interface UserService {
      * @param requestDto 현재 비밀번호와 새 비밀번호 정보
      */
     void updatePassword(Long userId, com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto requestDto);
+
+    /**
+     * 회원 계정을 비활성화(soft delete)합니다.
+     *
+     * @param userId 탈퇴할 사용자의 ID
+     */
+    void deactivateAccount(Long userId);
 }
