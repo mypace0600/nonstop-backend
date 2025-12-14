@@ -5,6 +5,10 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 사용자 프로필 수정 요청 데이터를 담는 DTO입니다.
+ * 닉네임, 대학, 전공, 프로필 이미지 URL, 자기소개, 선호 언어를 변경할 수 있습니다.
+ */
 @Getter
 @NoArgsConstructor
 @Schema(description = "프로필 수정 요청 DTO")
@@ -14,6 +18,7 @@ public class ProfileUpdateRequestDto {
     @Size(min = 2, max = 30, message = "닉네임은 2자 이상 30자 이하로 입력해주세요.")
     private String nickname;
 
+    // TODO: (고려사항) universityId와 majorId에 대한 유효성 검증 (예: DB에 존재하는 ID인지 확인) 로직이 추가될 수 있습니다.
     @Schema(description = "대학 ID", example = "10")
     private Long universityId;
 

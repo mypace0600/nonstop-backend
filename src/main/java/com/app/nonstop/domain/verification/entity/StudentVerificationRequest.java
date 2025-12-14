@@ -8,16 +8,20 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * 학생증 인증 요청 정보를 나타내는 데이터 객체(POJO).
+ * `student_verification_requests` 테이블의 레코드와 매핑됩니다.
+ */
 @Getter
 @NoArgsConstructor
 public class StudentVerificationRequest extends BaseTimeEntity {
 
     private Long id;
-    private User user;
+    private User user; // user_id (FK)
     private String imageUrl;
     private ReportStatus status;
     private String rejectReason;
-    private User reviewedBy;
+    private User reviewedBy; // reviewed_by (FK)
     private LocalDateTime reviewedAt;
 
     @Builder

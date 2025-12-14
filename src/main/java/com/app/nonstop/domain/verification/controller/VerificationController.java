@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 사용자 인증(Verification) 관련 API 요청을 처리하는 컨트롤러입니다.
+ * 학생증 사진 업로드를 통한 대학생 인증 요청 기능을 제공합니다.
+ */
 @Tag(name = "Verification", description = "사용자 인증 관련 API")
 @RestController
 @RequestMapping("/api/v1/verification")
@@ -25,6 +29,14 @@ public class VerificationController {
 
     private final VerificationService verificationService;
 
+    /**
+     * 학생증 사진(이미지 파일)을 업로드하여 수동 대학생 인증을 요청합니다.
+     * 요청 성공 시 인증 상태는 'PENDING'이 되며, 관리자의 검토를 기다립니다.
+     *
+     * @param customUserDetails Spring Security에서 주입한 현재 인증된 사용자 정보
+     * @param file 업로드할 학생증 이미지 파일 (MultipartFile)
+     * @return ApiResponse<?> 성공 응답 (데이터 없음)
+     */
     @Operation(
             summary = "학생증 사진 업로드 인증 요청",
             description = "학생증 사진(이미지 파일)을 업로드하여 수동 대학생 인증을 요청합니다. 요청 성공 시 인증 상태는 'PENDING'이 됩니다.",
