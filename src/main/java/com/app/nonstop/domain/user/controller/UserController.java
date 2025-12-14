@@ -1,5 +1,6 @@
 package com.app.nonstop.domain.user.controller;
 
+import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
 import com.app.nonstop.domain.user.service.UserService;
@@ -50,6 +51,17 @@ public class UserController {
             @RequestBody @Valid ProfileUpdateRequestDto requestDto
     ) {
         userService.updateProfile(customUserDetails.getUserId(), requestDto);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(summary = "비밀번호 변경", description = "현재 로그인된 사용자의 비밀번호를 변경합니다. 이메일 가입자만 가능합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/me/password")
+    public ResponseEntity<ApiResponse<?>> updateMyPassword(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody @Valid PasswordUpdateRequestDto requestDto
+    ) {
+        userService.updatePassword(customUserDetails.getUserId(), requestDto);
         return ResponseEntity.ok(ApiResponse.success());
     }
 }

@@ -135,4 +135,18 @@
         WHERE id = #{id}
     </update>
 
+    <!--
+        [Update: updatePassword]
+        사용자의 비밀번호를 업데이트합니다.
+        - 비밀번호 변경 시 updated_at 필드도 함께 갱신합니다.
+    -->
+    <update id="updatePassword">
+        UPDATE users
+        SET
+            password = #{newPassword},
+            updated_at = NOW()
+        WHERE
+            id = #{userId}
+    </update>
+
 </mapper>

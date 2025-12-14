@@ -19,4 +19,12 @@ public interface UserService {
      * @param requestDto 수정할 프로필 정보
      */
     void updateProfile(Long userId, com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto requestDto);
+
+    /**
+     * 사용자 비밀번호를 변경합니다.
+     *
+     * @param userId     변경할 사용자의 ID
+     * @param requestDto 현재 비밀번호와 새 비밀번호 정보
+     */
+    void updatePassword(Long userId, com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto requestDto);
 }

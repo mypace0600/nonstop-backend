@@ -13,4 +13,6 @@ public interface UserMapper {
     boolean existsByNickname(@Param("nickname") String nickname);
 
     void updateProfile(User user);
+
+    void updatePassword(@Param("userId") Long userId, @Param("newPassword") String newPassword);
 }

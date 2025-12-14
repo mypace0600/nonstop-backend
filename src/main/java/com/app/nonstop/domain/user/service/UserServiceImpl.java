@@ -2,13 +2,18 @@ package com.app.nonstop.domain.user.service;
 
 import com.app.nonstop.domain.major.entity.Major;
 import com.app.nonstop.domain.university.entity.University;
+import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
+import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
+import com.app.nonstop.domain.user.exception.InvalidPasswordChangeAttemptException;
+import com.app.nonstop.domain.user.exception.InvalidPasswordException;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
 import com.app.nonstop.domain.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserResponseDto getMyInfo(Long userId) {
@@ -75,5 +81,29 @@ public class UserServiceImpl implements UserService {
         
         // 4. Mapper를 통해 DB 업데이트 수행
         userMapper.updateProfile(userToUpdate);
+    }
+
+    @Override
+    @Transactional
+    public void updatePassword(Long userId, PasswordUpdateRequestDto requestDto) {
+        // 1. 사용자 존재 여부 확인
+        User user = userMapper.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 이메일 가입자인지 확인 (소셜 로그인 유저는 비밀번호 변경 불가)
+        if (user.getAuthProvider() != AuthProvider.EMAIL) {
+            throw new InvalidPasswordChangeAttemptException();
+        }
+
+        // 3. 현재 비밀번호 일치 여부 확인
+        if (!passwordEncoder.matches(requestDto.getCurrentPassword(), user.getPassword())) {
+            throw new InvalidPasswordException();
+        }
+
+        // 4. 새 비밀번호 암호화
+        String encodedNewPassword = passwordEncoder.encode(requestDto.getNewPassword());
+
+        // 5. DB에 암호화된 새 비밀번호 업데이트
+        userMapper.updatePassword(userId, encodedNewPassword);
     }
 }
