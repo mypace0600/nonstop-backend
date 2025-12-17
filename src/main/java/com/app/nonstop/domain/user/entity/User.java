@@ -25,6 +25,7 @@ public class User extends BaseTimeEntity {
     private String email;
     private String password;
     private AuthProvider authProvider;
+    private String providerId;
     private String nickname;
     private String studentNumber;
     private University university;

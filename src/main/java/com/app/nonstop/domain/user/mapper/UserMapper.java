@@ -17,4 +17,10 @@ public interface UserMapper {
     void updatePassword(@Param("userId") Long userId, @Param("newPassword") String newPassword);
 
     void softDelete(@Param("userId") Long userId);
+
+    Optional<User> findByEmail(@Param("email") String email);
+
+    void insertUser(User user);
+
+    void updateUser(User user);
 }

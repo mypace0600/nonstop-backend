@@ -1,30 +1,57 @@
 package com.app.nonstop.global.security.user;
 
+import com.app.nonstop.domain.user.entity.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 @Getter
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails implements UserDetails, OAuth2User {
 
     private final Long userId;
+    private final String email;
     private final Collection<? extends GrantedAuthority> authorities;
+    private Map<String, Object> attributes;
 
-    public CustomUserDetails(Long userId, Collection<? extends GrantedAuthority> authorities) {
+    public CustomUserDetails(Long userId, String email, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
+        this.email = email;
         this.authorities = authorities;
     }
 
-    public static CustomUserDetails of(Long userId, String role) {
+    public static CustomUserDetails create(User user) {
         return new CustomUserDetails(
-                userId,
-                Collections.singleton((GrantedAuthority) () -> "ROLE_" + role)
+                user.getId(),
+                user.getEmail(),
+                Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()))
         );
     }
 
+    public static CustomUserDetails create(User user, Map<String, Object> attributes) {
+        CustomUserDetails userDetails = CustomUserDetails.create(user);
+        userDetails.setAttributes(attributes);
+        return userDetails;
+    }
+
+    @Override
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
+
+    public void setAttributes(Map<String, Object> attributes) {
+        this.attributes = attributes;
+    }
+
+    @Override
+    public String getName() {
+        return String.valueOf(userId);
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

@@ -188,4 +188,59 @@
             id = #{userId}
     </update>
 
+    <select id="findByEmail" resultMap="userWithDetailsMap">
+        SELECT
+            u.id AS user_id,
+            u.role AS user_role,
+            u.email AS user_email,
+            u.password AS user_password,
+            u.auth_provider AS user_auth_provider,
+            u.nickname AS user_nickname,
+            u.student_number AS user_student_number,
+            u.profile_image_url AS user_profile_image_url,
+            u.introduction AS user_introduction,
+            u.preferred_language AS user_preferred_language,
+            u.is_active AS user_is_active,
+            u.is_verified AS user_is_verified,
+            u.verification_method AS user_verification_method,
+            u.last_login_at AS user_last_login_at,
+            u.deleted_at AS user_deleted_at,
+            u.created_at AS user_created_at,
+            u.updated_at AS user_updated_at,
+
+            uni.id AS uni_id,
+            uni.name AS uni_name,
+            uni.region AS uni_region,
+            uni.logo_image_url AS uni_logo_image_url,
+            uni.created_at AS uni_created_at,
+
+            m.id AS major_id,
+            m.university_id AS major_university_id,
+            m.name AS major_name
+        FROM
+            users u
+        LEFT JOIN
+            universities uni ON u.university_id = uni.id
+        LEFT JOIN
+            majors m ON u.major_id = m.id
+        WHERE
+            u.email = #{email}
+            AND u.deleted_at IS NULL
+    </select>
+
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, nickname, profile_image_url, role, auth_provider, provider_id)
+        VALUES (#{email}, #{nickname}, #{profileImageUrl}, #{role, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{authProvider, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{providerId})
+    </insert>
+
+    <update id="updateUser">
+        UPDATE users
+        SET
+            nickname = #{nickname},
+            profile_image_url = #{profileImageUrl},
+            updated_at = NOW()
+        WHERE
+            id = #{id}
+    </update>
+
 </mapper>

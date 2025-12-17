@@ -2,7 +2,7 @@
 # COMMON & DEFAULT CONFIGURATION
 # ===================================================================
 server:
-  port: 8080
+  port: 28080
 
 spring:
   config:
@@ -23,7 +23,7 @@ spring:
   # --- Datasource (PostgreSQL) ---
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:nonstop_local}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:28083}/${DB_NAME:nonstop_local}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
 
@@ -72,13 +72,16 @@ mybatis:
     jdbc-type-for-null: 'null'
 
 # ===================================================================
-# JWT & SPRINGDOC CONFIGURATION
+# App, JWT, OAuth2 & SPRINGDOC CONFIGURATION
 # ===================================================================
-
-jwt:
-  secret: ${JWT_SECRET_KEY}
-  expiration: 1800000          # 30분
-  refresh-expiration: 2592000000 # 30일
+app:
+  auth:
+    tokenSecret: ${JWT_SECRET_KEY}
+    tokenExpiry: 1800000 # 30분
+    refreshTokenExpiry: 2592000000 # 30일
+  oauth2:
+    authorizedRedirectUris:
+      - http://localhost:3000/oauth2/redirect
 
 springdoc:
   version: v0.0.1
