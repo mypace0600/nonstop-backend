@@ -22,8 +22,6 @@ public class S3Uploader {
 
     private final S3Client s3Client;
 
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
 
     /**
      * MultipartFile을 S3에 업로드하고 해당 파일의 URL을 반환합니다.
@@ -45,7 +43,7 @@ public class S3Uploader {
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucket)
+                    .bucket("bucket")
                     .key(fileName)
                     .contentType(multipartFile.getContentType())
                     .build();
@@ -53,7 +51,7 @@ public class S3Uploader {
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(multipartFile.getInputStream(), multipartFile.getSize()));
 
             // 업로드된 파일의 URL을 반환합니다.
-            return s3Client.utilities().getUrl(builder -> builder.bucket(bucket).key(fileName)).toExternalForm();
+            return s3Client.utilities().getUrl(builder -> builder.bucket("bucket").key(fileName)).toExternalForm();
 
         } catch (IOException e) {
             log.error("S3 파일 업로드 중 입출력 오류가 발생했습니다. 파일: {}", originalFilename, e);
