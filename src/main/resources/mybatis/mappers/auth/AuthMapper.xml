@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.domain.auth.mapper.AuthMapper">
+
+    <select id="findByEmail" resultType="com.app.nonstop.domain.user.entity.User">
+        SELECT *
+        FROM users
+        WHERE email = #{email}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="existsByEmail" resultType="boolean">
+        SELECT EXISTS(
+                       SELECT 1
+                       FROM users
+                       WHERE email = #{email}
+                         AND deleted_at IS NULL
+                   )
+    </select>
+
+    <select id="existsByNickname" resultType="boolean">
+        SELECT EXISTS(
+                       SELECT 1
+                       FROM users
+                       WHERE nickname = #{nickname}
+                         AND deleted_at IS NULL
+                   )
+    </select>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password, nickname, auth_provider, role, is_active, is_verified)
+        VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false)
+    </insert>
+
+</mapper>
