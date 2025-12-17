@@ -13,7 +13,7 @@ import com.app.nonstop.global.security.jwt.JwtTokenProvider;
 import com.app.nonstop.global.security.user.CustomUserDetails;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,11 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class AuthServiceImpl implements AuthService {
 
@@ -35,7 +35,17 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenMapper refreshTokenMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final FirebaseAuth firebaseAuth;
+    private final Optional<FirebaseAuth> firebaseAuth;
+
+    @Autowired
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
+        this.authMapper = authMapper;
+        this.refreshTokenMapper = refreshTokenMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.firebaseAuth = firebaseAuth;
+    }
+
 
     @Override
     public void signUp(AuthDto.SignUpRequest signUpRequest) {
@@ -60,9 +70,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthDto.TokenResponse googleLogin(AuthDto.GoogleLoginRequest googleLoginRequest) {
+        FirebaseAuth auth = firebaseAuth.orElseThrow(() -> new IllegalStateException("Firebase not configured for this environment."));
         FirebaseToken firebaseToken;
         try {
-            firebaseToken = firebaseAuth.verifyIdToken(googleLoginRequest.getIdToken());
+            firebaseToken = auth.verifyIdToken(googleLoginRequest.getIdToken());
         } catch (Exception e) {
             throw new RuntimeException("Invalid Google ID token.");
         }
@@ -158,3 +169,4 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 }
+
