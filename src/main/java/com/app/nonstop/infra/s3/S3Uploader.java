@@ -16,7 +16,6 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@Profile("!test")
 @RequiredArgsConstructor
 public class S3Uploader {
 

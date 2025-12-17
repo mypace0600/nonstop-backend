@@ -37,4 +37,4 @@ out/
 .vscode/
 .DS_Store
 .env
-/src/main/resources/firebase/firebase-service-account.json
+resources/firebase/firebase-service-account.json
