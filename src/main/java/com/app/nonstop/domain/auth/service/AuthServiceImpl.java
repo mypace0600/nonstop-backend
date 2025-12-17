@@ -10,14 +10,19 @@ import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
 import com.app.nonstop.domain.user.exception.InvalidPasswordException;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
 import com.app.nonstop.global.security.jwt.JwtTokenProvider;
+import com.app.nonstop.global.security.user.CustomUserDetails;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.UUID;
 
 
@@ -84,15 +89,22 @@ public class AuthServiceImpl implements AuthService {
 
 
     private AuthDto.TokenResponse issueTokens(User user) {
-        String accessToken = jwtTokenProvider.createAccessToken(user);
-        String refreshToken = jwtTokenProvider.createRefreshToken(user);
+        CustomUserDetails userDetails = new CustomUserDetails(
+                user.getId(),
+                user.getEmail(),
+                Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()))
+        );
+        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+        String accessToken = jwtTokenProvider.createAccessToken(authentication);
+        String refreshToken = jwtTokenProvider.createRefreshToken(authentication);
 
         refreshTokenMapper.deleteByUserId(user.getId());
 
         RefreshToken newRefreshToken = RefreshToken.builder()
                 .userId(user.getId())
                 .token(refreshToken)
-                .expiresAt(Instant.now().plus(jwtTokenProvider.getRefreshTokenValidity()))
+                .expiresAt(Instant.now().plusMillis(jwtTokenProvider.getRefreshTokenValidity()))
                 .build();
         refreshTokenMapper.save(newRefreshToken);
 
@@ -114,16 +126,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthDto.TokenResponse refresh(String refreshTokenValue) {
+        if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
+            throw new RuntimeException("Invalid Refresh Token");
+        }
+
         RefreshToken refreshToken = refreshTokenMapper.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("Refresh Token not found"));
+                .orElseThrow(() -> new RuntimeException("Refresh Token not found in DB"));
 
         if (refreshToken.getExpiresAt().isBefore(Instant.now())) {
             throw new RuntimeException("Refresh Token expired");
         }
 
-        User user = authMapper.findByEmail(jwtTokenProvider.getUserEmail(refreshToken.getToken()))
+        String email = jwtTokenProvider.getEmailFromToken(refreshToken.getToken());
+        User user = authMapper.findByEmail(email)
                 .orElseThrow(UserNotFoundException::new);
-
 
         return issueTokens(user);
     }

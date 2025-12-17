@@ -88,19 +88,54 @@ public class JwtTokenProvider {
         return Long.parseLong(claims.getSubject());
     }
 
-    public boolean validateToken(String token) {
-        try {
-            jwtParser.parseSignedClaims(token);
-            return true;
-        } catch (SignatureException ex) {
-            log.error("Invalid JWT signature");
-        } catch (MalformedJwtException ex) {
-            log.error("Invalid JWT token");
-        } catch (ExpiredJwtException ex) {
-            log.error("Expired JWT token");
-        } catch (IllegalArgumentException ex) {
-            log.error("JWT claims string is empty.");
+        public boolean validateToken(String token) {
+
+            try {
+
+                jwtParser.parseSignedClaims(token);
+
+                return true;
+
+            } catch (SignatureException ex) {
+
+                log.error("Invalid JWT signature");
+
+            } catch (MalformedJwtException ex) {
+
+                log.error("Invalid JWT token");
+
+            } catch (ExpiredJwtException ex) {
+
+                log.error("Expired JWT token");
+
+            } catch (IllegalArgumentException ex) {
+
+                log.error("JWT claims string is empty.");
+
+            }
+
+            return false;
+
         }
-        return false;
+
+    
+
+        public String getEmailFromToken(String token) {
+
+            Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+
+            return claims.get("email", String.class);
+
+        }
+
+    
+
+        public Long getRefreshTokenValidity() {
+
+            return appProperties.getAuth().getRefreshTokenExpiry();
+
+        }
+
     }
-}
+
+    
