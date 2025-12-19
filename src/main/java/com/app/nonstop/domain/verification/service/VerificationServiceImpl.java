@@ -9,7 +9,7 @@ import com.app.nonstop.domain.verification.exception.FileTooLargeException;
 import com.app.nonstop.domain.verification.exception.InvalidFileTypeException;
 import com.app.nonstop.domain.verification.exception.VerificationRequestAlreadyExistsException;
 import com.app.nonstop.domain.verification.mapper.VerificationMapper;
-import com.app.nonstop.infra.s3.S3Uploader;
+import com.app.nonstop.infra.blob.BlobStorageUploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,17 +29,17 @@ public class VerificationServiceImpl implements VerificationService {
     private final VerificationMapper verificationMapper;
     
     @Autowired(required = false)
-    private S3Uploader s3Uploader;
+    private BlobStorageUploader blobStorageUploader;
 
-    // S3에 학생증 이미지를 저장할 디렉터리 이름
+    // Blob Storage에 학생증 이미지를 저장할 디렉터리 이름
     private static final String STUDENT_ID_UPLOAD_DIR = "student-id-verification";
     private static final long MAX_FILE_SIZE_MB = 5; // 최대 파일 크기 5MB
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("image/jpeg", "image/png");
 
     @Override
     public void requestStudentIdVerification(Long userId, MultipartFile imageFile) {
-        // In test profile, s3Uploader might be null.
-        if (s3Uploader == null) {
+        // In test profile, blobStorageUploader might be null.
+        if (blobStorageUploader == null) {
             return;
         }
         // 0. 파일 유효성 검사
@@ -65,8 +65,8 @@ public class VerificationServiceImpl implements VerificationService {
             throw new VerificationRequestAlreadyExistsException();
         }
 
-        // 3. 학생증 이미지를 S3에 업로드
-        String imageUrl = s3Uploader.upload(imageFile, STUDENT_ID_UPLOAD_DIR);
+        // 3. 학생증 이미지를 Blob Storage에 업로드
+        String imageUrl = blobStorageUploader.upload(imageFile, STUDENT_ID_UPLOAD_DIR);
 
         // 4. StudentVerificationRequest 객체 생성
         StudentVerificationRequest request = StudentVerificationRequest.builder()

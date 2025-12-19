@@ -31,6 +31,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'org.springframework.boot:spring-boot-starter-task'
 
 	// OAuth2 + 소셜 로그인
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
@@ -52,8 +53,8 @@ dependencies {
 	// Firebase Admin SDK (푸시 알림) → 2025년 최신 안정 버전
 	implementation 'com.google.firebase:firebase-admin:9.3.0'
 
-	// AWS S3 (Spring Boot 3.4와 가장 잘 맞는 버전)
-	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.2.0'
+	// Azure Blob Storage
+	implementation 'com.azure.spring:spring-cloud-azure-starter-storage-blob:5.13.0'
 
 	// WebSocket + Spring Security 완벽 연동 필수
 	implementation 'org.springframework.security:spring-security-messaging'

@@ -1,15 +1,14 @@
-package com.app.nonstop.infra.s3;
+package com.app.nonstop.infra.blob;
 
 import com.app.nonstop.global.common.exception.FileUploadException;
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -17,22 +16,23 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class S3Uploader {
+public class BlobStorageUploader {
 
-    private final S3Client s3Client;
+    private final BlobServiceClient blobServiceClient;
 
+    @Value("${spring.cloud.azure.storage.blob.container-name}")
+    private String containerName;
 
     /**
-     * MultipartFile을 S3에 업로드하고 해당 파일의 URL을 반환합니다.
+     * MultipartFile을 Azure Blob Storage에 업로드하고 해당 파일의 URL을 반환합니다.
      *
      * @param multipartFile 업로드할 파일
-     * @param dirName       S3 버킷 내에서 파일을 저장할 디렉터리 이름
+     * @param dirName       Blob Storage 컨테이너 내에서 파일을 저장할 디렉터리 이름
      * @return 업로드된 파일의 전체 URL
      * @throws FileUploadException 파일 업로드 실패 시
      */
     public String upload(MultipartFile multipartFile, String dirName) {
         if (multipartFile.isEmpty()) {
-            // TODO: 또는 null을 반환하거나 기본 이미지 URL을 반환하는 정책을 정할 수 있습니다.
             throw new FileUploadException("업로드할 파일이 없습니다.");
         }
 
@@ -41,25 +41,21 @@ public class S3Uploader {
         String fileName = dirName + "/" + storedFileName;
 
         try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket("bucket")
-                    .key(fileName)
-                    .contentType(multipartFile.getContentType())
-                    .build();
+            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+            BlobClient blobClient = containerClient.getBlobClient(fileName);
 
-            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(multipartFile.getInputStream(), multipartFile.getSize()));
+            blobClient.upload(multipartFile.getInputStream(), multipartFile.getSize(), true);
 
-            // 업로드된 파일의 URL을 반환합니다.
-            return s3Client.utilities().getUrl(builder -> builder.bucket("bucket").key(fileName)).toExternalForm();
+            return blobClient.getBlobUrl();
 
         } catch (IOException e) {
-            log.error("S3 파일 업로드 중 입출력 오류가 발생했습니다. 파일: {}", originalFilename, e);
+            log.error("Azure Blob Storage 파일 업로드 중 입출력 오류가 발생했습니다. 파일: {}", originalFilename, e);
             throw new FileUploadException("파일 업로드에 실패했습니다.", e);
         }
     }
 
     /**
-     * S3에 저장될 고유한 파일 이름을 생성합니다.
+     * 저장될 고유한 파일 이름을 생성합니다.
      *
      * @param originalFilename 원본 파일 이름
      * @return UUID와 원본 파일 확장자를 조합한 새로운 파일 이름
@@ -77,11 +73,13 @@ public class S3Uploader {
      * @return 파일 확장자
      */
     private String extractExt(String originalFilename) {
+        if (originalFilename == null) {
+            return "";
+        }
         int pos = originalFilename.lastIndexOf(".");
         if (pos == -1 || pos == originalFilename.length() - 1) {
-            // TODO: 확장자가 없는 파일에 대한 처리 정책을 결정해야 합니다. (예: 예외 발생)
             log.warn("확장자가 없는 파일이 업로드되었습니다: {}", originalFilename);
-            return ""; // 혹은 기본 확장자
+            return "";
         }
         return originalFilename.substring(pos + 1);
     }
