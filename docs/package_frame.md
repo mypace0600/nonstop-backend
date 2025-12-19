@@ -8,7 +8,7 @@ com.app.nonstop
  │   │   ├── WebSocketConfig.java     // /ws/chat 엔드포인트 설정
  │   │   ├── RedisConfig.java         // RedisTemplate 설정
  │   │   ├── WebMvcConfig.java        // CORS 등 설정
- │   │   └── AwsS3Config.java         // (New) S3 설정
+ │   │   └── AzureBlobConfig.java     // (New) Azure Blob Storage 설정
  │   │
  │   ├── security
  │   │   ├── jwt
@@ -24,11 +24,11 @@ com.app.nonstop
  │   │       └── GlobalExceptionHandler.java
  │   │
  │   └── util
- │       └── FileUtils.java
+ │       └── FileUtils.java            // Azure Blob SAS URL 생성 등 유틸
  │
  ├── infra                            // 외부 시스템 연동 (구현체 분리)
- │   ├── s3
- │   │   └── S3Uploader.java          // (New) 이미지 업로드
+ │   ├── blob                         // (변경) S3 → blob
+ │   │   └── BlobUploader.java         // (변경) 이미지 업로드 (SAS URL 방식)
  │   └── fcm
  │       └── FcmPushService.java      // (New) 푸시 알림 발송
  │
