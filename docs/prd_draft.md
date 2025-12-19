@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.0 (2025.12 최종 실서비스 반영 버전)**
+**Golden Master v2.1 (2025.12 최종 실서비스 반영 버전 – Azure Migration)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -100,9 +100,9 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.10 Rate Limit & Security
 - 모든 쓰기 API: 사용자당 분당 60회 제한
-- 이미지 업로드: S3 presigned URL 방식
+- 이미지 업로드: Azure Blob Storage SAS URL 방식
 
-## 4. API Endpoint Summary – Golden Master v2.0 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.1 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     |
