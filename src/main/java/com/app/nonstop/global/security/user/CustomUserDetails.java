@@ -29,7 +29,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
         return new CustomUserDetails(
                 user.getId(),
                 user.getEmail(),
-                Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()))
+                Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole().name()))
         );
     }
 
