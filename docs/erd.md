@@ -4,8 +4,6 @@
 
 ---
 
-## 📌 Enum Definitions
-
 ```mermaid
 erDiagram
 
