@@ -75,11 +75,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token"));
-        configuration.setExposedHeaders(List.of("x-auth-token"));
+
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:28080",
+                "http://localhost:3000",
+                "https://your-domain.com"
+        ));
+
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
