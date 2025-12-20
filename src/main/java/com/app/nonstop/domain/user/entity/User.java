@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 public class User extends BaseTimeEntity {
 
     private Long id;
-    private UserRole role;
+    private UserRole userRole;
     private String email;
     private String password;
     private AuthProvider authProvider;

@@ -12,7 +12,7 @@
     -->
     <resultMap id="userWithDetailsMap" type="com.app.nonstop.domain.user.entity.User">
         <id property="id" column="user_id"/>
-        <result property="role" column="user_role" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="userRole" column="user_role" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
         <result property="email" column="user_email"/>
         <result property="password" column="user_password"/>
         <result property="authProvider" column="user_auth_provider" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
@@ -53,7 +53,7 @@
     <select id="findById" resultMap="userWithDetailsMap">
         SELECT
             u.id AS user_id,
-            u.role AS user_role,
+            u.user_role AS user_role,
             u.email AS user_email,
             u.password AS user_password,
             u.auth_provider AS user_auth_provider,
@@ -191,7 +191,7 @@
     <select id="findByEmail" resultMap="userWithDetailsMap">
         SELECT
             u.id AS user_id,
-            u.role AS user_role,
+            u.user_role AS user_role,
             u.email AS user_email,
             u.password AS user_password,
             u.auth_provider AS user_auth_provider,
@@ -229,8 +229,8 @@
     </select>
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, nickname, profile_image_url, role, auth_provider, provider_id)
-        VALUES (#{email}, #{nickname}, #{profileImageUrl}, #{role, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{authProvider, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{providerId})
+        INSERT INTO users (email, nickname, profile_image_url, user_role, auth_provider, provider_id)
+        VALUES (#{email}, #{nickname}, #{profileImageUrl}, #{userRole, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{authProvider, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{providerId})
     </insert>
 
     <update id="updateUser">

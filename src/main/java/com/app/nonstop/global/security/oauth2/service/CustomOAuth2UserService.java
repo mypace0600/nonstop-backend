@@ -71,7 +71,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .providerId(oAuth2UserInfo.getId())
                 .nickname(oAuth2UserInfo.getName())
                 .email(oAuth2UserInfo.getEmail())
-                .role(UserRole.USER)
+                .userRole(UserRole.USER)
                 .profileImageUrl(oAuth2UserInfo.getImageUrl())
                 .build();
         userMapper.insertUser(user);
