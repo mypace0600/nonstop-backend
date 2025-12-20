@@ -22,12 +22,12 @@
     <insert id="insertFriend" parameterType="com.app.nonstop.domain.friend.entity.Friend"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO friends (sender_id, receiver_id, status)
-        VALUES (#{senderId}, #{receiverId}, #{status, typeHandler=org.apache.ibatis.type.EnumTypeHandler})
+        VALUES (#{senderId}, #{receiverId}, CAST(#{status} AS friend_status))
     </insert>
 
     <update id="updateFriendStatus" parameterType="com.app.nonstop.domain.friend.entity.Friend">
         UPDATE friends
-        SET status = #{status, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+        SET status = CAST(#{status} AS friend_status),
             updated_at = now()
         WHERE id = #{id}
     </update>

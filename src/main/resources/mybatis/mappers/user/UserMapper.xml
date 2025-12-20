@@ -12,10 +12,10 @@
     -->
     <resultMap id="userWithDetailsMap" type="com.app.nonstop.domain.user.entity.User">
         <id property="id" column="user_id"/>
-        <result property="userRole" column="user_role" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="userRole" column="user_role" javaType="com.app.nonstop.domain.user.entity.UserRole"/>
         <result property="email" column="user_email"/>
         <result property="password" column="user_password"/>
-        <result property="authProvider" column="user_auth_provider" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="authProvider" column="user_auth_provider" javaType="com.app.nonstop.domain.user.entity.AuthProvider"/>
         <result property="nickname" column="user_nickname"/>
         <result property="studentNumber" column="user_student_number"/>
         <result property="profileImageUrl" column="user_profile_image_url"/>
@@ -23,7 +23,7 @@
         <result property="preferredLanguage" column="user_preferred_language"/>
         <result property="isActive" column="user_is_active"/>
         <result property="isVerified" column="user_is_verified"/>
-        <result property="verificationMethod" column="user_verification_method" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="verificationMethod" column="user_verification_method" javaType="com.app.nonstop.domain.user.entity.VerificationMethod"/>
         <result property="lastLoginAt" column="user_last_login_at"/>
         <result property="deletedAt" column="user_deleted_at"/>
         <result property="createdAt" column="user_created_at"/>
