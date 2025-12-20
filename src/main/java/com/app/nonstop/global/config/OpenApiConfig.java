@@ -13,7 +13,7 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        String jwtSchemeName = "JWT Token";
+        String jwtSchemeName = "bearerAuth";
 
         return new OpenAPI()
                 .info(new Info()
