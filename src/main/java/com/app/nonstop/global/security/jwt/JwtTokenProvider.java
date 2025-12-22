@@ -53,6 +53,8 @@ public class JwtTokenProvider {
                 .subject(Long.toString(userDetails.getUserId()))
                 .claim("auth", authorities)
                 .claim("email", userDetails.getEmail())
+                .claim("universityId", userDetails.getUniversityId())
+                .claim("isVerified", userDetails.getIsVerified())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -79,7 +81,20 @@ public class JwtTokenProvider {
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-        CustomUserDetails principal = new CustomUserDetails(Long.parseLong(claims.getSubject()), claims.get("email", String.class), authorities);
+        Long universityId = claims.get("universityId", Long.class);
+        Boolean isVerified = claims.get("isVerified", Boolean.class);
+
+        // universityId and isVerified can be null if the token was issued before this change or if logic allows nulls (e.g. signup)
+        // However, CustomUserDetails constructor expects them.
+        // Assuming they are nullable in CustomUserDetails as well (field types are Long and Boolean object wrappers).
+
+        CustomUserDetails principal = new CustomUserDetails(
+                Long.parseLong(claims.getSubject()),
+                claims.get("email", String.class),
+                universityId,
+                isVerified,
+                authorities
+        );
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

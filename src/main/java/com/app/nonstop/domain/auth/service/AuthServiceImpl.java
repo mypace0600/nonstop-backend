@@ -103,6 +103,8 @@ public class AuthServiceImpl implements AuthService {
         CustomUserDetails userDetails = new CustomUserDetails(
                 user.getId(),
                 user.getEmail(),
+                user.getUniversityId(),
+                user.getIsVerified(),
                 Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole().name()))
         );
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

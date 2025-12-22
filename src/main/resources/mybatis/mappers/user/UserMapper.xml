@@ -18,6 +18,8 @@
         <result property="authProvider" column="user_auth_provider" javaType="com.app.nonstop.domain.user.entity.AuthProvider"/>
         <result property="nickname" column="user_nickname"/>
         <result property="studentNumber" column="user_student_number"/>
+        <result property="universityId" column="user_university_id"/> <!-- Added -->
+        <result property="majorId" column="user_major_id"/>           <!-- Added -->
         <result property="profileImageUrl" column="user_profile_image_url"/>
         <result property="introduction" column="user_introduction"/>
         <result property="preferredLanguage" column="user_preferred_language"/>
@@ -59,6 +61,8 @@
             u.auth_provider AS user_auth_provider,
             u.nickname AS user_nickname,
             u.student_number AS user_student_number,
+            u.university_id AS user_university_id, <!-- Added -->
+            u.major_id AS user_major_id,           <!-- Added -->
             u.profile_image_url AS user_profile_image_url,
             u.introduction AS user_introduction,
             u.preferred_language AS user_preferred_language,
@@ -95,12 +99,6 @@
         주어진 닉네임이 탈퇴하지 않은 사용자들 중에서 존재하는지 확인합니다.
         - 닉네임 중복 방지 로직에 사용됩니다.
     -->
-    <!--
-        [Select: existsByNickname]
-        주어진 닉네임이 탈퇴하지 않은 사용자들 중에서 존재하는지 확인합니다.
-        - 닉네임 중복 방지 로직에 사용됩니다.
-        - `deleted_at IS NULL` 조건을 포함하여 활성 사용자만을 대상으로 합니다.
-    -->
     <select id="existsByNickname" resultType="boolean">
         SELECT EXISTS(
             SELECT 1
@@ -115,18 +113,17 @@
         - <set>: DTO에서 null이 아닌 필드만 동적으로 UPDATE 쿼리에 포함시킵니다.
         - updated_at: 프로필이 수정될 때마다 현재 시간으로 자동 갱신됩니다.
     -->
-    <!--
-        [Update: updateProfile]
-        사용자의 프로필 정보를 업데이트합니다.
-        - `<set>` 태그와 `<if test="필드 != null">` 조건을 사용하여, User 객체에서 제공된(null이 아닌) 필드만 동적으로 UPDATE 쿼리에 포함시킵니다.
-        - `updated_at`: 프로필이 수정될 때마다 현재 시간으로 자동 갱신됩니다.
-        - `id`: WHERE 조건에 사용될 User 객체의 ID 필드입니다.
-    -->
     <update id="updateProfile">
         UPDATE users
         <set>
             <if test="nickname != null">
                 nickname = #{nickname},
+            </if>
+            <if test="universityId != null">
+                university_id = #{universityId},
+            </if>
+            <if test="majorId != null">
+                major_id = #{majorId},
             </if>
             <if test="university != null and university.id != null">
                 university_id = #{university.id},
@@ -153,13 +150,6 @@
         사용자의 비밀번호를 업데이트합니다.
         - 비밀번호 변경 시 updated_at 필드도 함께 갱신합니다.
     -->
-    <!--
-        [Update: updatePassword]
-        사용자의 비밀번호를 업데이트합니다.
-        - `userId`: WHERE 조건에 사용될 사용자 ID입니다.
-        - `newPassword`: 암호화된 새 비밀번호입니다.
-        - `updated_at`: 비밀번호 변경 시 `updated_at` 필드도 함께 현재 시간으로 갱신합니다.
-    -->
     <update id="updatePassword">
         UPDATE users
         SET
@@ -173,12 +163,6 @@
         [Update: softDelete]
         사용자 계정을 비활성화(soft delete)합니다.
         - 실제 데이터를 삭제하는 대신 deleted_at 필드에 현재 시간을 기록합니다.
-    -->
-    <!--
-        [Update: softDelete]
-        사용자 계정을 비활성화(soft delete)합니다.
-        - 실제 데이터를 삭제하는 대신 `deleted_at` 필드에 현재 시간을 기록합니다.
-        - `userId`: WHERE 조건에 사용될 사용자 ID입니다.
     -->
     <update id="softDelete">
         UPDATE users
@@ -197,6 +181,8 @@
             u.auth_provider AS user_auth_provider,
             u.nickname AS user_nickname,
             u.student_number AS user_student_number,
+            u.university_id AS user_university_id, <!-- Added -->
+            u.major_id AS user_major_id,           <!-- Added -->
             u.profile_image_url AS user_profile_image_url,
             u.introduction AS user_introduction,
             u.preferred_language AS user_preferred_language,

@@ -1,0 +1,17 @@
+package com.app.nonstop.domain.community.entity;
+
+import com.app.nonstop.global.common.entity.BaseTimeEntity;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class Board extends BaseTimeEntity {
+    private Long id;
+    private Long communityId;
+    private String name;
+    private BoardType type;
+    private Boolean isSecret;
+}

@@ -28,6 +28,8 @@ public class User extends BaseTimeEntity {
     private String providerId;
     private String nickname;
     private String studentNumber;
+    private Long universityId;
+    private Long majorId;
     private University university;
     private Major major;
     private String profileImageUrl;

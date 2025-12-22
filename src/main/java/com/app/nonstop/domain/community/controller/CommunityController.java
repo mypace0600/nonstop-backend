@@ -1,0 +1,38 @@
+package com.app.nonstop.domain.community.controller;
+
+import com.app.nonstop.domain.community.dto.BoardResponseDto;
+import com.app.nonstop.domain.community.dto.CommunityListWrapper;
+import com.app.nonstop.domain.community.service.BoardService;
+import com.app.nonstop.domain.community.service.CommunityService;
+import com.app.nonstop.global.common.response.ApiResponse;
+import com.app.nonstop.global.security.user.CustomUserDetails;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1")
+@RequiredArgsConstructor
+public class CommunityController {
+
+    private final CommunityService communityService;
+    private final BoardService boardService;
+
+    @GetMapping("/communities")
+    public ApiResponse<CommunityListWrapper> getCommunities(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        CommunityListWrapper communities = communityService.getCommunities(customUserDetails.getUniversityId(), customUserDetails.getIsVerified());
+        return ApiResponse.success(communities);
+    }
+
+    @GetMapping("/communities/{communityId}/boards")
+    public ApiResponse<List<BoardResponseDto>> getBoardsByCommunityId(@PathVariable Long communityId) {
+        // TODO: [보안] 사용자가 해당 커뮤니티에 접근 권한이 있는지(같은 학교 소속이며 인증되었는지) 확인하는 로직 추가 필요
+        List<BoardResponseDto> boards = boardService.getBoardsByCommunityId(communityId);
+        return ApiResponse.success(boards);
+    }
+}
