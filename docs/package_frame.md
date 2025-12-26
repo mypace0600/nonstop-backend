@@ -61,7 +61,42 @@ com.app.nonstop
  │   │   │   └── ChatDto.java             // (New) DTO for chat messages
  │   │   └── mapper
  │   │       └── ChatMapper.java          // (New) Mapper for chat messages
-
+ │   │
+ │   ├── university
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
+ │   ├── friend
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
+ │   ├── block
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
+ │   ├── verification
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
+ │   ├── file
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
+ │   ├── report
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
  │   │
  │   ├── community (board, post, comment...)
  │   ├── notification
