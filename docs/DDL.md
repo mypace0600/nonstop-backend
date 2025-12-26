@@ -47,6 +47,13 @@ CREATE TYPE verification_method AS ENUM ('EMAIL_DOMAIN', 'MANUAL_REVIEW', 'STUDE
 CREATE TYPE user_role AS ENUM ('USER', 'ADMIN', 'MANAGER');
 
 CREATE TYPE comment_type AS ENUM ('COMMENT', 'REPLY');
+
+CREATE TYPE file_purpose AS ENUM (
+  'PROFILE_IMAGE',
+  'BOARD_ATTACHMENT',
+  'STUDENT_ID_VERIFICATION',
+  'UNIVERSITY_LOGO'
+);
 ```
 
 ---
@@ -426,4 +433,28 @@ CREATE TABLE reports (
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
+```
+
+---
+
+## 11️⃣ Files
+
+```sql
+CREATE TABLE files (
+  id BIGSERIAL PRIMARY KEY,
+  uploader_id BIGINT NOT NULL REFERENCES users(id),
+  target_domain VARCHAR(100) NOT NULL, -- 'users', 'posts', 'universities'
+  target_id BIGINT NOT NULL,
+  purpose file_purpose NOT NULL,
+  file_url VARCHAR(512) NOT NULL,
+  original_file_name VARCHAR(255),
+  content_type VARCHAR(100),
+  file_size_bytes BIGINT,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMP
+);
+
+CREATE INDEX ix_files_target ON files(target_domain, target_id);
+CREATE INDEX ix_files_uploader ON files(uploader_id);
+CREATE INDEX ix_files_purpose ON files(purpose);
 ```
