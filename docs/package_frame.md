@@ -5,118 +5,204 @@ com.app.nonstop
  ├── global
  │   ├── config
  │   │   ├── SecurityConfig.java
- │   │   ├── WebSocketConfig.java
- │   │   ├── RedisConfig.java
- │   │   ├── WebMvcConfig.java
- │   │   └── AzureBlobConfig.java
+ │   │   ├── OpenApiConfig.java
+ │   │   ├── AppProperties.java
+ │   │   ├── AzureBlobStorageConfig.java
+ │   │   └── FirebaseConfig.java
  │   │
  │   ├── security
  │   │   ├── jwt
  │   │   │   ├── JwtTokenProvider.java
  │   │   │   └── JwtAuthenticationFilter.java
- │   │   └── user
- │   │       └── CustomUserDetails.java // UserPrincipal 대체
+ │   │   ├── user
+ │   │   │   └── CustomUserDetails.java
+ │   │   └── oauth2
+ │   │       ├── HttpCookieOAuth2AuthorizationRequestRepository.java
+ │   │       ├── exception
+ │   │       │   └── OAuth2AuthenticationProcessingException.java
+ │   │       ├── handler
+ │   │       │   ├── OAuth2AuthenticationSuccessHandler.java
+ │   │       │   └── OAuth2AuthenticationFailureHandler.java
+ │   │       ├── model
+ │   │       │   ├── OAuth2UserInfo.java
+ │   │       │   ├── OAuth2UserInfoFactory.java
+ │   │       │   └── GoogleOAuth2UserInfo.java
+ │   │       └── service
+ │   │           └── CustomOAuth2UserService.java
  │   │
  │   ├── common
+ │   │   ├── entity
+ │   │   │   └── BaseTimeEntity.java
  │   │   ├── response
  │   │   │   └── ApiResponse.java
  │   │   └── exception
- │   │       └── GlobalExceptionHandler.java
+ │   │       └── FileUploadException.java
  │   │
  │   └── util
- │       └── FileUtils.java            // Azure Blob SAS URL 생성 등 유틸
+ │       └── CookieUtil.java
  │
  ├── infra
- │   ├── blob
- │   │   └── BlobStorageUploader.java
- │   └── fcm
- │       └── FcmPushService.java
+ │   └── blob
+ │       └── BlobStorageUploader.java
+ │
+ ├── mapper                              # MyBatis Mapper 인터페이스 (분리됨)
+ │   ├── AuthMapper.java
+ │   ├── UserMapper.java
+ │   ├── RefreshTokenMapper.java
+ │   ├── DeviceMapper.java
+ │   ├── VerificationMapper.java
+ │   ├── FriendMapper.java
+ │   ├── CommunityMapper.java
+ │   ├── BoardMapper.java
+ │   └── FileMapper.java
  │
  ├── domain
  │   ├── auth
  │   │   ├── controller
  │   │   │   └── AuthController.java
  │   │   ├── service
- │   │   │   └── AuthService.java
- │   │   ├── dto
- │   │   │   └── AuthDto.java         // (New) Inner Class로 LoginReq, TokenRes 관리
- │   │   └── mapper
- │   │       └── AuthMapper.java      // (New) Interface는 여기에 위치
+ │   │   │   ├── AuthService.java
+ │   │   │   └── AuthServiceImpl.java
+ │   │   └── dto
+ │   │       ├── SignUpRequestDto.java
+ │   │       ├── LoginRequestDto.java
+ │   │       ├── GoogleLoginRequestDto.java
+ │   │       ├── TokenResponseDto.java
+ │   │       ├── RefreshRequestDto.java
+ │   │       ├── EmailCheckRequestDto.java
+ │   │       └── NicknameCheckRequestDto.java
  │   │
  │   ├── user
  │   │   ├── controller
+ │   │   │   └── UserController.java
  │   │   ├── service
+ │   │   │   ├── UserService.java
+ │   │   │   └── UserServiceImpl.java
  │   │   ├── dto
- │   │   └── mapper
+ │   │   │   ├── UserResponseDto.java
+ │   │   │   ├── ProfileUpdateRequestDto.java
+ │   │   │   ├── PasswordUpdateRequestDto.java
+ │   │   │   └── VerificationStatusResponseDto.java
+ │   │   ├── entity
+ │   │   │   ├── User.java
+ │   │   │   ├── UserRole.java
+ │   │   │   ├── AuthProvider.java
+ │   │   │   └── VerificationMethod.java
+ │   │   └── exception
+ │   │       ├── UserNotFoundException.java
+ │   │       ├── DuplicateNicknameException.java
+ │   │       ├── InvalidPasswordException.java
+ │   │       └── InvalidPasswordChangeAttemptException.java
  │   │
- │   ├── chat
- │   │   ├── controller
- │   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
- │   │   ├── kafka
- │   │   │   ├── ChatKafkaProducer.java   // (New) Produces messages to Kafka
- │   │   │   └── ChatKafkaConsumer.java   // (New) Consumes messages from Kafka
- │   │   ├── service
- │   │   │   └── ChatService.java         // (To be updated) Business logic for chat
- │   │   ├── dto
- │   │   │   └── ChatDto.java             // (New) DTO for chat messages
- │   │   └── mapper
- │   │       └── ChatMapper.java          // (New) Mapper for chat messages
+ │   ├── token
+ │   │   └── entity
+ │   │       └── RefreshToken.java
  │   │
- │   ├── university
+ │   ├── device
  │   │   ├── controller
+ │   │   │   └── DeviceController.java
  │   │   ├── service
+ │   │   │   ├── DeviceService.java
+ │   │   │   └── DeviceServiceImpl.java
  │   │   ├── dto
- │   │   └── mapper
- │   │
- │   ├── friend
- │   │   ├── controller
- │   │   ├── service
- │   │   ├── dto
- │   │   └── mapper
- │   │
- │   ├── block
- │   │   ├── controller
- │   │   ├── service
- │   │   ├── dto
- │   │   └── mapper
+ │   │   │   └── DeviceTokenRequestDto.java
+ │   │   └── entity
+ │   │       └── DeviceToken.java
  │   │
  │   ├── verification
  │   │   ├── controller
+ │   │   │   └── VerificationController.java
  │   │   ├── service
+ │   │   │   ├── VerificationService.java
+ │   │   │   └── VerificationServiceImpl.java
+ │   │   ├── entity
+ │   │   │   ├── StudentVerificationRequest.java
+ │   │   │   └── ReportStatus.java
+ │   │   └── exception
+ │   │       ├── FileTooLargeException.java
+ │   │       ├── InvalidFileTypeException.java
+ │   │       └── VerificationRequestAlreadyExistsException.java
+ │   │
+ │   ├── friend
+ │   │   ├── controller
+ │   │   │   └── FriendController.java
+ │   │   ├── service
+ │   │   │   ├── FriendService.java
+ │   │   │   └── FriendServiceImpl.java
  │   │   ├── dto
- │   │   └── mapper
+ │   │   │   └── FriendDto.java
+ │   │   ├── entity
+ │   │   │   ├── Friend.java
+ │   │   │   ├── FriendStatus.java
+ │   │   │   └── UserBlock.java
+ │   │   └── exception
+ │   │       ├── CannotSendFriendRequestException.java
+ │   │       ├── FriendRequestNotFoundException.java
+ │   │       ├── InvalidFriendRequestAccessException.java
+ │   │       ├── AlreadyBlockedException.java
+ │   │       └── CannotBlockSelfException.java
+ │   │
+ │   ├── community
+ │   │   ├── controller
+ │   │   │   └── CommunityController.java
+ │   │   ├── service
+ │   │   │   ├── CommunityService.java
+ │   │   │   ├── CommunityServiceImpl.java
+ │   │   │   ├── BoardService.java
+ │   │   │   └── BoardServiceImpl.java
+ │   │   ├── dto
+ │   │   │   ├── CommunityResponseDto.java
+ │   │   │   ├── CommunityListWrapper.java
+ │   │   │   └── BoardResponseDto.java
+ │   │   └── entity
+ │   │       ├── Community.java
+ │   │       ├── Board.java
+ │   │       └── BoardType.java
  │   │
  │   ├── file
  │   │   ├── controller
+ │   │   │   └── FileController.java
  │   │   ├── service
+ │   │   │   ├── FileService.java
+ │   │   │   └── FileServiceImpl.java
  │   │   ├── dto
- │   │   └── mapper
+ │   │   │   ├── FileUploadRequestDto.java
+ │   │   │   └── FileUploadCompleteDto.java
+ │   │   └── entity
+ │   │       └── File.java
  │   │
- │   ├── report
- │   │   ├── controller
- │   │   ├── service
- │   │   ├── dto
- │   │   └── mapper
+ │   ├── university
+ │   │   └── entity
+ │   │       └── University.java
  │   │
- │   ├── community (board, post, comment...)
- │   ├── notification
- │   └── timetable
+ │   └── major
+ │       └── entity
+ │           └── Major.java
  │
  └── NonstopApplication.java
 ```
 
 ```
-mybatis
+MyBatis XML Mappers
 
 resources/
  └── mybatis
-     ├── mybatis-config.xml
      └── mappers
          ├── auth
          │   └── AuthMapper.xml
          ├── user
-         ├── post
-         └── chat
-
-
+         │   └── UserMapper.xml
+         ├── token
+         │   └── RefreshTokenMapper.xml
+         ├── device
+         │   └── DeviceMapper.xml
+         ├── verification
+         │   └── VerificationMapper.xml
+         ├── friend
+         │   └── FriendMapper.xml
+         ├── community
+         │   ├── CommunityMapper.xml
+         │   └── BoardMapper.xml
+         └── file
+             └── FileMapper.xml
 ```
