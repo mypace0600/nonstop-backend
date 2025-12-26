@@ -4,6 +4,8 @@ import com.app.nonstop.global.common.exception.FileUploadException;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.sas.BlobSasPermission;
+import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Slf4j
@@ -53,6 +56,34 @@ public class BlobStorageUploader {
             throw new FileUploadException("파일 업로드에 실패했습니다.", e);
         }
     }
+
+    /**
+     * 클라이언트가 Azure Blob Storage에 직접 파일을 업로드할 수 있도록 Service SAS URL을 생성합니다.
+     *
+     * @param blobName      업로드될 Blob의 전체 경로 (컨테이너 내)
+     * @param contentType   업로드될 파일의 Content-Type (예: image/jpeg)
+     * @param expiryTime    SAS URL의 만료 시간
+     * @return 생성된 Service SAS URL
+     */
+    public String generateUserDelegationSas(String blobName, String contentType, OffsetDateTime expiryTime) {
+        try {
+            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+            BlobClient blobClient = containerClient.getBlobClient(blobName);
+
+            BlobSasPermission permissions = new BlobSasPermission()
+                    .setCreatePermission(true)
+                    .setWritePermission(true);
+
+            BlobServiceSasSignatureValues sasSignatureValues = new BlobServiceSasSignatureValues(expiryTime, permissions);
+            String sasToken = blobClient.generateSas(sasSignatureValues);
+
+            return String.format("%s?%s", blobClient.getBlobUrl(), sasToken);
+        } catch (Exception e) {
+            log.error("Service SAS URL 생성 중 오류가 발생했습니다. Blob Name: {}", blobName, e);
+            throw new FileUploadException("SAS URL 생성에 실패했습니다.", e);
+        }
+    }
+
 
     /**
      * 저장될 고유한 파일 이름을 생성합니다.

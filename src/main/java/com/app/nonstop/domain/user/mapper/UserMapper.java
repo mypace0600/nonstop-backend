@@ -23,4 +23,6 @@ public interface UserMapper {
     void insertUser(User user);
 
     void updateUser(User user);
+
+    void updateProfileImage(@Param("userId") Long userId, @Param("profileImageUrl") String profileImageUrl);
 }

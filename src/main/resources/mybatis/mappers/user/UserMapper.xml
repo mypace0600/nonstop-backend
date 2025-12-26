@@ -229,4 +229,13 @@
             id = #{id}
     </update>
 
+    <update id="updateProfileImage">
+        UPDATE users
+        SET
+            profile_image_url = #{profileImageUrl},
+            updated_at = now()
+        WHERE
+            id = #{userId}
+    </update>
+
 </mapper>
