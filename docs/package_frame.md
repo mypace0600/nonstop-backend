@@ -12,13 +12,19 @@ com.app.nonstop
  │   │
  │   ├── security
  │   │   ├── jwt
+ │   │   │   ├── JwtTokenProvider.java
+ │   │   │   └── JwtAuthenticationFilter.java
  │   │   └── user
+ │   │       └── CustomUserDetails.java // UserPrincipal 대체
  │   │
  │   ├── common
  │   │   ├── response
+ │   │   │   └── ApiResponse.java
  │   │   └── exception
+ │   │       └── GlobalExceptionHandler.java
  │   │
  │   └── util
+ │       └── FileUtils.java            // Azure Blob SAS URL 생성 등 유틸
  │
  ├── infra
  │   ├── blob
@@ -28,20 +34,21 @@ com.app.nonstop
  │
  ├── domain
  │   ├── auth
- │   │   └── ...
- │   ├── user
- │   │   └── ...
- │   ├── file
  │   │   ├── controller
- │   │   │   └── FileController.java
+ │   │   │   └── AuthController.java
  │   │   ├── service
- │   │   │   └── FileService.java
+ │   │   │   └── AuthService.java
  │   │   ├── dto
- │   │   │   └── FileUploadRequestDto.java
- │   │   ├── entity
- │   │   │   └── File.java
+ │   │   │   └── AuthDto.java         // (New) Inner Class로 LoginReq, TokenRes 관리
  │   │   └── mapper
- │   │       └── FileMapper.java
+ │   │       └── AuthMapper.java      // (New) Interface는 여기에 위치
+ │   │
+ │   ├── user
+ │   │   ├── controller
+ │   │   ├── service
+ │   │   ├── dto
+ │   │   └── mapper
+ │   │
  │   ├── chat
  │   │   ├── controller
  │   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
@@ -58,9 +65,7 @@ com.app.nonstop
  │   │
  │   ├── community (board, post, comment...)
  │   ├── notification
- │   │   └── ...
  │   └── timetable
- │       └── ...
  │
  └── NonstopApplication.java
 ```
