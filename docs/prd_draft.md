@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.1 (2025.12 최종 실서비스 반영 버전 – Azure Migration)**
+**Golden Master v2.1 (2025.12 최종 실서비스 반영 버전 )**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -73,10 +73,13 @@ university_id = null → 빈 배열 + universityRequired 플래그 반환
 
 ### 3.7 Chat (1:1 + 그룹 실시간 채팅)
 
-#### 3.7.1 채팅방 생성 (1:1 전용)
-POST /api/v1/chat/rooms  
-→ 요청 바디 { "targetUserId": 999 }  
-→ 서버는 (userA, userB) 정규화하여 기존 방 조회 → 있으면 기존 roomId 반환, 없으면 생성
+#### 3.7.1 채팅방 생성
+- **1:1 채팅**: `POST /api/v1/chat/rooms`
+  - 요청: `{ "targetUserId": 999 }`
+  - 로직: 서버는 (userA, userB) 정규화하여 기존 방 조회. 있으면 기존 roomId 반환, 없으면 생성.
+- **그룹 채팅**: `POST /api/v1/chat/group-rooms`
+  - 요청: `{ "roomName": "과제 스터디", "userIds": [101, 102, 103] }`
+  - 로직: 새로운 그룹 채팅방 생성 후, 요청자를 포함한 모든 참여자 초대.
 
 #### 3.7.2 실시간 채팅 (Kafka 기반 v2.2)
 - **Client → Server:** STOMP over WebSocket (`/ws/v1/chat`)
@@ -102,6 +105,52 @@ POST /api/v1/chat/rooms
 - **확장성:** 채팅 서버(WebSocket 세션 보유)와 메시지 처리 로직(DB 저장) 분리
 - **안정성:** Kafka가 메시지 브로커 역할, 트래픽 급증에도 안정적 처리
 - **메시지 유실 방지:** Consumer 장애 시에도 Kafka에 메시지 보관
+
+##### 설계 고려사항 및 상세 구현 가이드
+
+1.  **메시지 순서 보장 (Message Ordering)**
+    *   **방안:** `chat-messages` 토픽으로 메시지 발행 시, **`roomId`를 Kafka 메시지 키(Key)로 설정**하여 전송합니다.
+    *   **효과:** 동일 `roomId` 메시지는 항상 동일 파티션에 할당되어 Consumer가 순서대로 메시지를 처리, 채팅 메시지의 전송 순서가 보장됩니다.
+
+2.  **멱등성 및 중복 방지 (Idempotency)**
+    *   **방안:**
+        *   클라이언트는 메시지 전송 시 **`clientMessageId` (UUID)**를 생성하여 Payload에 포함합니다. `ChatKafkaProducer`는 이를 Kafka 메시지에 포함하고, `ChatKafkaConsumer`는 메시지 수신 후 DB 저장 시 `clientMessageId`를 함께 저장합니다.
+        *   Kafka Producer 설정: `enable.idempotence=true`를 활성화하고, 트랜잭셔널 Producer를 사용하여 원자적인 쓰기 작업을 보장합니다.
+        *   Kafka Consumer 설정: `isolation.level=read_committed`를 설정하여, 트랜잭션이 커밋된 메시지만 읽도록 합니다.
+    *   **효과:** Kafka의 exactly-once semantics를 클라이언트(`clientMessageId`) 및 Kafka 레벨에서(`enable.idempotence`, 트랜잭셔널 Producer/Consumer) 강화하여 네트워크 재시도로 인한 중복을 완벽하게 방지하고, Consumer의 DB 중복 체크 부담을 줄여 DB 부하를 감소시킵니다.
+
+3.  **읽음 처리 (Unread Count) 전략 고도화**
+    *   **방안:** 사용자가 채팅방에 진입하거나 메시지를 수신하는 시점에 '읽음' 이벤트를 별도의 Kafka 토픽(`chat-read-events`)으로 발행합니다. 이 토픽을 구독하는 전용 Consumer가 `last_read_message_id` 및 `unread_count` 업데이트를 처리합니다. (선택적으로 Kafka Streams 또는 KTable을 활용하여 `unread_count`를 실시간으로 집계하는 방안도 고려할 수 있습니다.)
+    *   **효과:** 읽음 처리와 같은 빈번한 DB 쓰기 작업을 메인 메시지 처리 흐름과 분리하여 비동기로 처리함으로써, 채팅 메시지 전송 속도에 영향을 주지 않고 시스템 성능을 최적화할 수 있습니다. **Consumer lag 모니터링은 필수입니다. lag이 커지면 unread count 반영 지연이 발생할 수 있습니다.**
+
+4.  **그룹 채팅 초대 및 퇴장 이벤트 처리**
+    *   **방안:** 그룹 채팅의 `INVITE`, `LEAVE`, `KICK` 등 시스템 관련 이벤트도 일반 채팅 메시지와 동일하게 Kafka를 통해 처리합니다. 이들 이벤트는 특별한 `messageType`을 가지는 시스템 메시지로 정의합니다.
+    *   **데이터 흐름 예시 (`INVITE`):**
+        1.  `POST /api/v1/chat/group-rooms/{roomId}/invite` API 호출.
+        2.  Backend는 초대 비즈니스 로직 수행 (DB 내 유저-방 매핑 추가 등).
+        3.  `chat-messages` 토픽으로 `type: INVITE` (시스템 메시지 타입), `content: "OOO님이 초대되었습니다."` 등의 Payload를 가진 메시지 발행.
+        4.  `ChatKafkaConsumer`가 이 메시지를 받아 해당 방 모든 유저에게 브로드캐스팅 및 DB 저장.
+
+5.  **채팅 이미지 전송 워크플로우 (Azure SAS URL 연동)**
+    *   **방안:** 채팅 메시지에 이미지를 포함할 경우, 클라이언트는 이미지 파일을 Azure Blob Storage에 직접 업로드(SAS URL 사용)하고, **`upload-complete` API 호출을 통해 서버에 파일 메타데이터 저장을 완료한 이후에** 해당 `blobUrl`을 포함한 실제 채팅 메시지를 `/pub/chat/message` (STOMP)로 전송하도록 클라이언트 로직을 설계합니다.
+    *   **효과:** 상대방이 메시지를 수신했을 때 유효한 이미지 경로를 즉시 확인할 수 있도록 보장하며, 서버 부담을 줄입니다.
+
+##### Kafka 클러스터 운영 가이드 (필수 보완)
+- **토픽 구성**:
+  - `chat-messages` 토픽: 파티션 수 초기 10~50개 (roomId 키 기반), replication factor 최소 3.
+  - `chat-read-events` 토픽: 파티션 수 5~10개 (userId 키 기반), replication factor 최소 3.
+- **Retention policy**:
+  - `chat-messages`: 메시지 보관 기간 7~30일 (용량 관리).
+  - `chat-read-events`: 메시지 보관 기간 1~3일.
+- **모니터링**: Consumer lag, throughput, partition balance 모니터링 필수 (Prometheus + Grafana 추천).
+- **에러 핸들링**: Dead Letter Topic (DLQ) 추가 – 실패 메시지 라우팅.
+- **보안**: SASL/SSL + ACL 설정, producer/consumer 인증.
+
+##### 향후 개선 및 대안 고려 (선택적)
+- **과도한 복잡도 완화**: 초기 및 중기 트래픽의 대학생 앱 규모에서는 Kafka가 과도한 복잡도를 야기할 수 있습니다.
+  - **대안**: Redis Streams/PubSub 또는 NATS JetStream과 같은 경량 솔루션이 더 간단하고 비용 효율적일 수 있습니다. (예: Redis는 초저지연, unread 관리 용이, Azure Cache for Redis로 관리형 서비스 활용 가능; NATS JetStream은 lightweight, 고성능, Kafka보다 운영 용이).
+  - **제언**: 현재 Kafka 설계를 유지하되, 만약 초기 운영 비용이나 복잡도 관리가 주요 고려사항이 될 경우, **v3 단계에서 Redis Streams/PubSub 등으로의 마이그레이션을 고려**할 수 있습니다. 이는 스케일 필요 시 Kafka의 강점을 활용하면서도, 초기 복잡도를 낮추는 유연성을 제공합니다.
+
 
 #### 3.7.3 메시지 나에게만 삭제 (카카오톡식)
 DELETE /api/v1/chat/rooms/{roomId}/messages/{messageId}
@@ -201,14 +250,21 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/friends/block                     | 차단                |
 
 ### Chat
-| Method | URI                                           | Description                        |
-|--------|-----------------------------------------------|------------------------------------|
-| GET    | /api/v1/chat/rooms                            | 채팅방 목록                        |
-| POST   | /api/v1/chat/rooms                            | 1:1 채팅방 생성 (targetUserId)     |
-| DELETE | /api/v1/chat/rooms/{roomId}                   | 채팅방 나가기                      |
-| GET    | /api/v1/chat/rooms/{roomId}/messages          | 과거 메시지 (offset pagination)    |
-| DELETE | /api/v1/chat/rooms/{roomId}/messages/{msgId}  | 나에게만 메시지 삭제 (v2 신규)     |
-| WS     | wss://api.nonstop.app/ws/v1/chat              | 실시간 채팅                        |
+| Method | URI                                                | Description                                |
+|:-------|:---------------------------------------------------|:-------------------------------------------|
+| GET    | /api/v1/chat/rooms                                 | 내 채팅방 목록 (1:1, 그룹 포함)            |
+| POST   | /api/v1/chat/rooms                                 | 1:1 채팅방 생성 (with targetUserId)        |
+| DELETE | /api/v1/chat/rooms/{roomId}                        | 채팅방 나가기 (1:1, 그룹 공통)             |
+| GET    | /api/v1/chat/rooms/{roomId}/messages               | 과거 메시지 조회 (Pagination)              |
+| DELETE | /api/v1/chat/rooms/{roomId}/messages/{msgId}       | 나에게만 메시지 삭제                       |
+| POST   | /api/v1/chat/group-rooms                           | 그룹 채팅방 생성                           |
+| PATCH  | /api/v1/chat/group-rooms/{roomId}                  | 그룹 채팅방 정보 수정 (이름 등)            |
+| GET    | /api/v1/chat/group-rooms/{roomId}/members          | 그룹 채팅방 참여자 목록 조회               |
+| POST   | /api/v1/chat/group-rooms/{roomId}/invite           | 그룹 채팅방에 사용자 초대                  |
+| DELETE | /api/v1/chat/group-rooms/{roomId}/members/{userId} | 그룹 채팅방에서 사용자 강퇴 (방장 권한)    |
+| WS     | wss://api.nonstop.app/ws/v1/chat                   | 실시간 채팅 연결 (STOMP Handshake)         |
+| SUB    | /sub/chat/room/{roomId}                            | (STOMP) 채팅방 메시지 구독                 |
+| PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
 
 ### Timetable
 | Method | URI                                    | Description                     |
