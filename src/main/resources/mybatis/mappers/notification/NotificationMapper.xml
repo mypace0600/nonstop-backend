@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.domain.notification.mapper.NotificationMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notifications (
+            user_id, actor_id, actor_nickname, type, post_id, comment_id, chat_room_id, message, is_read, created_at
+        ) VALUES (
+            #{userId}, #{actorId}, #{actorNickname}, #{type}::notification_type, 
+            #{postId}, #{commentId}, #{chatRoomId}, #{message}, FALSE, NOW()
+        )
+    </insert>
+
+    <select id="findAllByUserId" resultType="com.app.nonstop.domain.notification.dto.NotificationDto$Response">
+        SELECT 
+            id, actor_id, actor_nickname, type, post_id, comment_id, chat_room_id, message, is_read, created_at
+        FROM notifications
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateRead">
+        UPDATE notifications SET is_read = TRUE WHERE id = #{id}
+    </update>
+    
+    <update id="updateReadAll">
+        UPDATE notifications SET is_read = TRUE WHERE user_id = #{userId}
+    </update>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM notifications WHERE user_id = #{userId} AND is_read = FALSE
+    </select>
+
+</mapper>

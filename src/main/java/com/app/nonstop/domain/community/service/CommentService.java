@@ -4,6 +4,12 @@ import com.app.nonstop.domain.community.dto.CommentDto;
 import com.app.nonstop.domain.community.entity.Comment;
 import com.app.nonstop.domain.community.entity.CommentType;
 import com.app.nonstop.domain.community.mapper.CommentMapper;
+import com.app.nonstop.domain.community.mapper.PostMapper;
+import com.app.nonstop.domain.file.service.FileService;
+import com.app.nonstop.domain.notification.entity.NotificationType;
+import com.app.nonstop.domain.notification.service.NotificationService;
+import com.app.nonstop.domain.user.entity.User;
+import com.app.nonstop.domain.user.mapper.UserMapper;
 import com.app.nonstop.global.common.exception.AccessDeniedException;
 import com.app.nonstop.global.common.exception.BusinessException;
 import com.app.nonstop.global.common.exception.ResourceNotFoundException;
@@ -26,6 +32,10 @@ import java.util.stream.Collectors;
 public class CommentService {
 
     private final CommentMapper commentMapper;
+    private final PostMapper postMapper; // 게시글 정보 조회용
+    private final FileService fileService;
+    private final NotificationService notificationService;
+    private final UserMapper userMapper;
 
     /**
      * 댓글 또는 대댓글을 작성합니다.
@@ -65,6 +75,12 @@ public class CommentService {
 
         commentMapper.insert(comment);
 
+        // 이미지 저장
+        fileService.saveImages(userId, "comments", comment.getId(), requestDto.getImageUrls());
+
+        // 알림 전송 로직
+        sendCommentNotification(comment, postId, userId);
+
         // 생성 후엔 트리가 아닌 단일 객체만 반환하거나, 리스트를 다시 조회해야 함.
         // 여기선 간단히 빌더로 응답 생성
         return CommentDto.Response.builder()
@@ -86,8 +102,15 @@ public class CommentService {
     public List<CommentDto.Response> getComments(Long postId, Long userId) {
         List<CommentDto.Response> rawList = commentMapper.findAllByPostIdWithDetail(postId, userId);
         
+        // 0. 이미지 일괄 조회 및 매핑
+        List<Long> commentIds = rawList.stream().map(CommentDto.Response::getId).collect(Collectors.toList());
+        Map<Long, List<String>> imageMap = fileService.getImageUrlsByTargetIds("comments", commentIds);
+
         // 1. 마스킹 처리 (삭제된 댓글 내용 숨김, 익명 처리)
-        rawList.forEach(this::maskComment);
+        rawList.forEach(dto -> {
+            maskComment(dto);
+            dto.setImageUrls(imageMap.getOrDefault(dto.getId(), new ArrayList<>()));
+        });
 
         // 2. 계층 구조 조립 (Map 활용하여 O(N) 처리)
         Map<Long, CommentDto.Response> map = rawList.stream()
@@ -148,9 +171,70 @@ public class CommentService {
                 commentMapper.deleteLike(userId, commentId);
             } else {
                 commentMapper.restoreLike(userId, commentId);
+                sendLikeNotification(commentId, userId);
             }
         } else {
             commentMapper.insertLike(userId, commentId);
+            sendLikeNotification(commentId, userId);
+        }
+    }
+
+    private void sendLikeNotification(Long commentId, Long actorId) {
+        Comment comment = commentMapper.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+        User actor = userMapper.findById(actorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        notificationService.createNotification(
+                comment.getUserId(),
+                actorId,
+                actor.getNickname(),
+                NotificationType.COMMENT_LIKE,
+                "회원님의 댓글에 좋아요가 달렸습니다.",
+                comment.getPostId(),
+                commentId,
+                null
+        );
+    }
+
+    private void sendCommentNotification(Comment comment, Long postId, Long actorId) {
+        User actor = userMapper.findById(actorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        // 1. 게시글 작성자에게 알림 (내 글에 댓글이 달림)
+        // 게시글 조회
+        postMapper.findById(postId).ifPresent(post -> {
+             // 대댓글이면 "답글", 아니면 "댓글"
+             String msg = (comment.getType() == CommentType.REPLY) 
+                     ? "회원님의 글에 달린 댓글에 새 답글이 달렸습니다." 
+                     : "회원님의 게시글에 새 댓글이 달렸습니다.";
+             
+             notificationService.createNotification(
+                     post.getUserId(),
+                     actorId,
+                     actor.getNickname(),
+                     NotificationType.NEW_COMMENT,
+                     msg,
+                     postId,
+                     comment.getId(),
+                     null
+             );
+        });
+
+        // 2. 대댓글인 경우 부모 댓글 작성자에게 알림 (내 댓글에 답글이 달림)
+        if (comment.getUpperCommentId() != null) {
+            commentMapper.findById(comment.getUpperCommentId()).ifPresent(parent -> {
+                notificationService.createNotification(
+                        parent.getUserId(),
+                        actorId,
+                        actor.getNickname(),
+                        NotificationType.NEW_REPLY,
+                        "회원님의 댓글에 답글이 달렸습니다.",
+                        postId,
+                        comment.getId(),
+                        null
+                );
+            });
         }
     }
 

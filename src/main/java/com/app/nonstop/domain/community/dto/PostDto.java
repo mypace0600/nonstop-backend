@@ -31,6 +31,8 @@ public class PostDto {
         private Boolean isAnonymous = false;
 
         private Boolean isSecret = false;
+
+        private java.util.List<String> imageUrls;
     }
 
     /**
@@ -55,5 +57,6 @@ public class PostDto {
         private Boolean isLiked; // 현재 로그인한 유저가 좋아요를 눌렀는지 여부
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private java.util.List<String> imageUrls;
     }
 }

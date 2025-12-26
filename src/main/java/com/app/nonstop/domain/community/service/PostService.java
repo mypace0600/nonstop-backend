@@ -3,6 +3,11 @@ package com.app.nonstop.domain.community.service;
 import com.app.nonstop.domain.community.dto.PostDto;
 import com.app.nonstop.domain.community.entity.Post;
 import com.app.nonstop.domain.community.mapper.PostMapper;
+import com.app.nonstop.domain.file.service.FileService;
+import com.app.nonstop.domain.notification.entity.NotificationType;
+import com.app.nonstop.domain.notification.service.NotificationService;
+import com.app.nonstop.domain.user.entity.User;
+import com.app.nonstop.domain.user.mapper.UserMapper;
 import com.app.nonstop.global.common.exception.AccessDeniedException;
 import com.app.nonstop.global.common.exception.BusinessException;
 import com.app.nonstop.global.common.exception.ResourceNotFoundException;
@@ -23,6 +28,9 @@ import java.util.stream.Collectors;
 public class PostService {
 
     private final PostMapper postMapper;
+    private final FileService fileService;
+    private final NotificationService notificationService;
+    private final UserMapper userMapper;
 
     /**
      * 새로운 게시글을 작성합니다.
@@ -50,6 +58,9 @@ public class PostService {
         post.setIsSecret(requestDto.getIsSecret());
         
         postMapper.insert(post);
+
+        // 이미지 저장
+        fileService.saveImages(userDetails.getUserId(), "posts", post.getId(), requestDto.getImageUrls());
         
         // 작성 직후 상세 정보 반환
         return postMapper.findByIdWithDetail(post.getId(), userDetails.getUserId())
@@ -72,6 +83,9 @@ public class PostService {
 
         PostDto.Response post = postMapper.findByIdWithDetail(postId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+        
+        // 이미지 설정
+        post.setImageUrls(fileService.getImageUrls("posts", postId));
         
         return maskPost(post);
     }
@@ -120,6 +134,9 @@ public class PostService {
 
         postMapper.update(post);
 
+        // 이미지 수정
+        fileService.updateImages(userId, "posts", postId, requestDto.getImageUrls());
+
         return postMapper.findByIdWithDetail(postId, userId)
                 .map(this::maskPost)
                 .orElseThrow(() -> new RuntimeException("Post update failed"));
@@ -159,10 +176,31 @@ public class PostService {
                 postMapper.deleteLike(userId, postId);
             } else {
                 postMapper.restoreLike(userId, postId);
+                // 좋아요 재활성 시에도 알림? 보통 최초 1회만 보내거나 정책 따름. 여기선 매번 보냄.
+                sendLikeNotification(postId, userId);
             }
         } else {
             postMapper.insertLike(userId, postId);
+            sendLikeNotification(postId, userId);
         }
+    }
+
+    private void sendLikeNotification(Long postId, Long actorId) {
+        Post post = postMapper.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+        User actor = userMapper.findById(actorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        notificationService.createNotification(
+                post.getUserId(),
+                actorId,
+                actor.getNickname(),
+                NotificationType.POST_LIKE,
+                "회원님의 게시글에 좋아요가 달렸습니다.",
+                postId,
+                null,
+                null
+        );
     }
 
     /**
@@ -172,6 +210,14 @@ public class PostService {
      * @return 마스킹 처리된 DTO
      */
     private PostDto.Response maskPost(PostDto.Response dto) {
+        // 이미지 정보 채우기 (목록 조회 시 성능 이슈가 있다면 별도 처리 필요, 여기선 단건/목록 모두 채움)
+        // 목록 조회 시 N+1 방지를 위해선 Batch 조회 등 최적화 필요. 현재는 기능 구현 우선.
+        // 하지만 maskPost는 loop 안에서도 불리므로 여기서 DB 조회를 하면 N+1 발생함.
+        // 따라서 getPostDetail에서만 호출하거나, Batch 조회를 해야 함.
+        // 여기서는 일단 비워두고, getPostDetail에서만 채우도록 수정하거나 
+        // FileService의 Batch 조회 기능을 활용해야 함.
+        
+        // 수정 전략: maskPost는 순수 마스킹만 담당. 이미지는 Service 메서드 내에서 채움.
         if (Boolean.TRUE.equals(dto.getIsWriterAnonymous())) {
             dto.setWriterNickname("익명");
         }

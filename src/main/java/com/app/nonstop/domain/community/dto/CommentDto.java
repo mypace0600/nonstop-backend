@@ -32,6 +32,8 @@ public class CommentDto {
         @NotBlank(message = "내용은 필수입니다.")
         private String content;
 
+        private java.util.List<String> imageUrls;
+
         private Boolean isAnonymous = false;
     }
 
@@ -57,6 +59,7 @@ public class CommentDto {
         private Boolean isDeleted;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private java.util.List<String> imageUrls;
 
         // 대댓글 리스트
         @Builder.Default

@@ -1,28 +1,61 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.app.nonstop.mapper.FileMapper">
 
-    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+<mapper namespace="com.app.nonstop.domain.file.mapper.FileMapper">
+
+    <resultMap id="fileMap" type="com.app.nonstop.domain.file.entity.File">
+        <id property="id" column="id"/>
+        <result property="uploaderId" column="uploader_id"/>
+        <result property="targetDomain" column="target_domain"/>
+        <result property="targetId" column="target_id"/>
+        <result property="purpose" column="purpose"/>
+        <result property="fileUrl" column="file_url"/>
+        <result property="originalFileName" column="original_file_name"/>
+        <result property="contentType" column="content_type"/>
+        <result property="fileSizeBytes" column="file_size_bytes"/>
+        <result property="deletedAt" column="deleted_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO files (
-            uploader_id,
-            target_domain,
-            target_id,
-            purpose,
-            file_url,
-            original_file_name,
-            content_type
-            -- file_size_bytes can be added if needed
+            uploader_id, target_domain, target_id, purpose, file_url, created_at
         ) VALUES (
-            #{uploaderId},
-            #{targetDomain},
-            #{targetId},
-            #{purpose, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
-            #{fileUrl},
-            #{originalFileName},
-            #{contentType}
+            #{uploaderId}, #{targetDomain}, #{targetId}, #{purpose}::file_purpose, #{fileUrl}, NOW()
         )
     </insert>
+
+    <insert id="insertAll" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO files (
+            uploader_id, target_domain, target_id, purpose, file_url, created_at
+        ) VALUES
+        <foreach collection="files" item="file" separator=",">
+            (#{file.uploaderId}, #{file.targetDomain}, #{file.targetId}, #{file.purpose}::file_purpose, #{file.fileUrl}, NOW())
+        </foreach>
+    </insert>
+
+    <select id="findByTarget" resultMap="fileMap">
+        SELECT * FROM files
+        WHERE target_domain = #{targetDomain}
+          AND target_id = #{targetId}
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="findByTargetIds" resultMap="fileMap">
+        SELECT * FROM files
+        WHERE target_domain = #{targetDomain}
+          AND target_id IN
+          <foreach collection="targetIds" item="id" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+          AND deleted_at IS NULL
+    </select>
+
+    <update id="deleteByTarget">
+        UPDATE files SET deleted_at = NOW()
+        WHERE target_domain = #{targetDomain} AND target_id = #{targetId}
+    </update>
 
 </mapper>
