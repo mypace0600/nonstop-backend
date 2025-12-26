@@ -4,11 +4,11 @@ Application
 com.app.nonstop
  ├── global
  │   ├── config
- │   │   ├── SecurityConfig.java      // URL별 권한 제어 (Graceful Degradation)
- │   │   ├── WebSocketConfig.java     // /ws/chat 엔드포인트 설정
- │   │   ├── RedisConfig.java         // RedisTemplate 설정
- │   │   ├── WebMvcConfig.java        // CORS 등 설정
- │   │   └── AzureBlobConfig.java     // (New) Azure Blob Storage 설정
+ │   │   ├── SecurityConfig.java
+ │   │   ├── WebSocketConfig.java
+ │   │   ├── RedisConfig.java
+ │   │   ├── WebMvcConfig.java
+ │   │   └── AzureBlobConfig.java
  │   │
  │   ├── security
  │   │   ├── jwt
@@ -26,13 +26,13 @@ com.app.nonstop
  │   └── util
  │       └── FileUtils.java            // Azure Blob SAS URL 생성 등 유틸
  │
- ├── infra                            // 외부 시스템 연동 (구현체 분리)
- │   ├── blob                         // (변경) S3 → blob
- │   │   └── BlobUploader.java         // (변경) 이미지 업로드 (SAS URL 방식)
+ ├── infra
+ │   ├── blob
+ │   │   └── BlobStorageUploader.java
  │   └── fcm
- │       └── FcmPushService.java      // (New) 푸시 알림 발송
+ │       └── FcmPushService.java
  │
- ├── domain                           // 도메인 주도 설계 (DDD)
+ ├── domain
  │   ├── auth
  │   │   ├── controller
  │   │   │   └── AuthController.java
@@ -51,7 +51,7 @@ com.app.nonstop
  │   │
  │   ├── chat
  │   │   ├── controller
-│   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
+ │   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
  │   │   ├── kafka
  │   │   │   ├── ChatKafkaProducer.java   // (New) Produces messages to Kafka
  │   │   │   └── ChatKafkaConsumer.java   // (New) Consumes messages from Kafka

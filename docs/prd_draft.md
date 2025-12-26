@@ -121,7 +121,20 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.10 Rate Limit & Security
 - 모든 쓰기 API: 사용자당 분당 60회 제한
-- 이미지 업로드: Azure Blob Storage SAS URL 방식
+
+#### 3.10.1 이미지 업로드 (Azure SAS URL)
+- 모든 파일(프로필 사진, 학생증, 게시물 첨부 등) 업로드는 클라이언트가 서버를 거치지 않고 Azure Blob Storage에 직접 업로드하는 방식을 사용합니다.
+- 이 방식은 서버의 부하를 줄이고, 업로드 속도를 향상시키며, 보안을 강화합니다.
+
+##### 데이터 흐름
+1.  **SAS URL 요청 (Client → Server)**
+    - 클라이언트는 `POST /api/v1/files/sas-url` 엔드포인트로 업로드할 파일의 정보(`fileName`, `contentType`, `purpose`, `targetId` 등)를 전송하여 업로드 권한이 담긴 일회성 URL(SAS URL)을 요청합니다.
+    - `purpose`는 `PROFILE_IMAGE`, `BOARD_ATTACHMENT` 등 파일의 사용 목적을 나타내는 Enum입니다.
+2.  **파일 직접 업로드 (Client → Azure)**
+    - 클라이언트는 서버로부터 받은 SAS URL을 사용하여 파일을 Azure Blob Storage에 직접 업로드(HTTP PUT)합니다.
+3.  **업로드 완료 알림 (Client → Server)**
+    - 업로드 성공 후, 클라이언트는 `POST /api/v1/files/upload-complete` 엔드포인트로 업로드된 파일의 최종 경로(`blobUrl`)와 원본 파일명, `purpose` 등을 다시 서버에 알려줍니다.
+    - 서버는 이 정보를 받아 파일 메타데이터를 `files` 테이블에 저장하고, `purpose`에 따라 사용자 프로필 이미지 URL을 업데이트하는 등의 후속 처리를 수행합니다.
 
 ## 4. API Endpoint Summary – Golden Master v2.1 (완전 목록)
 
@@ -217,3 +230,9 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/notifications                  | 알림 목록             |
 | PATCH  | /api/v1/notifications/{id}/read        | 개별 읽음             |
 | PATCH  | /api/v1/notifications/read-all         | 전체 읽음             |
+
+### File
+| Method | URI                                    | Description                     |
+|--------|----------------------------------------|---------------------------------|
+| POST   | /api/v1/files/sas-url                  | 파일 직접 업로드를 위한 SAS URL 요청 |
+| POST   | /api/v1/files/upload-complete          | 파일 업로드 완료 콜백             |

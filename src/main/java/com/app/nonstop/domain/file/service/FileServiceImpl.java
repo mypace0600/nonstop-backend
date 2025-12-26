@@ -60,6 +60,14 @@ public class FileServiceImpl implements FileService {
                 targetDomain = "student_verification_requests";
                 targetId = userId; // Assuming one request per user
                 break;
+            case UNIVERSITY_LOGO:
+                targetDomain = "universities";
+                targetId = completeDto.getTargetId();
+                 if (targetId == null) {
+                    log.error("Target ID is required for UNIVERSITY_LOGO. User: {}", userId);
+                    throw new IllegalArgumentException("대학교 ID가 필요합니다.");
+                }
+                break;
             default:
                 log.warn("Unhandled file purpose: {}. Saving with general purpose.", completeDto.getPurpose());
                 targetDomain = "general";
@@ -107,6 +115,12 @@ public class FileServiceImpl implements FileService {
                 return String.format("board-attachments/%d/%s", targetId, fileName);
             case STUDENT_ID_VERIFICATION:
                 return String.format("student-verification/%d/%s", userId, fileName);
+            case UNIVERSITY_LOGO:
+                Long uniTargetId = requestDto.getTargetId();
+                 if (uniTargetId == null) {
+                    throw new IllegalArgumentException("Target ID is required for UNIVERSITY_LOGO blob name generation.");
+                }
+                return String.format("university-logos/%d/%s", uniTargetId, fileName);
             default:
                 return String.format("general/%d/%s", userId, fileName);
         }
