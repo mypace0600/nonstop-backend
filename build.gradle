@@ -31,6 +31,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// Kafka
+	implementation 'org.springframework.kafka:spring-kafka'
+
 
 	// OAuth2 + 소셜 로그인
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
