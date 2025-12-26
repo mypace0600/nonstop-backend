@@ -43,9 +43,20 @@ com.app.nonstop
  │   │   └── mapper
  │   │       └── FileMapper.java
  │   ├── chat
- │   │   └── ...
- │   ├── community
- │   │   └── ...
+ │   │   ├── controller
+ │   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
+ │   │   ├── kafka
+ │   │   │   ├── ChatKafkaProducer.java   // (New) Produces messages to Kafka
+ │   │   │   └── ChatKafkaConsumer.java   // (New) Consumes messages from Kafka
+ │   │   ├── service
+ │   │   │   └── ChatService.java         // (To be updated) Business logic for chat
+ │   │   ├── dto
+ │   │   │   └── ChatDto.java             // (New) DTO for chat messages
+ │   │   └── mapper
+ │   │       └── ChatMapper.java          // (New) Mapper for chat messages
+
+ │   │
+ │   ├── community (board, post, comment...)
  │   ├── notification
  │   │   └── ...
  │   └── timetable
