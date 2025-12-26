@@ -73,7 +73,7 @@
 - Redis
 
 ### Infra & External
-- AWS S3 (이미지 저장)
+- Azure Blob Storage (이미지 저장)
 - Firebase Admin SDK (푸시 알림)
 - Spring Mail (이메일 인증)
 
@@ -162,11 +162,12 @@ com.app.nonstop
  │   ├── common        // 공통 응답, 예외
  │   └── util
  ├── infra
- │   ├── s3            // AWS S3
+ │   ├── blob          // Azure Blob Storage
  │   └── fcm           // Firebase
  └── domain
      ├── auth
      ├── user
+     ├── file          // 파일 업로드 (SAS URL 방식)
      ├── chat
      ├── community
      ├── notification
