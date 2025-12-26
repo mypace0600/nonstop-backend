@@ -147,6 +147,15 @@ erDiagram
     report_status status
   }
 
+  files {
+    BIGINT id PK
+    BIGINT uploader_id FK
+    VARCHAR target_domain
+    BIGINT target_id
+    file_purpose purpose
+    VARCHAR file_url
+  }
+
   %% =====================
   %% Relationships
   %% =====================
@@ -192,6 +201,7 @@ erDiagram
 
   users ||--o{ notifications : receives
   users ||--o{ reports : reports
+  users ||--o{ files : "uploads"
 ```
 
 ---
