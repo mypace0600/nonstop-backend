@@ -1,9 +1,9 @@
 package com.app.nonstop.domain.auth.service;
 
-import com.app.nonstop.domain.auth.dto.AuthDto;
-import com.app.nonstop.domain.auth.mapper.AuthMapper;
+import com.app.nonstop.domain.auth.dto.*;
 import com.app.nonstop.domain.token.entity.RefreshToken;
-import com.app.nonstop.domain.token.mapper.RefreshTokenMapper;
+import com.app.nonstop.mapper.AuthMapper;
+import com.app.nonstop.mapper.RefreshTokenMapper;
 import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
@@ -48,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
-    public void signUp(AuthDto.SignUpRequest signUpRequest) {
+    public void signUp(SignUpRequestDto signUpRequest) {
         checkEmailDuplicate(signUpRequest.getEmail());
         checkNicknameDuplicate(signUpRequest.getNickname());
 
@@ -57,7 +57,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthDto.TokenResponse login(AuthDto.LoginRequest loginRequest) {
+    public TokenResponseDto login(LoginRequestDto loginRequest) {
         User user = authMapper.findByEmail(loginRequest.getEmail())
                 .orElseThrow(UserNotFoundException::new);
 
@@ -69,7 +69,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthDto.TokenResponse googleLogin(AuthDto.GoogleLoginRequest googleLoginRequest) {
+    public TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest) {
         FirebaseAuth auth = firebaseAuth.orElseThrow(() -> new IllegalStateException("Firebase not configured for this environment."));
         FirebaseToken firebaseToken;
         try {
@@ -99,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
 
-    private AuthDto.TokenResponse issueTokens(User user) {
+    private TokenResponseDto issueTokens(User user) {
         CustomUserDetails userDetails = new CustomUserDetails(
                 user.getId(),
                 user.getEmail(),
@@ -121,7 +121,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         refreshTokenMapper.save(newRefreshToken);
 
-        return AuthDto.TokenResponse.builder()
+        return TokenResponseDto.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -138,7 +138,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthDto.TokenResponse refresh(String refreshTokenValue) {
+    public TokenResponseDto refresh(String refreshTokenValue) {
         if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
             throw new RuntimeException("Invalid Refresh Token");
         }

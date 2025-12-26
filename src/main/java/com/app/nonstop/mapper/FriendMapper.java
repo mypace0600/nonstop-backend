@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.friend.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.friend.dto.FriendDto;
 import com.app.nonstop.domain.friend.entity.Friend;

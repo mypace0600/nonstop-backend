@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.device.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.device.entity.DeviceToken;
 import org.apache.ibatis.annotations.Mapper;

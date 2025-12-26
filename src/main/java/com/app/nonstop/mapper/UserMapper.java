@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.user.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.user.entity.User;
 import org.apache.ibatis.annotations.Mapper;

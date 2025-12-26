@@ -2,13 +2,13 @@ package com.app.nonstop.domain.verification.service;
 
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
-import com.app.nonstop.domain.user.mapper.UserMapper;
 import com.app.nonstop.domain.verification.entity.ReportStatus;
 import com.app.nonstop.domain.verification.entity.StudentVerificationRequest;
 import com.app.nonstop.domain.verification.exception.FileTooLargeException;
 import com.app.nonstop.domain.verification.exception.InvalidFileTypeException;
 import com.app.nonstop.domain.verification.exception.VerificationRequestAlreadyExistsException;
-import com.app.nonstop.domain.verification.mapper.VerificationMapper;
+import com.app.nonstop.mapper.UserMapper;
+import com.app.nonstop.mapper.VerificationMapper;
 import com.app.nonstop.infra.blob.BlobStorageUploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;

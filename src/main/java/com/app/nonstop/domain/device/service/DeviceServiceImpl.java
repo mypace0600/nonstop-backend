@@ -2,10 +2,10 @@ package com.app.nonstop.domain.device.service;
 
 import com.app.nonstop.domain.device.dto.DeviceTokenRequestDto;
 import com.app.nonstop.domain.device.entity.DeviceToken;
-import com.app.nonstop.domain.device.mapper.DeviceMapper;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
-import com.app.nonstop.domain.user.mapper.UserMapper;
+import com.app.nonstop.mapper.DeviceMapper;
+import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,7 +1,7 @@
 package com.app.nonstop.domain.community.service;
 
 import com.app.nonstop.domain.community.dto.BoardResponseDto;
-import com.app.nonstop.domain.community.mapper.BoardMapper;
+import com.app.nonstop.mapper.BoardMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -2,7 +2,7 @@ package com.app.nonstop.domain.community.service;
 
 import com.app.nonstop.domain.community.dto.CommunityListWrapper;
 import com.app.nonstop.domain.community.dto.CommunityResponseDto;
-import com.app.nonstop.domain.community.mapper.CommunityMapper;
+import com.app.nonstop.mapper.CommunityMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

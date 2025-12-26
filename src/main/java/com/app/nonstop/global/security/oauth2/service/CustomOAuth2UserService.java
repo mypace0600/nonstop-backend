@@ -3,7 +3,7 @@ package com.app.nonstop.global.security.oauth2.service;
 import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.entity.UserRole;
-import com.app.nonstop.domain.user.mapper.UserMapper;
+import com.app.nonstop.mapper.UserMapper;
 import com.app.nonstop.global.security.oauth2.exception.OAuth2AuthenticationProcessingException;
 import com.app.nonstop.global.security.oauth2.model.OAuth2UserInfo;
 import com.app.nonstop.global.security.oauth2.model.OAuth2UserInfoFactory;

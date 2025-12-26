@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.app.nonstop.domain.device.mapper.DeviceMapper">
+<mapper namespace="com.app.nonstop.mapper.DeviceMapper">
 
     <resultMap id="deviceTokenResultMap" type="com.app.nonstop.domain.device.entity.DeviceToken">
         <id property="id" column="dt_id"/>

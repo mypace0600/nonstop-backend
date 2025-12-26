@@ -1,17 +1,17 @@
 package com.app.nonstop.domain.auth.service;
 
-import com.app.nonstop.domain.auth.dto.AuthDto;
+import com.app.nonstop.domain.auth.dto.*;
 
 public interface AuthService {
-    void signUp(AuthDto.SignUpRequest signUpRequest);
+    void signUp(SignUpRequestDto signUpRequest);
 
-    AuthDto.TokenResponse login(AuthDto.LoginRequest loginRequest);
+    TokenResponseDto login(LoginRequestDto loginRequest);
 
-    AuthDto.TokenResponse googleLogin(AuthDto.GoogleLoginRequest googleLoginRequest);
+    TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest);
 
     void logout(String refreshToken);
 
-    AuthDto.TokenResponse refresh(String refreshTokenValue);
+    TokenResponseDto refresh(String refreshTokenValue);
 
     void checkEmailDuplicate(String email);
 

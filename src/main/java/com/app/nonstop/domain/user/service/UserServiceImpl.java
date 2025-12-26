@@ -1,6 +1,5 @@
 package com.app.nonstop.domain.user.service;
 
-import com.app.nonstop.domain.device.mapper.DeviceMapper;
 import com.app.nonstop.domain.major.entity.Major;
 import com.app.nonstop.domain.university.entity.University;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
@@ -13,7 +12,8 @@ import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
 import com.app.nonstop.domain.user.exception.InvalidPasswordChangeAttemptException;
 import com.app.nonstop.domain.user.exception.InvalidPasswordException;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
-import com.app.nonstop.domain.user.mapper.UserMapper;
+import com.app.nonstop.mapper.DeviceMapper;
+import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

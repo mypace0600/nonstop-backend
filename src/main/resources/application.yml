@@ -35,12 +35,6 @@ spring:
       connection-timeout: 20000
       max-lifetime: 1200000
 
-  # --- Flyway ---
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
-
   # --- Spring Mail ---
   mail:
     host: smtp.gmail.com
@@ -108,11 +102,11 @@ spring:
 
 
 # ===================================================================
-# MYBATIS CONFIGURATION (XML Free)
+# MYBATIS CONFIGURATION
 # ===================================================================
 mybatis:
   mapper-locations: classpath:mybatis/mappers/**/*.xml
-  type-aliases-package: com.app.nonstop.domain.model
+  type-aliases-package: com.app.nonstop.mapper.*
   configuration:
     map-underscore-to-camel-case: true
     call-setters-on-nulls: true

@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.token.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import org.apache.ibatis.annotations.Mapper;
