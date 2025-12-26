@@ -39,6 +39,7 @@
   - 학교/전공 기반 콘텐츠
 
 ### 💬 Real-time Communication
+- **Kafka 기반**의 확장 가능한 실시간 채팅 시스템 (Producer-Consumer 모델)
 - WebSocket 기반
   - 1:1 채팅
   - 그룹 채팅
