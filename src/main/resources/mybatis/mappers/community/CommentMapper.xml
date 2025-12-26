@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.domain.community.mapper.CommentMapper">
+
+    <resultMap id="commentMap" type="com.app.nonstop.domain.community.entity.Comment">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="upperCommentId" column="upper_comment_id"/>
+        <result property="content" column="content"/>
+        <result property="type" column="type"/>
+        <result property="isAnonymous" column="is_anonymous"/>
+        <result property="depth" column="depth"/>
+        <result property="deletedAt" column="deleted_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="commentResponseMap" type="com.app.nonstop.domain.community.dto.CommentResponseDto">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="upperCommentId" column="upper_comment_id"/>
+        <result property="writerNickname" column="writer_nickname"/>
+        <result property="isWriterAnonymous" column="is_writer_anonymous"/>
+        <result property="content" column="content"/>
+        <result property="type" column="type"/>
+        <result property="depth" column="depth"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="isLiked" column="is_liked"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comments (
+            post_id, user_id, upper_comment_id, content, type, is_anonymous, depth, created_at, updated_at
+        ) VALUES (
+            #{postId}, #{userId}, #{upperCommentId}, #{content}, #{type}::comment_type, #{isAnonymous}, #{depth}, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="findById" resultMap="commentMap">
+        SELECT * FROM comments WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+    
+    <update id="update">
+        UPDATE comments
+        SET content = #{content},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="delete">
+        UPDATE comments SET deleted_at = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- Like Operations -->
+    <select id="existsLike" resultType="int">
+        SELECT COUNT(*) FROM user_comment_likes WHERE user_id = #{userId} AND comment_id = #{commentId}
+    </select>
+
+    <insert id="insertLike">
+        INSERT INTO user_comment_likes (user_id, comment_id, deleted_at) VALUES (#{userId}, #{commentId}, NULL)
+    </insert>
+
+    <update id="deleteLike">
+        UPDATE user_comment_likes SET deleted_at = NOW() WHERE user_id = #{userId} AND comment_id = #{commentId}
+    </update>
+
+    <update id="restoreLike">
+        UPDATE user_comment_likes SET deleted_at = NULL WHERE user_id = #{userId} AND comment_id = #{commentId}
+    </update>
+
+    <!-- Complex Selects -->
+    <select id="findAllByPostIdWithDetail" resultMap="commentResponseMap">
+        SELECT
+            c.id,
+            c.post_id,
+            c.upper_comment_id,
+            c.content,
+            c.type,
+            c.depth,
+            c.created_at,
+            c.updated_at,
+            c.is_anonymous AS is_writer_anonymous,
+            u.nickname AS writer_nickname,
+            (c.deleted_at IS NOT NULL) AS is_deleted,
+            (SELECT COUNT(*) FROM user_comment_likes l WHERE l.comment_id = c.id AND l.deleted_at IS NULL) AS like_count,
+            <choose>
+                <when test="currentUserId != null">
+                    EXISTS(
+                        SELECT 1 FROM user_comment_likes l
+                        WHERE l.comment_id = c.id AND l.user_id = #{currentUserId} AND l.deleted_at IS NULL
+                    )
+                </when>
+                <otherwise>
+                    FALSE
+                </otherwise>
+            </choose> AS is_liked
+        FROM comments c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.post_id = #{postId}
+        ORDER BY 
+            COALESCE(c.upper_comment_id, c.id) ASC, 
+            c.created_at ASC
+    </select>
+
+</mapper>

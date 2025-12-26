@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.domain.community.mapper.PostMapper">
+
+    <!-- Basic ResultMap for Entity -->
+    <resultMap id="postMap" type="com.app.nonstop.domain.community.entity.Post">
+        <id property="id" column="id"/>
+        <result property="boardId" column="board_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="isAnonymous" column="is_anonymous"/>
+        <result property="isSecret" column="is_secret"/>
+        <result property="deletedAt" column="deleted_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    
+    <!-- DTO ResultMap -->
+    <resultMap id="postResponseMap" type="com.app.nonstop.domain.community.dto.PostResponseDto">
+        <id property="id" column="id"/>
+        <result property="boardId" column="board_id"/>
+        <result property="writerNickname" column="writer_nickname"/>
+        <result property="isWriterAnonymous" column="is_writer_anonymous"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="isSecret" column="is_secret"/>
+        <result property="isLiked" column="is_liked"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (
+            board_id, user_id, title, content, view_count, is_anonymous, is_secret, created_at, updated_at
+        ) VALUES (
+            #{boardId}, #{userId}, #{title}, #{content}, 0, #{isAnonymous}, #{isSecret}, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="findById" resultMap="postMap">
+        SELECT * FROM posts WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+    
+    <update id="update">
+        UPDATE posts
+        SET title = #{title},
+            content = #{content},
+            is_anonymous = #{isAnonymous},
+            is_secret = #{isSecret},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="delete">
+        UPDATE posts SET deleted_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE posts SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <!-- Like Operations -->
+    <select id="existsLike" resultType="int">
+        SELECT COUNT(*) FROM user_post_likes WHERE user_id = #{userId} AND post_id = #{postId}
+    </select>
+
+    <insert id="insertLike">
+        INSERT INTO user_post_likes (user_id, post_id, deleted_at) VALUES (#{userId}, #{postId}, NULL)
+    </insert>
+
+    <update id="deleteLike">
+        UPDATE user_post_likes SET deleted_at = NOW() WHERE user_id = #{userId} AND post_id = #{postId}
+    </update>
+
+    <update id="restoreLike">
+        UPDATE user_post_likes SET deleted_at = NULL WHERE user_id = #{userId} AND post_id = #{postId}
+    </update>
+
+    <!-- Complex Selects -->
+    <select id="findByIdWithDetail" resultMap="postResponseMap">
+        SELECT 
+            p.id,
+            p.board_id,
+            p.title,
+            p.content,
+            p.view_count,
+            p.is_secret,
+            p.created_at,
+            p.updated_at,
+            p.is_anonymous AS is_writer_anonymous,
+            u.nickname AS writer_nickname,
+            (SELECT COUNT(*) FROM user_post_likes l WHERE l.post_id = p.id AND l.deleted_at IS NULL) AS like_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS comment_count,
+            EXISTS(
+                SELECT 1 FROM user_post_likes l 
+                WHERE l.post_id = p.id AND l.user_id = #{currentUserId} AND l.deleted_at IS NULL
+            ) AS is_liked
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+    </select>
+
+    <select id="findAllByBoardIdWithDetail" resultMap="postResponseMap">
+        SELECT 
+            p.id,
+            p.board_id,
+            p.title,
+            p.content,
+            p.view_count,
+            p.is_secret,
+            p.created_at,
+            p.updated_at,
+            p.is_anonymous AS is_writer_anonymous,
+            u.nickname AS writer_nickname,
+            (SELECT COUNT(*) FROM user_post_likes l WHERE l.post_id = p.id AND l.deleted_at IS NULL) AS like_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS comment_count,
+            <choose>
+                <when test="currentUserId != null">
+                    EXISTS(
+                        SELECT 1 FROM user_post_likes l 
+                        WHERE l.post_id = p.id AND l.user_id = #{currentUserId} AND l.deleted_at IS NULL
+                    )
+                </when>
+                <otherwise>
+                    FALSE
+                </otherwise>
+            </choose> AS is_liked
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.board_id = #{boardId} AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>
