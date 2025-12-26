@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.verification.entity;
+package com.app.nonstop.domain.report.entity;
 
 /**
  * 학생증 인증 요청 및 신고 처리 상태를 나타내는 Enum.

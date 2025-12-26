@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.domain.report.mapper.ReportMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO reports (
+            reporter_id, target_type, target_id, reason, description, status, created_at, updated_at
+        ) VALUES (
+            #{reporterId}, #{targetType}::report_target_type, #{targetId}, #{reason}::report_reason_type, 
+            #{description}, #{status}::report_status, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="existsByReporterAndTarget" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM reports
+            WHERE reporter_id = #{reporterId}
+              AND target_type = #{targetType}::report_target_type
+              AND target_id = #{targetId}
+        )
+    </select>
+
+</mapper>

@@ -1,6 +1,6 @@
 package com.app.nonstop.domain.community.mapper;
 
-import com.app.nonstop.domain.community.dto.PostResponseDto;
+import com.app.nonstop.domain.community.dto.PostDto;
 import com.app.nonstop.domain.community.entity.Post;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -28,9 +28,9 @@ public interface PostMapper {
     boolean isLiked(@Param("userId") Long userId, @Param("postId") Long postId);
     
     // Complex Selects (returning DTO)
-    Optional<PostResponseDto> findByIdWithDetail(@Param("id") Long id, @Param("currentUserId") Long currentUserId);
+    Optional<PostDto.Response> findByIdWithDetail(@Param("id") Long id, @Param("currentUserId") Long currentUserId);
     
-    List<PostResponseDto> findAllByBoardIdWithDetail(
+    List<PostDto.Response> findAllByBoardIdWithDetail(
             @Param("boardId") Long boardId, 
             @Param("limit") int limit, 
             @Param("offset") int offset,

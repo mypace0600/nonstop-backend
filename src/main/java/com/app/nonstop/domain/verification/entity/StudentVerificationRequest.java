@@ -1,5 +1,6 @@
 package com.app.nonstop.domain.verification.entity;
 
+import com.app.nonstop.domain.report.entity.ReportStatus;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
 import lombok.Builder;

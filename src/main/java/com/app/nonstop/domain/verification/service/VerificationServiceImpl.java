@@ -2,7 +2,7 @@ package com.app.nonstop.domain.verification.service;
 
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
-import com.app.nonstop.domain.verification.entity.ReportStatus;
+import com.app.nonstop.domain.report.entity.ReportStatus;
 import com.app.nonstop.domain.verification.entity.StudentVerificationRequest;
 import com.app.nonstop.domain.verification.exception.FileTooLargeException;
 import com.app.nonstop.domain.verification.exception.InvalidFileTypeException;

@@ -1,6 +1,6 @@
 package com.app.nonstop.domain.community.mapper;
 
-import com.app.nonstop.domain.community.dto.CommentResponseDto;
+import com.app.nonstop.domain.community.dto.CommentDto;
 import com.app.nonstop.domain.community.entity.Comment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -25,5 +25,5 @@ public interface CommentMapper {
     boolean isLiked(@Param("userId") Long userId, @Param("commentId") Long commentId);
 
     // Complex Selects
-    List<CommentResponseDto> findAllByPostIdWithDetail(@Param("postId") Long postId, @Param("currentUserId") Long currentUserId);
+    List<CommentDto.Response> findAllByPostIdWithDetail(@Param("postId") Long postId, @Param("currentUserId") Long currentUserId);
 }

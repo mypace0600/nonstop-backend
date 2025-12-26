@@ -18,7 +18,7 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <resultMap id="commentResponseMap" type="com.app.nonstop.domain.community.dto.CommentResponseDto">
+    <resultMap id="commentResponseMap" type="com.app.nonstop.domain.community.dto.CommentDto$Response">
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="upperCommentId" column="upper_comment_id"/>
