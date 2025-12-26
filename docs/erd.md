@@ -104,6 +104,17 @@ erDiagram
     BIGINT id PK
     BIGINT chat_room_id FK
     BIGINT sender_id FK
+    UUID client_message_id
+    message_type type
+  }
+
+  chat_room_members {
+    BIGINT id PK
+    BIGINT room_id FK
+    BIGINT user_id FK
+    BIGINT last_read_message_id FK
+    TIMESTAMP joined_at
+    TIMESTAMP left_at
   }
 
   message_deletions {
@@ -186,6 +197,10 @@ erDiagram
 
   chat_rooms ||--|| one_to_one_chat_rooms : specialization
   users ||--o{ one_to_one_chat_rooms : participates
+
+  chat_rooms ||--o{ chat_room_members : has
+  users ||--o{ chat_room_members : joins
+  messages ||--o{ chat_room_members : last_read
 
   messages ||--o{ message_deletions : deleted_by
   users ||--o{ message_deletions : deletes

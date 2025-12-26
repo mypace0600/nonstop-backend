@@ -52,7 +52,16 @@ CREATE TYPE file_purpose AS ENUM (
   'PROFILE_IMAGE',
   'BOARD_ATTACHMENT',
   'STUDENT_ID_VERIFICATION',
-  'UNIVERSITY_LOGO'
+  'UNIVERSITY_LOGO',
+  'CHAT_IMAGE'
+);
+
+CREATE TYPE message_type AS ENUM (
+  'TEXT',
+  'IMAGE',
+  'SYSTEM_INVITE',
+  'SYSTEM_LEAVE',
+  'SYSTEM_KICK'
 );
 ```
 
@@ -304,6 +313,19 @@ CREATE TABLE chat_rooms (
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+CREATE TABLE chat_room_members (
+  id BIGSERIAL PRIMARY KEY,
+  room_id BIGINT NOT NULL REFERENCES chat_rooms(id),
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  last_read_message_id BIGINT REFERENCES messages(id),
+  joined_at TIMESTAMP NOT NULL DEFAULT now(),
+  left_at TIMESTAMP,
+  UNIQUE (room_id, user_id)
+);
+
+CREATE INDEX ix_chat_room_members_user
+  ON chat_room_members(user_id) WHERE left_at IS NULL;
 ```
 
 ```sql
@@ -325,9 +347,17 @@ CREATE TABLE messages (
   id BIGSERIAL PRIMARY KEY,
   chat_room_id BIGINT NOT NULL REFERENCES chat_rooms(id),
   sender_id BIGINT NOT NULL REFERENCES users(id),
+  client_message_id UUID,
+  type message_type NOT NULL DEFAULT 'TEXT',
   content TEXT,
   sent_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX ux_messages_client_id
+  ON messages(client_message_id) WHERE client_message_id IS NOT NULL;
+
+CREATE INDEX ix_messages_room_sent
+  ON messages(chat_room_id, sent_at DESC);
 
 CREATE TABLE message_deletions (
   message_id BIGINT REFERENCES messages(id),
