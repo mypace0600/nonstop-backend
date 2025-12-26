@@ -2,8 +2,14 @@
 -- V2: 채팅 기능 강화 및 파일 테이블 추가
 -- ===================================================================
 
--- 1. file_purpose ENUM에 CHAT_IMAGE 추가
-ALTER TYPE file_purpose ADD VALUE IF NOT EXISTS 'CHAT_IMAGE';
+-- 1. file_purpose ENUM 생성 (CHAT_IMAGE 포함)
+CREATE TYPE file_purpose AS ENUM (
+    'PROFILE_IMAGE',
+    'BOARD_ATTACHMENT',
+    'STUDENT_ID_VERIFICATION',
+    'UNIVERSITY_LOGO',
+    'CHAT_IMAGE'
+);
 
 -- 2. message_type ENUM 신규 생성
 DO $$
