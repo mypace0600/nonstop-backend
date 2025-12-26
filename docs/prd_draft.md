@@ -78,9 +78,30 @@ POST /api/v1/chat/rooms
 → 요청 바디 { "targetUserId": 999 }  
 → 서버는 (userA, userB) 정규화하여 기존 방 조회 → 있으면 기존 roomId 반환, 없으면 생성
 
-#### 3.7.2 실시간 채팅
-WebSocket: wss://api.nonstop.app/ws/v1/chat?access_token=xxx
-- Access Token 만료 시 서버 → close code 4001 ("token_expired")
+#### 3.7.2 실시간 채팅 (Kafka 기반 v2.2)
+- **Client → Server:** STOMP over WebSocket (`/ws/v1/chat`)
+- **Server → Kafka:** `chat-messages` 토픽으로 메시지 발행 (Produce)
+- **Kafka → Server:** Consumer가 메시지 구독 (Consume) → DB 저장 및 WebSocket으로 브로드캐스팅
+
+##### 데이터 흐름
+1. **Client:** `/pub/chat/message` (destination)으로 메시지 전송 (STOMP)
+   - Payload: `{ "roomId": 123, "content": "Hello" }`
+2. **Backend (WebSocketController):** 메시지 수신 후 즉시 `ChatKafkaProducer` 호출
+3. **ChatKafkaProducer:** 메시지를 `chat-messages` 토픽으로 직렬화하여 전송
+4. **ChatKafkaConsumer:**
+   - `chat-messages` 토픽 구독
+   - 메시지 수신 후 DB에 저장 (`messages` 테이블)
+   - `/sub/chat/room/{roomId}` (topic)으로 메시지 브로드캐스팅 (STOMP)
+5. **Client:** `/sub/chat/room/{roomId}` 구독 중, 메시지 수신하여 화면에 표시
+
+##### WebSocket Endpoint
+- `wss://api.nonstop.app/ws/v1/chat`
+- 연결 시 Access Token 쿼리 파라미터로 인증
+
+##### 장점
+- **확장성:** 채팅 서버(WebSocket 세션 보유)와 메시지 처리 로직(DB 저장) 분리
+- **안정성:** Kafka가 메시지 브로커 역할, 트래픽 급증에도 안정적 처리
+- **메시지 유실 방지:** Consumer 장애 시에도 Kafka에 메시지 보관
 
 #### 3.7.3 메시지 나에게만 삭제 (카카오톡식)
 DELETE /api/v1/chat/rooms/{roomId}/messages/{messageId}

@@ -51,14 +51,17 @@ com.app.nonstop
  │   │
  │   ├── chat
  │   │   ├── controller
+│   │   │   └── ChatController.java      // (New) Handles chat message via WebSocket
+ │   │   ├── kafka
+ │   │   │   ├── ChatKafkaProducer.java   // (New) Produces messages to Kafka
+ │   │   │   └── ChatKafkaConsumer.java   // (New) Consumes messages from Kafka
  │   │   ├── service
- │   │   │   └── ChatService.java     // 메시지 저장, Redis Pub, FCM 트리거
- │   │   ├── handler
- │   │   │   └── ChatWebSocketHandler.java // WS 연결 관리
+ │   │   │   └── ChatService.java         // (To be updated) Business logic for chat
  │   │   ├── dto
- │   │   │   └── ChatDto.java         // MessageReq, RoomRes 등
+ │   │   │   └── ChatDto.java             // (New) DTO for chat messages
  │   │   └── mapper
- │   │       └── ChatMapper.java      // (New) chat_room_members 조회 포함
+ │   │       └── ChatMapper.java          // (New) Mapper for chat messages
+
  │   │
  │   ├── community (board, post, comment...)
  │   ├── notification
