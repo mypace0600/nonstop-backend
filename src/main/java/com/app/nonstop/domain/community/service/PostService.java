@@ -2,16 +2,16 @@ package com.app.nonstop.domain.community.service;
 
 import com.app.nonstop.domain.community.dto.PostDto;
 import com.app.nonstop.domain.community.entity.Post;
-import com.app.nonstop.domain.community.mapper.PostMapper;
+import com.app.nonstop.mapper.PostMapper;
 import com.app.nonstop.domain.file.service.FileService;
 import com.app.nonstop.domain.notification.entity.NotificationType;
 import com.app.nonstop.domain.notification.service.NotificationService;
 import com.app.nonstop.domain.user.entity.User;
-import com.app.nonstop.domain.user.mapper.UserMapper;
 import com.app.nonstop.global.common.exception.AccessDeniedException;
 import com.app.nonstop.global.common.exception.BusinessException;
 import com.app.nonstop.global.common.exception.ResourceNotFoundException;
 import com.app.nonstop.global.security.user.CustomUserDetails;
+import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

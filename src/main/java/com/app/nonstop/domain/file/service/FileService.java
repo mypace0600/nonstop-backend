@@ -4,7 +4,7 @@ import com.app.nonstop.domain.file.dto.FileUploadCompleteDto;
 import com.app.nonstop.domain.file.dto.FileUploadRequestDto;
 import com.app.nonstop.domain.file.entity.File;
 import com.app.nonstop.domain.file.entity.FilePurpose;
-import com.app.nonstop.domain.file.mapper.FileMapper;
+import com.app.nonstop.mapper.FileMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

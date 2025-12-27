@@ -3,7 +3,7 @@ package com.app.nonstop.domain.report.service;
 import com.app.nonstop.domain.report.dto.ReportDto;
 import com.app.nonstop.domain.report.entity.Report;
 import com.app.nonstop.domain.report.entity.ReportTargetType;
-import com.app.nonstop.domain.report.mapper.ReportMapper;
+import com.app.nonstop.mapper.ReportMapper;
 import com.app.nonstop.domain.report.entity.ReportStatus;
 import com.app.nonstop.global.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;

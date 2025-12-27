@@ -3,9 +3,8 @@ package com.app.nonstop.domain.notification.service;
 import com.app.nonstop.domain.notification.dto.NotificationDto;
 import com.app.nonstop.domain.notification.entity.Notification;
 import com.app.nonstop.domain.notification.entity.NotificationType;
-import com.app.nonstop.domain.notification.mapper.NotificationMapper;
+import com.app.nonstop.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

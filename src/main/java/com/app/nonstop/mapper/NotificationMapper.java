@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.notification.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.notification.dto.NotificationDto;
 import com.app.nonstop.domain.notification.entity.Notification;

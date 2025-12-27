@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.report.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.report.entity.Report;
 import org.apache.ibatis.annotations.Mapper;

@@ -1,4 +1,4 @@
-package com.app.nonstop.domain.community.mapper;
+package com.app.nonstop.mapper;
 
 import com.app.nonstop.domain.community.dto.PostDto;
 import com.app.nonstop.domain.community.entity.Post;
