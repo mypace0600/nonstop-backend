@@ -47,14 +47,18 @@ com.app.nonstop
  │
  ├── mapper                              # MyBatis Mapper 인터페이스 (분리됨)
  │   ├── AuthMapper.java
- │   ├── UserMapper.java
- │   ├── RefreshTokenMapper.java
- │   ├── DeviceMapper.java
- │   ├── VerificationMapper.java
- │   ├── FriendMapper.java
- │   ├── CommunityMapper.java
  │   ├── BoardMapper.java
- │   └── FileMapper.java
+ │   ├── CommentMapper.java
+ │   ├── CommunityMapper.java
+ │   ├── DeviceMapper.java
+ │   ├── FileMapper.java
+ │   ├── FriendMapper.java
+ │   ├── NotificationMapper.java
+ │   ├── PostMapper.java
+ │   ├── RefreshTokenMapper.java
+ │   ├── ReportMapper.java
+ │   ├── UserMapper.java
+ │   └── VerificationMapper.java
  │
  ├── domain
  │   ├── auth
@@ -144,7 +148,7 @@ com.app.nonstop
  │   │
  │   ├── community
  │   │   ├── controller
- │   │   │   └── CommunityController.java
+ │   │   │   ├── CommunityController.java
  │   │   ├── service
  │   │   │   ├── CommunityService.java
  │   │   │   ├── CommunityServiceImpl.java
@@ -202,7 +206,9 @@ resources/
          │   └── FriendMapper.xml
          ├── community
          │   ├── CommunityMapper.xml
-         │   └── BoardMapper.xml
+         │   ├── BoardMapper.xml
+         │   ├── CommentMapper.xml
+         │   └── PostMapper.xml
          └── file
              └── FileMapper.xml
 ```
