@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.mapper.ChatRoomMapper">
+
+    <resultMap id="chatRoomResultMap" type="com.app.nonstop.domain.chat.entity.ChatRoom">
+        <id property="id" column="id"/>
+        <result property="type" column="type"/>
+        <result property="name" column="name"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findOneToOneChatRoom" resultMap="chatRoomResultMap">
+        SELECT cr.id, cr.type, cr.name, cr.creator_id, cr.created_at, cr.updated_at
+        FROM chat_rooms cr
+        JOIN one_to_one_chat_rooms ocr ON cr.id = ocr.room_id
+        WHERE (ocr.user_a_id = #{userAId} AND ocr.user_b_id = #{userBId})
+           OR (ocr.user_a_id = #{userBId} AND ocr.user_b_id = #{userAId})
+    </select>
+
+    <insert id="insertChatRoom" parameterType="com.app.nonstop.domain.chat.entity.ChatRoom"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_rooms (type, name, creator_id, created_at, updated_at)
+        VALUES (#{type}::chat_room_type, #{name}, #{creatorId}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <insert id="insertChatRoomMember" parameterType="com.app.nonstop.domain.chat.entity.ChatRoomMember">
+        INSERT INTO chat_room_members (room_id, user_id, joined_at)
+        VALUES (#{roomId}, #{userId}, #{joinedAt})
+    </insert>
+
+    <insert id="insertOneToOneChatRoom">
+        INSERT INTO one_to_one_chat_rooms (room_id, user_a_id, user_b_id)
+        VALUES (#{roomId}, #{userAId}, #{userBId})
+    </insert>
+
+</mapper>
