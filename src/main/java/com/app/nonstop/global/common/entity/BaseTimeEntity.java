@@ -1,6 +1,9 @@
 package com.app.nonstop.global.common.entity;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +17,9 @@ import java.time.LocalDateTime;
  * - UPDATE 시: updated_at 에만 현재 시간 삽입
  */
 @Getter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
 public abstract class BaseTimeEntity {
 
     private LocalDateTime createdAt;

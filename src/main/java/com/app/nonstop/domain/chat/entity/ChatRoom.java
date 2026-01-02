@@ -2,12 +2,13 @@ package com.app.nonstop.domain.chat.entity;
 
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatRoom extends BaseTimeEntity {

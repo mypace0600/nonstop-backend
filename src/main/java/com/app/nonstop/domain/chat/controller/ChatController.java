@@ -7,12 +7,12 @@ import com.app.nonstop.domain.chat.dto.OneToOneChatRoomRequestDto;
 import com.app.nonstop.domain.chat.service.ChatRoomService;
 import com.app.nonstop.domain.chat.service.ChatService;
 import com.app.nonstop.global.common.response.ApiResponse;
-import com.app.nonstop.global.security.jwt.JwtTokenProvider;
-import jakarta.servlet.http.HttpServletRequest;
+import com.app.nonstop.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,16 +24,14 @@ public class ChatController {
 
     private final ChatRoomService chatRoomService;
     private final ChatService chatService;
-    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * 내 채팅방 목록 조회
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getMyChatRooms(HttpServletRequest request) {
-        Long userId = jwtTokenProvider.getUserIdFromRequest(request);
-        List<ChatRoomResponseDto> chatRooms = chatRoomService.getMyChatRooms(userId);
-        return ApiResponse.success(HttpStatus.OK, chatRooms);
+    public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getMyChatRooms(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<ChatRoomResponseDto> chatRooms = chatRoomService.getMyChatRooms(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(chatRooms));
     }
 
     /**
@@ -41,11 +39,10 @@ public class ChatController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createOneToOneChatRoom(
-            HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody OneToOneChatRoomRequestDto requestDto) {
-        Long currentUserId = jwtTokenProvider.getUserIdFromRequest(request);
-        ChatRoomResponseDto chatRoom = chatRoomService.getOrCreateOneToOneChatRoom(currentUserId, requestDto.getTargetUserId());
-        return ApiResponse.success(HttpStatus.CREATED, chatRoom);
+        ChatRoomResponseDto chatRoom = chatRoomService.getOrCreateOneToOneChatRoom(userDetails.getUserId(), requestDto.getTargetUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(chatRoom));
     }
 
     /**
@@ -53,11 +50,10 @@ public class ChatController {
      */
     @PostMapping("/group-rooms")
     public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createGroupChatRoom(
-            HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody GroupChatRoomRequestDto requestDto) {
-        Long currentUserId = jwtTokenProvider.getUserIdFromRequest(request);
-        ChatRoomResponseDto chatRoom = chatRoomService.createGroupChatRoom(currentUserId, requestDto.getRoomName(), requestDto.getUserIds());
-        return ApiResponse.success(HttpStatus.CREATED, chatRoom);
+        ChatRoomResponseDto chatRoom = chatRoomService.createGroupChatRoom(userDetails.getUserId(), requestDto.getRoomName(), requestDto.getUserIds());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(chatRoom));
     }
 
     /**
@@ -65,13 +61,12 @@ public class ChatController {
      */
     @GetMapping("/{roomId}/messages")
     public ResponseEntity<ApiResponse<List<MessageResponseDto>>> getMessages(
-            HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        Long userId = jwtTokenProvider.getUserIdFromRequest(request);
-        List<MessageResponseDto> messages = chatService.getMessages(roomId, userId, limit, offset);
-        return ApiResponse.success(HttpStatus.OK, messages);
+        List<MessageResponseDto> messages = chatService.getMessages(roomId, userDetails.getUserId(), limit, offset);
+        return ResponseEntity.ok(ApiResponse.success(messages));
     }
 
     /**
@@ -79,12 +74,11 @@ public class ChatController {
      */
     @PatchMapping("/{roomId}/read")
     public ResponseEntity<ApiResponse<Void>> markAsRead(
-            HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId,
             @RequestParam Long messageId) {
-        Long userId = jwtTokenProvider.getUserIdFromRequest(request);
-        chatRoomService.markAsRead(roomId, userId, messageId);
-        return ApiResponse.success(HttpStatus.OK, null);
+        chatRoomService.markAsRead(roomId, userDetails.getUserId(), messageId);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     // TODO: 채팅방 나가기 (DELETE /api/v1/chat/rooms/{roomId})
