@@ -8,4 +8,27 @@
         VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{clientMessageId}, #{sentAt})
     </insert>
 
+    <select id="findMessagesByRoomId" resultType="com.app.nonstop.domain.chat.dto.MessageResponseDto">
+        SELECT
+            m.id AS messageId,
+            m.sender_id AS senderId,
+            u.nickname AS senderNickname,
+            u.profile_image_url AS senderProfileImageUrl,
+            m.content,
+            m.type,
+            m.sent_at AS sentAt,
+            m.client_message_id AS clientMessageId
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.chat_room_id = #{roomId}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM message_deletions md
+              WHERE md.message_id = m.id
+                AND md.user_id = #{userId}
+          )
+        ORDER BY m.sent_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
 </mapper>

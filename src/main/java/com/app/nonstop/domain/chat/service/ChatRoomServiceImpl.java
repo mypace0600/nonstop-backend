@@ -26,10 +26,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
     @Override
     public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
-        // TODO: Implement logic to retrieve chat rooms for the given user
-        // This will likely involve joining chat_rooms and chat_room_members tables.
-        // For now, return an empty list or mock data.
-        return List.of();
+        return chatRoomMapper.findMyChatRooms(userId);
     }
 
     @Override
@@ -109,6 +106,12 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 .type(newRoom.getType())
                 .name(newRoom.getName())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void markAsRead(Long roomId, Long userId, Long messageId) {
+        chatRoomMapper.updateLastReadMessageId(roomId, userId, messageId);
     }
 
     private String getUserNickname(Long userId) {

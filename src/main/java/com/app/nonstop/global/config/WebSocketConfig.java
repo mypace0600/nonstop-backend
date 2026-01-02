@@ -1,5 +1,7 @@
 package com.app.nonstop.global.config;
 
+import com.app.nonstop.global.security.websocket.WebSocketAuthInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -8,7 +10,10 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -20,8 +25,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // WebSocket 핸드셰이크를 위한 엔드포인트
+        // WebSocket 핸드셰이크를 위한 엔드포인트 (JWT 토큰 인증 추가)
         registry.addEndpoint("/ws/v1/chat")
+                .addInterceptors(webSocketAuthInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }

@@ -2,10 +2,12 @@ package com.app.nonstop.domain.chat.controller;
 
 import com.app.nonstop.domain.chat.dto.ChatRoomResponseDto;
 import com.app.nonstop.domain.chat.dto.GroupChatRoomRequestDto;
+import com.app.nonstop.domain.chat.dto.MessageResponseDto;
 import com.app.nonstop.domain.chat.dto.OneToOneChatRoomRequestDto;
-import com.app.nonstop.domain.chat.service.ChatRoomService; // Assuming a new service for chat room management
+import com.app.nonstop.domain.chat.service.ChatRoomService;
+import com.app.nonstop.domain.chat.service.ChatService;
 import com.app.nonstop.global.common.response.ApiResponse;
-import com.app.nonstop.global.security.jwt.JwtTokenProvider; // For extracting userId from token
+import com.app.nonstop.global.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChatController {
 
-    private final ChatRoomService chatRoomService; // New service for chat room specific logic
+    private final ChatRoomService chatRoomService;
+    private final ChatService chatService;
     private final JwtTokenProvider jwtTokenProvider;
 
     /**
@@ -57,8 +60,34 @@ public class ChatController {
         return ApiResponse.success(HttpStatus.CREATED, chatRoom);
     }
 
+    /**
+     * 과거 메시지 조회 (페이지네이션)
+     */
+    @GetMapping("/{roomId}/messages")
+    public ResponseEntity<ApiResponse<List<MessageResponseDto>>> getMessages(
+            HttpServletRequest request,
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Long userId = jwtTokenProvider.getUserIdFromRequest(request);
+        List<MessageResponseDto> messages = chatService.getMessages(roomId, userId, limit, offset);
+        return ApiResponse.success(HttpStatus.OK, messages);
+    }
+
+    /**
+     * 읽음 처리 (채팅방의 마지막 읽은 메시지 업데이트)
+     */
+    @PatchMapping("/{roomId}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            HttpServletRequest request,
+            @PathVariable Long roomId,
+            @RequestParam Long messageId) {
+        Long userId = jwtTokenProvider.getUserIdFromRequest(request);
+        chatRoomService.markAsRead(roomId, userId, messageId);
+        return ApiResponse.success(HttpStatus.OK, null);
+    }
+
     // TODO: 채팅방 나가기 (DELETE /api/v1/chat/rooms/{roomId})
-    // TODO: 과거 메시지 조회 (GET /api/v1/chat/rooms/{roomId}/messages)
     // TODO: 나에게만 메시지 삭제 (DELETE /api/v1/chat/rooms/{roomId}/messages/{msgId})
     // TODO: 그룹 채팅방 정보 수정 (PATCH /api/v1/chat/group-rooms/{roomId})
     // TODO: 그룹 채팅방 참여자 목록 조회 (GET /api/v1/chat/group-rooms/{roomId}/members)

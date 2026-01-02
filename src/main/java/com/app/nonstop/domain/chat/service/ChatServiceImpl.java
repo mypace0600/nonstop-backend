@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.chat.service;
 
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
+import com.app.nonstop.domain.chat.dto.MessageResponseDto;
 import com.app.nonstop.mapper.ChatMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,5 +27,10 @@ public class ChatServiceImpl implements ChatService {
 
         // 2. WebSocket으로 메시지 브로드캐스팅
         messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
+    }
+
+    @Override
+    public List<MessageResponseDto> getMessages(Long roomId, Long userId, int limit, int offset) {
+        return chatMapper.findMessagesByRoomId(roomId, userId, limit, offset);
     }
 }

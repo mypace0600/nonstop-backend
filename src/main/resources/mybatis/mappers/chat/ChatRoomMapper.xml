@@ -35,4 +35,58 @@
         VALUES (#{roomId}, #{userAId}, #{userBId})
     </insert>
 
+    <select id="findMyChatRooms" resultType="com.app.nonstop.domain.chat.dto.ChatRoomResponseDto">
+        SELECT
+            cr.id AS roomId,
+            cr.type,
+            CASE
+                WHEN cr.type = 'ONE_TO_ONE' THEN
+                    (SELECT u.nickname
+                     FROM one_to_one_chat_rooms ocr
+                     JOIN users u ON (u.id = ocr.user_a_id OR u.id = ocr.user_b_id) AND u.id != #{userId}
+                     WHERE ocr.room_id = cr.id
+                     LIMIT 1)
+                ELSE cr.name
+            END AS name,
+            CASE
+                WHEN cr.type = 'ONE_TO_ONE' THEN
+                    (SELECT u.profile_image_url
+                     FROM one_to_one_chat_rooms ocr
+                     JOIN users u ON (u.id = ocr.user_a_id OR u.id = ocr.user_b_id) AND u.id != #{userId}
+                     WHERE ocr.room_id = cr.id
+                     LIMIT 1)
+                ELSE NULL
+            END AS imageUrl,
+            (SELECT m.content
+             FROM messages m
+             WHERE m.chat_room_id = cr.id
+             ORDER BY m.sent_at DESC
+             LIMIT 1) AS lastMessageContent,
+            (SELECT m.sent_at
+             FROM messages m
+             WHERE m.chat_room_id = cr.id
+             ORDER BY m.sent_at DESC
+             LIMIT 1) AS lastMessageSentAt,
+            COALESCE(
+                (SELECT COUNT(*)
+                 FROM messages m
+                 WHERE m.chat_room_id = cr.id
+                   AND m.id > COALESCE(crm.last_read_message_id, 0)
+                   AND m.sender_id != #{userId}),
+                0
+            ) AS unreadCount
+        FROM chat_rooms cr
+        JOIN chat_room_members crm ON cr.id = crm.room_id
+        WHERE crm.user_id = #{userId}
+          AND crm.left_at IS NULL
+        ORDER BY lastMessageSentAt DESC NULLS LAST
+    </select>
+
+    <update id="updateLastReadMessageId">
+        UPDATE chat_room_members
+        SET last_read_message_id = #{messageId}
+        WHERE room_id = #{roomId}
+          AND user_id = #{userId}
+    </update>
+
 </mapper>

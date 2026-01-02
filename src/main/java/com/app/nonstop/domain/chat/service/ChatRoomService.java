@@ -9,4 +9,5 @@ public interface ChatRoomService {
     List<ChatRoomResponseDto> getMyChatRooms(Long userId);
     ChatRoomResponseDto getOrCreateOneToOneChatRoom(Long currentUserId, Long targetUserId);
     ChatRoomResponseDto createGroupChatRoom(Long currentUserId, String roomName, Set<Long> userIds);
+    void markAsRead(Long roomId, Long userId, Long messageId);
 }
