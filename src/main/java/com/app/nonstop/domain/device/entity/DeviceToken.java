@@ -2,14 +2,12 @@ package com.app.nonstop.domain.device.entity;
 
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class DeviceToken extends BaseTimeEntity {
 
     private Long id;

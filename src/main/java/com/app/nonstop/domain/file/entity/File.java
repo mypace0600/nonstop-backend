@@ -1,16 +1,14 @@
 package com.app.nonstop.domain.file.entity;
 
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class File extends BaseTimeEntity {
     private Long id;
     private Long uploaderId;

@@ -4,6 +4,7 @@ import com.app.nonstop.domain.report.entity.ReportStatus;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @NoArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class StudentVerificationRequest extends BaseTimeEntity {
 
     private Long id;

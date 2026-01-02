@@ -1,17 +1,14 @@
 package com.app.nonstop.domain.notification.entity;
 
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class Notification extends BaseTimeEntity {
     private Long id;
     private Long userId; // 수신자

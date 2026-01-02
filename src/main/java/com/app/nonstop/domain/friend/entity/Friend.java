@@ -2,11 +2,13 @@ package com.app.nonstop.domain.friend.entity;
 
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@EqualsAndHashCode(callSuper = false)
 public class Friend extends BaseTimeEntity {
 
     private final Long id;

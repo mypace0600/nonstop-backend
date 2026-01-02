@@ -3,10 +3,7 @@ package com.app.nonstop.domain.user.entity;
 import com.app.nonstop.domain.major.entity.Major;
 import com.app.nonstop.domain.university.entity.University;
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class User extends BaseTimeEntity {
 
     private Long id;
