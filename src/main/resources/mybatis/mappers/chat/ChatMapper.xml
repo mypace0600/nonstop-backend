@@ -4,8 +4,8 @@
 
     <insert id="insertMessage" parameterType="com.app.nonstop.domain.chat.dto.ChatMessageDto"
             useGeneratedKeys="true" keyProperty="messageId">
-        INSERT INTO messages (chat_room_id, sender_id, content, type, client_message_id, sent_at)
-        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{clientMessageId, jdbcType=OTHER}, #{sentAt})
+        INSERT INTO messages (chat_room_id, sender_id, content, type, sent_at)
+        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{sentAt})
     </insert>
 
     <select id="findMessagesByRoomId" resultType="com.app.nonstop.domain.chat.dto.MessageResponseDto">
@@ -16,8 +16,7 @@
             u.profile_image_url AS senderProfileImageUrl,
             m.content,
             m.type,
-            m.sent_at AS sentAt,
-            m.client_message_id AS clientMessageId
+            m.sent_at AS sentAt
         FROM messages m
         JOIN users u ON m.sender_id = u.id
         WHERE m.chat_room_id = #{roomId}
@@ -29,13 +28,6 @@
           )
         ORDER BY m.sent_at DESC
         LIMIT #{limit} OFFSET #{offset}
-    </select>
-
-    <select id="existsByClientMessageId" resultType="boolean">
-        SELECT EXISTS(
-            SELECT 1 FROM messages
-            WHERE client_message_id = #{clientMessageId, jdbcType=OTHER}
-        )
     </select>
 
     <insert id="insertMessageDeletion">

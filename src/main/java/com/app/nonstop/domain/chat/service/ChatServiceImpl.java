@@ -6,7 +6,6 @@ import com.app.nonstop.global.common.exception.ResourceNotFoundException;
 import com.app.nonstop.mapper.ChatMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,32 +24,15 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void saveAndBroadcastMessage(ChatMessageDto message) {
-        try {
-            // 1. clientMessageId 중복 체크 (있는 경우만)
-            if (message.getClientMessageId() != null) {
-                boolean exists = chatMapper.existsByClientMessageId(message.getClientMessageId().toString());
-                if (exists) {
-                    log.warn("Duplicate message detected, skipping: clientMessageId={}",
-                            message.getClientMessageId());
-                    return;
-                }
-            }
+        // 1. 메시지 DB 저장
+        message.setSentAt(LocalDateTime.now());
+        chatMapper.insertMessage(message);
 
-            // 2. 메시지 DB 저장
-            message.setSentAt(LocalDateTime.now());
-            chatMapper.insertMessage(message);
+        // 2. WebSocket으로 메시지 브로드캐스팅
+        messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
 
-            // 3. WebSocket으로 메시지 브로드캐스팅
-            messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
-
-            log.info("Message saved and broadcasted: messageId={}, roomId={}",
-                    message.getMessageId(), message.getRoomId());
-
-        } catch (DuplicateKeyException e) {
-            // DB UNIQUE 제약조건 위반 (동시성 이슈로 발생 가능)
-            log.warn("Duplicate message insert attempt (race condition): clientMessageId={}",
-                    message.getClientMessageId());
-        }
+        log.info("Message saved and broadcasted: messageId={}, roomId={}",
+                message.getMessageId(), message.getRoomId());
     }
 
     @Override
