@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 public class MessageResponseDto {
     private Long messageId;
+    private Long clientMessageId;
     private Long senderId;
     private String senderNickname;
     private String senderProfileImageUrl;

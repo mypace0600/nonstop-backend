@@ -24,15 +24,22 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void saveAndBroadcastMessage(ChatMessageDto message) {
-        // 1. 메시지 DB 저장
+        // 1. clientMessageId로 중복 체크
+        if (message.getClientMessageId() != null
+                && chatMapper.existsByClientMessageId(message.getClientMessageId())) {
+            log.warn("Duplicate message detected: clientMessageId={}", message.getClientMessageId());
+            return;
+        }
+
+        // 2. 메시지 DB 저장
         message.setSentAt(LocalDateTime.now());
         chatMapper.insertMessage(message);
 
-        // 2. WebSocket으로 메시지 브로드캐스팅
+        // 3. WebSocket으로 메시지 브로드캐스팅
         messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
 
-        log.info("Message saved and broadcasted: messageId={}, roomId={}",
-                message.getMessageId(), message.getRoomId());
+        log.info("Message saved and broadcasted: messageId={}, roomId={}, clientMessageId={}",
+                message.getMessageId(), message.getRoomId(), message.getClientMessageId());
     }
 
     @Override

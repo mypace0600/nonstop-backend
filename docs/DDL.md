@@ -347,7 +347,7 @@ CREATE TABLE messages (
   id BIGSERIAL PRIMARY KEY,
   chat_room_id BIGINT NOT NULL REFERENCES chat_rooms(id),
   sender_id BIGINT NOT NULL REFERENCES users(id),
-  client_message_id UUID,
+  client_message_id BIGINT,
   type message_type NOT NULL DEFAULT 'TEXT',
   content TEXT,
   sent_at TIMESTAMP NOT NULL DEFAULT now()

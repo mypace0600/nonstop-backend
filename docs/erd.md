@@ -104,7 +104,7 @@ erDiagram
     BIGINT id PK
     BIGINT chat_room_id FK
     BIGINT sender_id FK
-    UUID client_message_id
+    BIGINT client_message_id
     message_type type
   }
 

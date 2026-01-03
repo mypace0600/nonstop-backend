@@ -4,13 +4,14 @@
 
     <insert id="insertMessage" parameterType="com.app.nonstop.domain.chat.dto.ChatMessageDto"
             useGeneratedKeys="true" keyProperty="messageId">
-        INSERT INTO messages (chat_room_id, sender_id, content, type, sent_at)
-        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{sentAt})
+        INSERT INTO messages (chat_room_id, sender_id, content, type, client_message_id, sent_at)
+        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{clientMessageId}, #{sentAt})
     </insert>
 
     <select id="findMessagesByRoomId" resultType="com.app.nonstop.domain.chat.dto.MessageResponseDto">
         SELECT
             m.id AS messageId,
+            m.client_message_id AS clientMessageId,
             m.sender_id AS senderId,
             u.nickname AS senderNickname,
             u.profile_image_url AS senderProfileImageUrl,
@@ -41,6 +42,13 @@
             SELECT 1 FROM messages
             WHERE id = #{messageId}
               AND chat_room_id = #{roomId}
+        )
+    </select>
+
+    <select id="existsByClientMessageId" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM messages
+            WHERE client_message_id = #{clientMessageId}
         )
     </select>
 
