@@ -1,31 +1,32 @@
 # Kafka & WebSocket 기반 실시간 채팅 시스템 종합 검토 리포트
 
 **작성일:** 2025-12-29
-**버전:** v1.0
+**버전:** v2.0
+**최종 업데이트:** 2026-01-03
 **검토 범위:** Kafka 설정, WebSocket 구현, 채팅 기능 (1:1 및 그룹)
 
 ---
 
 ## 📊 전체 요약
 
-**Kafka와 WebSocket 기반의 실시간 채팅 시스템은 전반적으로 우수한 아키텍처**를 가지고 있습니다. PRD 문서의 핵심 설계 원칙을 잘 따르고 있으며, 메시지 순서 보장, 멱등성 등 중요한 부분들이 잘 구현되어 있습니다.
+**Kafka와 WebSocket 기반의 실시간 채팅 시스템은 전반적으로 우수한 아키텍처**를 가지고 있습니다. PRD 문서의 핵심 설계 원칙을 잘 따르고 있으며, 메시지 순서 보장, 멱등성, WebSocket 인증, DLQ 등 핵심 기능이 구현되었습니다.
 
 ### 종합 점수
 
 | 항목 | 점수 | 평가 |
 |------|------|------|
-| **아키텍처 설계** | 85/100 | Kafka 기반 설계는 우수하나 세부 구현 미흡 |
-| **보안** | 60/100 | WebSocket 인증 없음 (CRITICAL) |
-| **안정성** | 70/100 | DLQ, Graceful Shutdown 없음 |
+| **아키텍처 설계** | 90/100 | Kafka 기반 설계 우수, 핵심 기능 구현 완료 |
+| **보안** | 75/100 | WebSocket 인증 구현됨, senderId 검증 보완 필요 |
+| **안정성** | 85/100 | DLQ, Graceful Shutdown, 중복 방지 구현됨 |
 | **확장성** | 90/100 | Kafka 기반으로 우수한 확장성 |
-| **운영 준비도** | 65/100 | 모니터링, 로깅 개선 필요 |
+| **운영 준비도** | 70/100 | 모니터링, 로깅 개선 필요 |
 
-**총점: 74/100**
+**총점: 82/100** (이전 74점에서 +8점 향상)
 
 ### MVP 출시 가능 여부
 
-**현재 상태:** ❌ 보안 이슈로 출시 불가
-**수정 후:** ✅ 3가지 CRITICAL 이슈 수정 후 출시 가능
+**현재 상태:** ✅ 조건부 출시 가능
+**남은 작업:** senderId 검증, 트랜잭셔널 Producer 설정 후 출시 권장
 
 ---
 
@@ -109,706 +110,46 @@ Client
 
 ## ⚠️ 주요 문제점 및 개선 필요 사항
 
+아래 내용은 2026-01-03 리뷰를 통해 업데이트된 현재 시스템의 주요 이슈 및 개선 권장 사항입니다. 이전에 CRITICAL로 분류되었던 `WebSocket 인증`과 `clientMessageId 중복 방지` 이슈는 해결되었습니다.
+
 ### 🔴 CRITICAL - 즉시 수정 필요
 
-#### 1. WebSocket 인증 미구현 ⚠️⚠️⚠️
+1.  **트랜잭셔널 Producer ID 미설정**
+    - **문제:** `enable.idempotence`만 `true`로 설정되어 있고, 트랜잭션 ID가 없어 Kafka 메시지 전송 시 Exactly-Once를 완전히 보장하지 못합니다.
+    - **해결:** `application.yml`에 `spring.kafka.producer.transaction-id-prefix`를 추가해야 합니다.
 
-**문제:**
-현재 WebSocket 연결 시 인증이 전혀 없어 누구나 접근 가능한 보안 취약점이 존재합니다.
+2.  **WebSocket senderId 검증 부족**
+    - **문제:** 현재 클라이언트가 보내는 `senderId`를 그대로 사용하므로, 다른 사용자의 ID로 메시지를 보내는 어뷰징이 가능합니다.
+    - **해결:** `WebSocketChatController`에서 메시지를 받을 때, STOMP 세션에 저장된 인증된 사용자 ID를 `senderId`에 강제로 할당해야 합니다.
 
-**현재 코드 (WebSocketConfig.java:24-26):**
-```java
-registry.addEndpoint("/ws/v1/chat")
-        .setAllowedOriginPatterns("*")  // ❌ 누구나 접근 가능
-        .withSockJS();
-```
-
-**PRD 요구사항 (prd_draft.md:101-102):**
-> - `wss://api.nonstop.app/ws/v1/chat`
-> - 연결 시 Access Token 쿼리 파라미터로 인증
-
-**해결 방법:**
-
-```java
-package com.app.nonstop.global.config;
-
-import com.app.nonstop.global.security.jwt.JwtTokenProvider;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.simp.config.ChannelRegistration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.messaging.simp.stomp.StompCommand;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
-
-@Configuration
-@EnableWebSocketMessageBroker
-@RequiredArgsConstructor
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
-    private final JwtTokenProvider jwtTokenProvider;
-
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/sub");
-        registry.setApplicationDestinationPrefixes("/pub");
-    }
-
-    @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/v1/chat")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
-    }
-
-    @Override
-    public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new ChannelInterceptor() {
-            @Override
-            public Message<?> preSend(Message<?> message, MessageChannel channel) {
-                StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-
-                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    // Authorization 헤더에서 토큰 추출
-                    String token = accessor.getFirstNativeHeader("Authorization");
-
-                    if (token != null && token.startsWith("Bearer ")) {
-                        token = token.substring(7);
-                    }
-
-                    // 토큰 검증
-                    if (token == null || !jwtTokenProvider.validateToken(token)) {
-                        throw new IllegalArgumentException("Invalid or missing JWT token");
-                    }
-
-                    // 사용자 ID 추출 및 설정
-                    Long userId = jwtTokenProvider.getUserIdFromToken(token);
-                    Authentication authentication = new UsernamePasswordAuthenticationToken(
-                        userId, null, null
-                    );
-                    accessor.setUser(authentication);
-                }
-
-                return message;
-            }
-        });
-    }
-}
-```
-
-**영향도:** 🔴 매우 높음 (보안 취약점)
-**소요 시간:** 2-3시간
+3.  **메시지 발신 권한 검증 부족**
+    - **문제:** 메시지를 보내는 사용자가 해당 채팅방의 멤버인지 확인하는 절차가 없습니다.
+    - **해결:** `ChatService`의 메시지 처리 로직에서, 발신자가 채팅방 멤버인지 확인하는 검증 과정을 추가해야 합니다.
 
 ---
 
-#### 2. clientMessageId 중복 방지 로직 없음
+### 🟡 HIGH PRIORITY - 개선 권장
 
-**문제:**
-DTO에 `clientMessageId` 필드는 있지만, 실제 중복 체크 로직이 없어 네트워크 재시도 시 메시지 중복 저장 가능성이 있습니다.
-
-**현재 상태:**
-- `ChatMessageDto.java:23` - clientMessageId 필드 정의됨 ✅
-- `DDL.md:356-357` - DB UNIQUE 인덱스 있음 ✅
-- `ChatMapper.xml:7-8` - INSERT 시 clientMessageId 포함 ✅
-- **문제:** DB 제약조건 위반 시 500 에러 발생 → 클라이언트에게 에러 전파 ❌
-
-**PRD 요구사항 (prd_draft.md:116-120):**
-> - 클라이언트는 메시지 전송 시 **`clientMessageId` (UUID)**를 생성하여 Payload에 포함
-> - `ChatKafkaConsumer`는 메시지 수신 후 DB 저장 시 `clientMessageId`를 함께 저장
-> - 효과: Kafka의 exactly-once semantics를 강화하여 네트워크 재시도로 인한 중복을 완벽하게 방지
-
-**해결 방법:**
-
-**1) ChatMapper.java에 메서드 추가:**
-```java
-package com.app.nonstop.mapper;
-
-import com.app.nonstop.domain.chat.dto.ChatMessageDto;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import java.util.UUID;
-
-@Mapper
-public interface ChatMapper {
-    void insertMessage(ChatMessageDto message);
-
-    // 추가: clientMessageId 중복 체크
-    boolean existsByClientMessageId(@Param("clientMessageId") UUID clientMessageId);
-}
-```
-
-**2) ChatMapper.xml에 쿼리 추가:**
-```xml
-<select id="existsByClientMessageId" resultType="boolean">
-    SELECT EXISTS(
-        SELECT 1 FROM messages
-        WHERE client_message_id = #{clientMessageId}
-    )
-</select>
-```
-
-**3) ChatServiceImpl.java 수정:**
-```java
-package com.app.nonstop.domain.chat.service;
-
-import com.app.nonstop.domain.chat.dto.ChatMessageDto;
-import com.app.nonstop.mapper.ChatMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class ChatServiceImpl implements ChatService {
-
-    private final SimpMessageSendingOperations messagingTemplate;
-    private final ChatMapper chatMapper;
-
-    @Override
-    @Transactional
-    public void saveAndBroadcastMessage(ChatMessageDto message) {
-        try {
-            // 1. clientMessageId 중복 체크 (있는 경우만)
-            if (message.getClientMessageId() != null) {
-                boolean exists = chatMapper.existsByClientMessageId(message.getClientMessageId());
-                if (exists) {
-                    log.warn("Duplicate message detected, skipping: clientMessageId={}",
-                        message.getClientMessageId());
-                    return; // 중복 메시지는 저장하지 않고 무시
-                }
-            }
-
-            // 2. 메시지 DB 저장
-            message.setSentAt(LocalDateTime.now());
-            chatMapper.insertMessage(message);
-
-            // 3. WebSocket으로 메시지 브로드캐스팅
-            messagingTemplate.convertAndSend("/sub/chat/room/" + message.getRoomId(), message);
-
-            log.info("Message saved and broadcasted: messageId={}, roomId={}",
-                message.getMessageId(), message.getRoomId());
-
-        } catch (DuplicateKeyException e) {
-            // DB UNIQUE 제약조건 위반 (동시성 이슈로 발생 가능)
-            log.warn("Duplicate message insert attempt (race condition): clientMessageId={}",
-                message.getClientMessageId());
-            // 이미 저장된 경우이므로 무시
-        }
-    }
-}
-```
-
-**영향도:** 🔴 높음 (메시지 중복 가능)
-**소요 시간:** 2-3시간
+| 항목 | 현재 상태 | 필요 작업 |
+|---|---|---|
+| 읽음 처리 이벤트 | API만 있음 | Kafka `chat-read-events` 발행 로직 추가 |
+| CORS 설정 | `*` 허용 | 프로덕션 환경에서는 특정 도메인만 허용하도록 수정 |
+| 토큰 전달 방식 | URL 파라미터 | 보안 강화를 위해 Header/Cookie 방식 사용 권장 |
+| DLT 알림 | 로그만 기록 | 실패 메시지 발생 시 Slack/Email 등 외부 알림 추가 |
+| 메시지 유효성 검증 | 없음 | 메시지 길이 제한, 빈 메시지 등 유효성 검증 로직 추가 |
 
 ---
 
-#### 3. 트랜잭셔널 Producer 미설정
-
-**문제:**
-멱등성(idempotence)만 설정되어 있고, 트랜잭셔널 Producer가 설정되지 않아 exactly-once 보장이 완전하지 않습니다.
-
-**PRD 요구사항 (prd_draft.md:118-119):**
-> - Kafka Producer 설정: `enable.idempotence=true`를 활성화하고, **트랜잭셔널 Producer를 사용**하여 원자적인 쓰기 작업을 보장
-
-**현재 상태 (application.yml:66-73):**
-```yaml
-producer:
-  acks: all
-  retries: 3
-  properties:
-    enable.idempotence: true  # ✅ 설정됨
-    # ❌ transactional.id 없음
-```
-
-**해결 방법:**
-
-**1) application.yml 수정:**
-```yaml
-spring:
-  kafka:
-    producer:
-      transaction-id-prefix: tx-nonstop-chat-
-      acks: all
-      retries: 3
-      properties:
-        enable.idempotence: true
-        max.in.flight.requests.per.connection: 5
-```
-
-**2) KafkaProducerConfig.java 수정 (선택사항):**
-```java
-package com.app.nonstop.global.config;
-
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@Configuration
-public class KafkaProducerConfig {
-
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Bean
-    public ProducerFactory<String, Object> producerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // 멱등성 프로듀서 설정
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // 트랜잭셔널 ID (application.yml에서 설정하므로 여기서는 선택사항)
-        // configProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-nonstop-producer");
-
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
-
-    @Bean
-    public KafkaTemplate<String, Object> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
-    }
-}
-```
-
-**영향도:** 🟡 중간 (exactly-once 보장 강화)
-**소요 시간:** 1-2시간
-
----
-
-### 🟡 HIGH PRIORITY - 빠른 시일 내 개선 필요
-
-#### 4. DLQ (Dead Letter Queue) 없음
-
-**문제:**
-메시지 처리 실패 시 재시도 후 DLQ로 이동시키는 로직이 없어, 영구적으로 실패한 메시지가 손실될 수 있습니다.
-
-**PRD 요구사항 (prd_draft.md:146):**
-> - **에러 핸들링**: Dead Letter Topic (DLQ) 추가 – 실패 메시지 라우팅
-
-**production-checklist.md (116-209)에 상세한 구현 방법 있음**
-
-**해결 방법:**
-
-**1) KafkaTopicConfig.java 생성:**
-```java
-package com.app.nonstop.global.config;
-
-import org.apache.kafka.clients.admin.NewTopic;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.TopicBuilder;
-
-@Configuration
-public class KafkaTopicConfig {
-
-    @Bean
-    public NewTopic chatMessagesTopic() {
-        return TopicBuilder.name("chat-messages")
-            .partitions(10)
-            .replicas(3)
-            .build();
-    }
-
-    @Bean
-    public NewTopic chatMessagesDltTopic() {
-        return TopicBuilder.name("chat-messages-dlt")
-            .partitions(3)
-            .replicas(3)
-            .build();
-    }
-
-    @Bean
-    public NewTopic chatReadEventsTopic() {
-        return TopicBuilder.name("chat-read-events")
-            .partitions(5)
-            .replicas(3)
-            .build();
-    }
-}
-```
-
-**2) KafkaConsumerConfig.java 수정:**
-```java
-package com.app.nonstop.global.config;
-
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.util.backoff.FixedBackOff;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@Configuration
-public class KafkaConsumerConfig {
-
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Value("${spring.kafka.consumer.group-id}")
-    private String groupId;
-
-    @Bean
-    public ConsumerFactory<String, Object> consumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            KafkaTemplate<String, Object> kafkaTemplate) {
-
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
-
-        // DLQ로 보내는 DeadLetterPublishingRecoverer
-        DeadLetterPublishingRecoverer recoverer =
-            new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> new TopicPartition(record.topic() + "-dlt", record.partition()));
-
-        // 3번 재시도 후 DLQ로 이동 (1초 간격)
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-            recoverer,
-            new FixedBackOff(1000L, 3L)
-        );
-
-        factory.setCommonErrorHandler(errorHandler);
-        return factory;
-    }
-}
-```
-
-**3) DLT Handler 추가 (ChatKafkaConsumer.java):**
-```java
-package com.app.nonstop.domain.chat.service;
-
-import com.app.nonstop.domain.chat.dto.ChatMessageDto;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.DltHandler;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.stereotype.Service;
-
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class ChatKafkaConsumer {
-
-    private final ChatService chatService;
-
-    @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}")
-    public void consume(ChatMessageDto message) {
-        log.info("Consumed message from Kafka: {}", message);
-        chatService.saveAndBroadcastMessage(message);
-    }
-
-    @DltHandler
-    public void handleDlt(ChatMessageDto message, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        log.error("DLT 메시지 수신 - 처리 실패한 메시지: topic={}, roomId={}, senderId={}, content={}",
-            topic, message.getRoomId(), message.getSenderId(), message.getContent());
-
-        // TODO: 관리자 알림 전송 (Slack, Email 등)
-        // TODO: DB에 실패 로그 저장
-    }
-}
-```
-
-**영향도:** 🟡 중간 (운영 안정성)
-**소요 시간:** 3-4시간
-
----
-
-#### 5. Graceful Shutdown 미설정
-
-**문제:**
-배포 시 진행 중인 요청과 Kafka 메시지 처리가 중단되어 메시지 손실 가능성이 있습니다.
-
-**production-checklist.md (40-56):**
-> 배포 시 진행 중인 요청과 Kafka 메시지 처리를 안전하게 완료하기 위해 필수.
-
-**해결 방법:**
-
-**application.yml에 추가:**
-```yaml
-server:
-  port: 28080
-  shutdown: graceful  # 추가
-
-spring:
-  lifecycle:
-    timeout-per-shutdown-phase: 30s  # 추가
-```
-
-**효과:**
-- 배포 시 새 요청 거부, 기존 요청 처리 완료 대기
-- Kafka Consumer가 현재 처리 중인 메시지 완료 후 종료
-- 최대 30초 대기 후 강제 종료
-
-**영향도:** 🟡 중간 (운영 안정성)
-**소요 시간:** 10분
-
----
-
-#### 6. Consumer Concurrency 미설정
-
-**문제:**
-Consumer가 1개만 실행되어 처리량이 제한됩니다.
-
-**production-checklist.md (92-113):**
-> 파티션 수에 맞는 동시 처리 설정.
-
-**해결 방법:**
-
-**application.yml에 추가:**
-```yaml
-spring:
-  kafka:
-    listener:
-      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
-      ack-mode: record  # 메시지별 ACK (안전)
-      # ack-mode: batch  # 배치 ACK (성능 우선 시)
-```
-
-**설정 가이드:**
-| 파티션 수 | 권장 concurrency | 비고 |
-|-----------|-----------------|------|
-| 10 | 3~5 | 초기 서비스 |
-| 30 | 10~15 | 성장기 |
-| 50+ | 20~30 | 대규모 |
-
-**주의:** concurrency > 파티션 수면 일부 Consumer가 놀게 됨
-
-**영향도:** 🟡 중간 (성능)
-**소요 시간:** 10분
-
----
-
-#### 7. 읽음 처리 로직 없음
-
-**문제:**
-채팅방의 읽음 상태(`last_read_message_id`, `unread_count`) 업데이트 로직이 구현되지 않았습니다.
-
-**PRD 요구사항 (prd_draft.md:122-124):**
-> - **읽음 처리 전략**: 사용자가 채팅방에 진입하거나 메시지를 수신하는 시점에 '읽음' 이벤트를 별도의 Kafka 토픽(`chat-read-events`)으로 발행
-
-**현재 상태:**
-- DDL에 `last_read_message_id` 컬럼 정의됨 ✅
-- 실제 업데이트 로직 없음 ❌
-- `chat-read-events` 토픽 없음 ❌
-
-**해결 방법:**
-
-**Phase 3에서 구현 권장 (1-2주 내)**
-
-**영향도:** 🟢 중간 (UX)
-**소요 시간:** 1-2일
-
----
-
-#### 8. chat-messages 토픽 생성 설정 없음
-
-**문제:**
-프로덕션에서는 토픽을 명시적으로 관리해야 하나, 현재 자동 생성에 의존하고 있습니다.
-
-**해결 방법:**
-위 **#4 DLQ** 섹션의 `KafkaTopicConfig.java` 참고
-
-**프로덕션 설정 추가:**
-```yaml
-# application.yml - prod 프로필
-spring:
-  kafka:
-    properties:
-      allow.auto.create.topics: false
-```
-
-**영향도:** 🟢 낮음 (운영 정책)
-**소요 시간:** 10분 (#4와 함께 처리)
-
----
-
-### 🟢 MEDIUM PRIORITY - 프로덕션 전 권장
-
-#### 9. WebSocket 세션 제한 없음
-
-**문제:**
-사용자당 무제한 WebSocket 연결을 허용하여 리소스 고갈 가능성이 있습니다.
-
-**production-checklist.md (382-430) 참고**
-
-**해결 방법:**
-
-**WebSocketConfig.java에 추가:**
-```java
-@Override
-public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
-    registry.setMessageSizeLimit(64 * 1024);      // 64KB 메시지 크기 제한
-    registry.setSendBufferSizeLimit(512 * 1024);  // 512KB 버퍼 제한
-    registry.setSendTimeLimit(20 * 1000);         // 20초 전송 타임아웃
-}
-```
-
-**영향도:** 🟢 낮음
-**소요 시간:** 1-2시간
-
----
-
-#### 10. Redis 패스워드 없음 (local은 OK, prod 필요)
-
-**현재 상태 (application.yml:49-52):**
-```yaml
-data:
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    # ❌ password 없음
-```
-
-**해결 방법:**
-
-**application.yml - prod 프로필 추가:**
-```yaml
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD}
-      ssl:
-        enabled: true  # Azure Cache for Redis 사용 시
-```
-
-**영향도:** 🟢 낮음 (프로덕션에서만 필요)
-**소요 시간:** 10분
-
----
-
-#### 11. 구조화 로깅 없음
-
-**문제:**
-현재 일반 텍스트 로그를 사용하여 로그 수집 시스템(ELK, Azure Monitor) 연동이 어렵습니다.
-
-**production-checklist.md (230-277):** Logstash JSON 로깅 가이드 참고
-
-**해결 방법:**
-
-**build.gradle에 의존성 추가:**
-```gradle
-implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
-```
-
-**src/main/resources/logback-spring.xml 생성:**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <springProfile name="local">
-        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-        </root>
-    </springProfile>
-
-    <springProfile name="prod">
-        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-                <includeMdcKeyName>traceId</includeMdcKeyName>
-                <includeMdcKeyName>userId</includeMdcKeyName>
-                <customFields>{"app":"nonstop","env":"prod"}</customFields>
-            </encoder>
-        </appender>
-        <root level="INFO">
-            <appender-ref ref="JSON_CONSOLE"/>
-        </root>
-    </springProfile>
-</configuration>
-```
-
-**영향도:** 🟢 낮음 (모니터링 개선)
-**소요 시간:** 1-2시간
-
----
-
-#### 12. ChatController TODO 많음
-
-**ChatController.java:60-66:**
-```java
-// TODO: 채팅방 나가기 (DELETE /api/v1/chat/rooms/{roomId})
-// TODO: 과거 메시지 조회 (GET /api/v1/chat/rooms/{roomId}/messages)
-// TODO: 나에게만 메시지 삭제 (DELETE /api/v1/chat/rooms/{roomId}/messages/{msgId})
-// TODO: 그룹 채팅방 정보 수정 (PATCH /api/v1/chat/group-rooms/{roomId})
-// TODO: 그룹 채팅방 참여자 목록 조회 (GET /api/v1/chat/group-rooms/{roomId}/members)
-// TODO: 그룹 채팅방에 사용자 초대 (POST /api/v1/chat/group-rooms/{roomId}/invite)
-// TODO: 그룹 채팅방에서 사용자 강퇴 (DELETE /api/v1/chat/group-rooms/{roomId}/members/{userId})
-```
-
-**영향도:** 🟢 중간 (기능 완성도)
-**소요 시간:** 2-3일
-
----
-
-#### 13. ChatRoomService.getMyChatRooms 빈 구현
-
-**ChatRoomServiceImpl.java:28-33:**
-```java
-@Override
-public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
-    // TODO: Implement logic to retrieve chat rooms for the given user
-    return List.of();
-}
-```
-
-**영향도:** 🟢 중간
-**소요 시간:** 4-6시간
+### 🟢 MEDIUM PRIORITY - 선택 사항
+
+| 항목 | 현재 상태 | 필요 작업 |
+|---|---|---|
+| 구조화 로깅 | 기본 텍스트 로깅 | `logback-spring.xml`을 설정하여 JSON 포맷으로 로깅 |
+| WebSocket 세션 제한 | 없음 | 메시지 크기, 버퍼, 타임아웃 등 세부 설정 추가 |
+| Health Check 상세화 | 기본 설정만 사용 | Kubernetes 환경을 위해 readiness/liveness 프로브 분리 |
+| 1:1 채팅 자기 자신 방지 | 없음 | 1:1 채팅방 생성 시 자기 자신과 채팅하는 경우를 방지 |
+| ChatController TODO | 다수 존재 | 채팅방 나가기, 과거 메시지 조회 등 API 구현 |
+| ChatRoomService 빈 구현 | getMyChatRooms | 내 채팅방 목록 조회 로직 구현 필요 |
 
 ---
 
@@ -819,19 +160,19 @@ public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
 | **Kafka 메시지 흐름** | Client → WebSocket → Kafka → Consumer → DB + Broadcast | ✅ 구현 | WebSocketChatController.java | |
 | **메시지 순서 보장** | roomId를 Kafka Key로 사용 | ✅ 구현 | ChatKafkaProducer.java:19 | |
 | **멱등성 Producer** | enable.idempotence=true | ✅ 구현 | application.yml:72 | |
-| **트랜잭셔널 Producer** | transactional Producer 사용 | ❌ 미구현 | application.yml | 추가 필요 |
-| **clientMessageId 중복 방지** | UUID 기반 중복 체크 | ⚠️ 부분구현 | ChatServiceImpl.java | DB 인덱스만 있고 로직 없음 |
+| **트랜잭셔널 Producer** | transactional Producer 사용 | ❌ 미구현 | application.yml | **CRITICAL** |
+| **clientMessageId 중복 방지** | UUID 기반 중복 체크 | ✅ 구현 | ChatServiceImpl.java | BIGINT 타입으로 변경 |
 | **읽음 처리** | chat-read-events 토픽 | ❌ 미구현 | - | |
 | **이미지 전송** | Azure SAS URL 연동 | ⚠️ 부분구현 | FileController.java | File 서비스는 있으나 채팅 통합 미완 |
 | **그룹 채팅 이벤트** | INVITE, LEAVE, KICK | ❌ 미구현 | MessageType.java | Enum만 정의됨 |
-| **WebSocket 인증** | Access Token 쿼리 파라미터 | ❌ 미구현 | WebSocketConfig.java | **CRITICAL** |
-| **DLQ** | chat-messages-dlt | ❌ 미구현 | KafkaConsumerConfig.java | |
-| **Graceful Shutdown** | 30s timeout | ❌ 미구현 | application.yml | |
-| **Consumer Concurrency** | 3-5 (초기) | ❌ 미구현 | application.yml | |
+| **WebSocket 인증** | Access Token 쿼리 파라미터 | ✅ 구현 | WebSocketConfig.java | `WebSocketAuthInterceptor` |
+| **DLQ** | chat-messages-dlt | ✅ 구현 | KafkaConsumerConfig.java | `@DltHandler` |
+| **Graceful Shutdown** | 30s timeout | ✅ 구현 | application.yml | `shutdown: graceful` |
+| **Consumer Concurrency** | 3-5 (초기) | ✅ 구현 | application.yml | `listener.concurrency` |
 | **토픽 명시적 생성** | chat-messages, chat-read-events | ❌ 미구현 | KafkaTopicConfig.java | |
 
-**구현률: 5/13 (38.5%)**
-**핵심 기능 구현률: 4/6 (66.7%)**
+**구현률: 9/13 (69.2%)**
+**핵심 기능 구현률: 8/10 (80%)**
 
 ---
 
