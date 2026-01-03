@@ -6,9 +6,15 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.UUID;
 
 @Mapper
 public interface ChatMapper {
     void insertMessage(ChatMessageDto message);
     List<MessageResponseDto> findMessagesByRoomId(@Param("roomId") Long roomId, @Param("userId") Long userId, @Param("limit") int limit, @Param("offset") int offset);
+    boolean existsByClientMessageId(@Param("clientMessageId") String clientMessageId);
+
+    // 메시지 삭제 (나에게만)
+    void insertMessageDeletion(@Param("messageId") Long messageId, @Param("userId") Long userId);
+    boolean isMessageInRoom(@Param("messageId") Long messageId, @Param("roomId") Long roomId);
 }

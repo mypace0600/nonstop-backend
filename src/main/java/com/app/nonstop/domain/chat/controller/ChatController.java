@@ -1,9 +1,6 @@
 package com.app.nonstop.domain.chat.controller;
 
-import com.app.nonstop.domain.chat.dto.ChatRoomResponseDto;
-import com.app.nonstop.domain.chat.dto.GroupChatRoomRequestDto;
-import com.app.nonstop.domain.chat.dto.MessageResponseDto;
-import com.app.nonstop.domain.chat.dto.OneToOneChatRoomRequestDto;
+import com.app.nonstop.domain.chat.dto.*;
 import com.app.nonstop.domain.chat.service.ChatRoomService;
 import com.app.nonstop.domain.chat.service.ChatService;
 import com.app.nonstop.global.common.response.ApiResponse;
@@ -81,10 +78,73 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    // TODO: 채팅방 나가기 (DELETE /api/v1/chat/rooms/{roomId})
-    // TODO: 나에게만 메시지 삭제 (DELETE /api/v1/chat/rooms/{roomId}/messages/{msgId})
-    // TODO: 그룹 채팅방 정보 수정 (PATCH /api/v1/chat/group-rooms/{roomId})
-    // TODO: 그룹 채팅방 참여자 목록 조회 (GET /api/v1/chat/group-rooms/{roomId}/members)
-    // TODO: 그룹 채팅방에 사용자 초대 (POST /api/v1/chat/group-rooms/{roomId}/invite)
-    // TODO: 그룹 채팅방에서 사용자 강퇴 (DELETE /api/v1/chat/group-rooms/{roomId}/members/{userId})
+    /**
+     * 채팅방 나가기
+     */
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<ApiResponse<Void>> leaveChatRoom(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId) {
+        chatRoomService.leaveChatRoom(roomId, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 나에게만 메시지 삭제
+     */
+    @DeleteMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMessageForMe(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId) {
+        chatService.deleteMessageForMe(roomId, userDetails.getUserId(), messageId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 그룹 채팅방 정보 수정
+     */
+    @PatchMapping("/group-rooms/{roomId}")
+    public ResponseEntity<ApiResponse<Void>> updateGroupChatRoom(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId,
+            @Valid @RequestBody ChatRoomUpdateRequestDto requestDto) {
+        chatRoomService.updateGroupChatRoom(roomId, userDetails.getUserId(), requestDto.getName());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 그룹 채팅방 참여자 목록 조회
+     */
+    @GetMapping("/group-rooms/{roomId}/members")
+    public ResponseEntity<ApiResponse<List<ChatRoomMemberResponseDto>>> getGroupChatRoomMembers(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId) {
+        List<ChatRoomMemberResponseDto> members = chatRoomService.getGroupChatRoomMembers(roomId, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(members));
+    }
+
+    /**
+     * 그룹 채팅방에 사용자 초대
+     */
+    @PostMapping("/group-rooms/{roomId}/invite")
+    public ResponseEntity<ApiResponse<Void>> inviteToGroupChatRoom(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId,
+            @Valid @RequestBody InviteRequestDto requestDto) {
+        chatRoomService.inviteToGroupChatRoom(roomId, userDetails.getUserId(), requestDto.getUserIds());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    /**
+     * 그룹 채팅방에서 사용자 강퇴
+     */
+    @DeleteMapping("/group-rooms/{roomId}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> kickFromGroupChatRoom(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId,
+            @PathVariable Long userId) {
+        chatRoomService.kickFromGroupChatRoom(roomId, userDetails.getUserId(), userId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

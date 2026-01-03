@@ -3,8 +3,12 @@
 # ===================================================================
 server:
   port: 28080
+  shutdown: graceful
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   config:
     import: optional:file:.env[.properties]
   application:
@@ -81,6 +85,10 @@ spring:
         spring.json.trusted.packages: com.app.nonstop.domain.chat.dto
         spring.json.use.type.headers: false
         isolation.level: read_committed
+
+    listener:
+      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
+      ack-mode: record
 
 
   # --- OAuth2 (Google) ---

@@ -5,7 +5,7 @@
     <insert id="insertMessage" parameterType="com.app.nonstop.domain.chat.dto.ChatMessageDto"
             useGeneratedKeys="true" keyProperty="messageId">
         INSERT INTO messages (chat_room_id, sender_id, content, type, client_message_id, sent_at)
-        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{clientMessageId}, #{sentAt})
+        VALUES (#{roomId}, #{senderId}, #{content}, #{type}::message_type, #{clientMessageId, jdbcType=OTHER}, #{sentAt})
     </insert>
 
     <select id="findMessagesByRoomId" resultType="com.app.nonstop.domain.chat.dto.MessageResponseDto">
@@ -29,6 +29,27 @@
           )
         ORDER BY m.sent_at DESC
         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="existsByClientMessageId" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM messages
+            WHERE client_message_id = #{clientMessageId, jdbcType=OTHER}
+        )
+    </select>
+
+    <insert id="insertMessageDeletion">
+        INSERT INTO message_deletions (message_id, user_id, deleted_at)
+        VALUES (#{messageId}, #{userId}, now())
+        ON CONFLICT (message_id, user_id) DO NOTHING
+    </insert>
+
+    <select id="isMessageInRoom" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM messages
+            WHERE id = #{messageId}
+              AND chat_room_id = #{roomId}
+        )
     </select>
 
 </mapper>

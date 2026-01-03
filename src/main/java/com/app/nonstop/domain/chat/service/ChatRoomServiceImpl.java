@@ -1,12 +1,17 @@
 package com.app.nonstop.domain.chat.service;
 
+import com.app.nonstop.domain.chat.dto.ChatMessageDto;
+import com.app.nonstop.domain.chat.dto.ChatRoomMemberResponseDto;
 import com.app.nonstop.domain.chat.dto.ChatRoomResponseDto;
 import com.app.nonstop.domain.chat.entity.ChatRoom;
 import com.app.nonstop.domain.chat.entity.ChatRoomMember;
 import com.app.nonstop.domain.chat.entity.ChatRoomType;
-import com.app.nonstop.domain.user.entity.User; // Assuming User entity exists
-import com.app.nonstop.mapper.ChatRoomMapper; // New mapper
-import com.app.nonstop.mapper.UserMapper; // Existing user mapper
+import com.app.nonstop.domain.chat.entity.MessageType;
+import com.app.nonstop.domain.user.entity.User;
+import com.app.nonstop.global.common.exception.AccessDeniedException;
+import com.app.nonstop.global.common.exception.ResourceNotFoundException;
+import com.app.nonstop.mapper.ChatRoomMapper;
+import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,14 +20,14 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ChatRoomServiceImpl implements ChatRoomService {
 
     private final ChatRoomMapper chatRoomMapper;
-    private final UserMapper userMapper; // To get user details
+    private final UserMapper userMapper;
+    private final ChatKafkaProducer chatKafkaProducer;
 
     @Override
     public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
@@ -114,9 +119,164 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         chatRoomMapper.updateLastReadMessageId(roomId, userId, messageId);
     }
 
+    @Override
+    @Transactional
+    public void leaveChatRoom(Long roomId, Long userId) {
+        // 채팅방 존재 여부 확인
+        ChatRoom chatRoom = chatRoomMapper.findById(roomId);
+        if (chatRoom == null) {
+            throw new ResourceNotFoundException("Chat room not found: " + roomId);
+        }
+
+        // 멤버 여부 확인
+        if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
+            throw new AccessDeniedException("You are not a member of this chat room");
+        }
+
+        // 채팅방 나가기
+        chatRoomMapper.leaveChatRoom(roomId, userId);
+
+        // 그룹 채팅방인 경우 시스템 메시지 발송
+        if (chatRoom.getType() == ChatRoomType.GROUP) {
+            String nickname = getUserNickname(userId);
+            sendSystemMessage(roomId, userId, MessageType.SYSTEM_LEAVE,
+                    nickname + "님이 채팅방을 나갔습니다.");
+        }
+    }
+
+    @Override
+    public List<ChatRoomMemberResponseDto> getGroupChatRoomMembers(Long roomId, Long userId) {
+        // 채팅방 존재 여부 확인
+        ChatRoom chatRoom = chatRoomMapper.findById(roomId);
+        if (chatRoom == null) {
+            throw new ResourceNotFoundException("Chat room not found: " + roomId);
+        }
+
+        // 그룹 채팅방인지 확인
+        if (chatRoom.getType() != ChatRoomType.GROUP) {
+            throw new IllegalArgumentException("This is not a group chat room");
+        }
+
+        // 멤버 여부 확인
+        if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
+            throw new AccessDeniedException("You are not a member of this chat room");
+        }
+
+        return chatRoomMapper.findMembersByRoomId(roomId);
+    }
+
+    @Override
+    @Transactional
+    public void inviteToGroupChatRoom(Long roomId, Long inviterId, Set<Long> userIds) {
+        // 채팅방 존재 여부 확인
+        ChatRoom chatRoom = chatRoomMapper.findById(roomId);
+        if (chatRoom == null) {
+            throw new ResourceNotFoundException("Chat room not found: " + roomId);
+        }
+
+        // 그룹 채팅방인지 확인
+        if (chatRoom.getType() != ChatRoomType.GROUP) {
+            throw new IllegalArgumentException("Cannot invite to a 1:1 chat room");
+        }
+
+        // 초대자가 멤버인지 확인
+        if (!chatRoomMapper.isMemberOfRoom(roomId, inviterId)) {
+            throw new AccessDeniedException("You are not a member of this chat room");
+        }
+
+        String inviterNickname = getUserNickname(inviterId);
+
+        // 새로운 멤버 추가
+        for (Long userId : userIds) {
+            // 이미 멤버인지 확인
+            if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
+                chatRoomMapper.insertChatRoomMember(ChatRoomMember.builder()
+                        .roomId(roomId)
+                        .userId(userId)
+                        .joinedAt(LocalDateTime.now())
+                        .build());
+
+                String invitedNickname = getUserNickname(userId);
+                sendSystemMessage(roomId, inviterId, MessageType.SYSTEM_INVITE,
+                        inviterNickname + "님이 " + invitedNickname + "님을 초대했습니다.");
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void kickFromGroupChatRoom(Long roomId, Long kickerId, Long targetUserId) {
+        // 채팅방 존재 여부 확인
+        ChatRoom chatRoom = chatRoomMapper.findById(roomId);
+        if (chatRoom == null) {
+            throw new ResourceNotFoundException("Chat room not found: " + roomId);
+        }
+
+        // 그룹 채팅방인지 확인
+        if (chatRoom.getType() != ChatRoomType.GROUP) {
+            throw new IllegalArgumentException("Cannot kick from a 1:1 chat room");
+        }
+
+        // 강퇴자가 방장인지 확인
+        if (!chatRoom.getCreatorId().equals(kickerId)) {
+            throw new AccessDeniedException("Only the room creator can kick members");
+        }
+
+        // 자기 자신을 강퇴할 수 없음
+        if (kickerId.equals(targetUserId)) {
+            throw new IllegalArgumentException("Cannot kick yourself");
+        }
+
+        // 대상이 멤버인지 확인
+        if (!chatRoomMapper.isMemberOfRoom(roomId, targetUserId)) {
+            throw new ResourceNotFoundException("Target user is not a member of this chat room");
+        }
+
+        // 멤버 강퇴
+        chatRoomMapper.removeMember(roomId, targetUserId);
+
+        // 시스템 메시지 발송
+        String targetNickname = getUserNickname(targetUserId);
+        sendSystemMessage(roomId, kickerId, MessageType.SYSTEM_KICK,
+                targetNickname + "님이 채팅방에서 내보내졌습니다.");
+    }
+
+    @Override
+    @Transactional
+    public void updateGroupChatRoom(Long roomId, Long userId, String newName) {
+        // 채팅방 존재 여부 확인
+        ChatRoom chatRoom = chatRoomMapper.findById(roomId);
+        if (chatRoom == null) {
+            throw new ResourceNotFoundException("Chat room not found: " + roomId);
+        }
+
+        // 그룹 채팅방인지 확인
+        if (chatRoom.getType() != ChatRoomType.GROUP) {
+            throw new IllegalArgumentException("Cannot update a 1:1 chat room");
+        }
+
+        // 멤버 여부 확인
+        if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
+            throw new AccessDeniedException("You are not a member of this chat room");
+        }
+
+        // 채팅방 이름 업데이트
+        chatRoom.setName(newName);
+        chatRoomMapper.updateChatRoom(chatRoom);
+    }
+
     private String getUserNickname(Long userId) {
         return userMapper.findById(userId)
                 .map(User::getNickname)
                 .orElse("Unknown User");
+    }
+
+    private void sendSystemMessage(Long roomId, Long senderId, MessageType type, String content) {
+        ChatMessageDto systemMessage = new ChatMessageDto();
+        systemMessage.setRoomId(roomId);
+        systemMessage.setSenderId(senderId);
+        systemMessage.setType(type);
+        systemMessage.setContent(content);
+        chatKafkaProducer.sendMessage("chat-messages", systemMessage);
     }
 }

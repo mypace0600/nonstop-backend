@@ -9,4 +9,5 @@ import java.util.List;
 public interface ChatService {
     void saveAndBroadcastMessage(ChatMessageDto message);
     List<MessageResponseDto> getMessages(Long roomId, Long userId, int limit, int offset);
+    void deleteMessageForMe(Long roomId, Long userId, Long messageId);
 }

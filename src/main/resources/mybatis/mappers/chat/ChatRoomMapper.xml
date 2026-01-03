@@ -89,4 +89,64 @@
           AND user_id = #{userId}
     </update>
 
+    <select id="findById" resultMap="chatRoomResultMap">
+        SELECT id, type, name, creator_id, created_at, updated_at
+        FROM chat_rooms
+        WHERE id = #{roomId}
+    </select>
+
+    <update id="leaveChatRoom">
+        UPDATE chat_room_members
+        SET left_at = now()
+        WHERE room_id = #{roomId}
+          AND user_id = #{userId}
+          AND left_at IS NULL
+    </update>
+
+    <select id="isMemberOfRoom" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM chat_room_members
+            WHERE room_id = #{roomId}
+              AND user_id = #{userId}
+              AND left_at IS NULL
+        )
+    </select>
+
+    <select id="findMembersByRoomId" resultType="com.app.nonstop.domain.chat.dto.ChatRoomMemberResponseDto">
+        SELECT
+            crm.user_id AS userId,
+            u.nickname,
+            u.profile_image_url AS profileImageUrl,
+            crm.joined_at AS joinedAt,
+            (cr.creator_id = crm.user_id) AS isCreator
+        FROM chat_room_members crm
+        JOIN users u ON crm.user_id = u.id
+        JOIN chat_rooms cr ON crm.room_id = cr.id
+        WHERE crm.room_id = #{roomId}
+          AND crm.left_at IS NULL
+        ORDER BY crm.joined_at ASC
+    </select>
+
+    <update id="updateChatRoom" parameterType="com.app.nonstop.domain.chat.entity.ChatRoom">
+        UPDATE chat_rooms
+        SET name = #{name},
+            updated_at = now()
+        WHERE id = #{id}
+    </update>
+
+    <update id="removeMember">
+        UPDATE chat_room_members
+        SET left_at = now()
+        WHERE room_id = #{roomId}
+          AND user_id = #{userId}
+          AND left_at IS NULL
+    </update>
+
+    <select id="countActiveMembers" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_room_members
+        WHERE room_id = #{roomId}
+          AND left_at IS NULL
+    </select>
+
 </mapper>
