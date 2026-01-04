@@ -48,6 +48,8 @@ com.app.nonstop
  ├── mapper                              # MyBatis Mapper 인터페이스 (분리됨)
  │   ├── AuthMapper.java
  │   ├── BoardMapper.java
+ │   ├── ChatMapper.java
+ │   ├── ChatRoomMapper.java
  │   ├── CommentMapper.java
  │   ├── CommunityMapper.java
  │   ├── DeviceMapper.java
@@ -183,6 +185,26 @@ com.app.nonstop
  │       └── entity
  │           └── Major.java
  │
+ │   ├── chat
+ │   │   ├── controller
+ │   │   │   ├── ChatController.java
+ │   │   │   └── WebSocketChatController.java
+ │   │   ├── dto
+ │   │   ├── entity
+ │   │   └── service
+ │   │
+ │   ├── notification
+ │   │   ├── controller
+ │   │   ├── dto
+ │   │   ├── entity
+ │   │   └── service
+ │   │
+ │   └── report
+ │       ├── controller
+ │       ├── dto
+ │       ├── entity
+ │       └── service
+ │
  └── NonstopApplication.java
 ```
 
@@ -211,4 +233,11 @@ resources/
          │   └── PostMapper.xml
          └── file
              └── FileMapper.xml
+         ├── chat
+         │   ├── ChatMapper.xml
+         │   └── ChatRoomMapper.xml
+         ├── notification
+         │   └── NotificationMapper.xml
+         └── report
+             └── ReportMapper.xml
 ```

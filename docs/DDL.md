@@ -78,6 +78,7 @@ CREATE TABLE users (
   email VARCHAR(255),
   password VARCHAR(255),
   auth_provider auth_provider NOT NULL,
+  provider_id VARCHAR(255),
   nickname VARCHAR(30) NOT NULL,
   student_number VARCHAR(50),
   university_id BIGINT,
