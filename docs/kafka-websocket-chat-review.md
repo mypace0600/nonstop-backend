@@ -1,8 +1,8 @@
 # Kafka & WebSocket 기반 실시간 채팅 시스템 종합 검토 리포트
 
 **작성일:** 2025-12-29
-**버전:** v2.0
-**최종 업데이트:** 2026-01-03
+**버전:** v3.0
+**최종 업데이트:** 2026-01-04
 **검토 범위:** Kafka 설정, WebSocket 구현, 채팅 기능 (1:1 및 그룹)
 
 ---
@@ -16,17 +16,17 @@
 | 항목 | 점수 | 평가 |
 |------|------|------|
 | **아키텍처 설계** | 90/100 | Kafka 기반 설계 우수, 핵심 기능 구현 완료 |
-| **보안** | 75/100 | WebSocket 인증 구현됨, senderId 검증 보완 필요 |
+| **보안** | 90/100 | WebSocket 인증, senderId 검증, 멤버 권한 검증 완료 |
 | **안정성** | 85/100 | DLQ, Graceful Shutdown, 중복 방지 구현됨 |
 | **확장성** | 90/100 | Kafka 기반으로 우수한 확장성 |
-| **운영 준비도** | 70/100 | 모니터링, 로깅 개선 필요 |
+| **운영 준비도** | 75/100 | 모니터링, 로깅 개선 필요 |
 
-**총점: 82/100** (이전 74점에서 +8점 향상)
+**총점: 86/100** (이전 82점에서 +4점 향상)
 
 ### MVP 출시 가능 여부
 
-**현재 상태:** ✅ 조건부 출시 가능
-**남은 작업:** senderId 검증, 트랜잭셔널 Producer 설정 후 출시 권장
+**현재 상태:** ✅ **출시 가능**
+**완료된 작업:** senderId 검증, 메시지 발신 권한 검증, 메시지 유효성 검증
 
 ---
 
@@ -110,21 +110,29 @@ Client
 
 ## ⚠️ 주요 문제점 및 개선 필요 사항
 
-아래 내용은 2026-01-03 리뷰를 통해 업데이트된 현재 시스템의 주요 이슈 및 개선 권장 사항입니다. 이전에 CRITICAL로 분류되었던 `WebSocket 인증`과 `clientMessageId 중복 방지` 이슈는 해결되었습니다.
+아래 내용은 2026-01-04 리뷰를 통해 업데이트된 현재 시스템의 주요 이슈 및 개선 권장 사항입니다.
 
-### 🔴 CRITICAL - 즉시 수정 필요
+### ✅ 해결된 CRITICAL 이슈 (2026-01-04)
 
-1.  **트랜잭셔널 Producer ID 미설정**
-    - **문제:** `enable.idempotence`만 `true`로 설정되어 있고, 트랜잭션 ID가 없어 Kafka 메시지 전송 시 Exactly-Once를 완전히 보장하지 못합니다.
-    - **해결:** `application.yml`에 `spring.kafka.producer.transaction-id-prefix`를 추가해야 합니다.
+1.  **~~트랜잭셔널 Producer ID 미설정~~** → **해당 없음**
+    - Azure Event Hubs는 Kafka 트랜잭션을 지원하지 않습니다.
+    - 대안: `enable.idempotence: true` + `clientMessageId` 중복 체크로 중복 방지
 
-2.  **WebSocket senderId 검증 부족**
-    - **문제:** 현재 클라이언트가 보내는 `senderId`를 그대로 사용하므로, 다른 사용자의 ID로 메시지를 보내는 어뷰징이 가능합니다.
-    - **해결:** `WebSocketChatController`에서 메시지를 받을 때, STOMP 세션에 저장된 인증된 사용자 ID를 `senderId`에 강제로 할당해야 합니다.
+2.  **~~WebSocket senderId 검증 부족~~** → **✅ 해결됨**
+    - `WebSocketChatController.java:24-35`
+    - STOMP 세션에서 인증된 userId를 가져와 senderId로 강제 할당
+    - 클라이언트가 보내는 senderId는 무시됨 (어뷰징 방지)
 
-3.  **메시지 발신 권한 검증 부족**
-    - **문제:** 메시지를 보내는 사용자가 해당 채팅방의 멤버인지 확인하는 절차가 없습니다.
-    - **해결:** `ChatService`의 메시지 처리 로직에서, 발신자가 채팅방 멤버인지 확인하는 검증 과정을 추가해야 합니다.
+3.  **~~메시지 발신 권한 검증 부족~~** → **✅ 해결됨**
+    - `ChatServiceImpl.java:37-42`
+    - `chatRoomMapper.isMemberOfRoom()`으로 발신자가 채팅방 멤버인지 확인
+    - 멤버가 아닌 경우 메시지 처리 거부
+
+4.  **메시지 유효성 검증** → **✅ 해결됨**
+    - `ChatServiceImpl.java:62-98`
+    - roomId, senderId 필수값 검증
+    - 빈 메시지 검증 (시스템 메시지 제외)
+    - 메시지 길이 제한 (최대 5000자)
 
 ---
 
@@ -136,7 +144,6 @@ Client
 | CORS 설정 | `*` 허용 | 프로덕션 환경에서는 특정 도메인만 허용하도록 수정 |
 | 토큰 전달 방식 | URL 파라미터 | 보안 강화를 위해 Header/Cookie 방식 사용 권장 |
 | DLT 알림 | 로그만 기록 | 실패 메시지 발생 시 Slack/Email 등 외부 알림 추가 |
-| 메시지 유효성 검증 | 없음 | 메시지 길이 제한, 빈 메시지 등 유효성 검증 로직 추가 |
 
 ---
 
@@ -159,62 +166,66 @@ Client
 |------|-------------|----------|------|------|
 | **Kafka 메시지 흐름** | Client → WebSocket → Kafka → Consumer → DB + Broadcast | ✅ 구현 | WebSocketChatController.java | |
 | **메시지 순서 보장** | roomId를 Kafka Key로 사용 | ✅ 구현 | ChatKafkaProducer.java:19 | |
-| **멱등성 Producer** | enable.idempotence=true | ✅ 구현 | application.yml:72 | |
-| **트랜잭셔널 Producer** | transactional Producer 사용 | ❌ 미구현 | application.yml | **CRITICAL** |
-| **clientMessageId 중복 방지** | UUID 기반 중복 체크 | ✅ 구현 | ChatServiceImpl.java | BIGINT 타입으로 변경 |
+| **멱등성 Producer** | enable.idempotence=true | ✅ 구현 | application.yml:76 | |
+| **트랜잭셔널 Producer** | transactional Producer 사용 | ⚠️ 해당없음 | - | Azure Event Hubs 미지원 |
+| **clientMessageId 중복 방지** | UUID 기반 중복 체크 | ✅ 구현 | ChatServiceImpl.java:44-48 | BIGINT 타입으로 변경 |
+| **senderId 검증** | 세션 기반 검증 | ✅ 구현 | WebSocketChatController.java:24-35 | 어뷰징 방지 |
+| **멤버 권한 검증** | 채팅방 멤버만 발신 가능 | ✅ 구현 | ChatServiceImpl.java:37-42 | |
+| **메시지 유효성 검증** | 길이 제한, 빈 메시지 방지 | ✅ 구현 | ChatServiceImpl.java:62-98 | 최대 5000자 |
 | **읽음 처리** | chat-read-events 토픽 | ❌ 미구현 | - | |
 | **이미지 전송** | Azure SAS URL 연동 | ⚠️ 부분구현 | FileController.java | File 서비스는 있으나 채팅 통합 미완 |
-| **그룹 채팅 이벤트** | INVITE, LEAVE, KICK | ❌ 미구현 | MessageType.java | Enum만 정의됨 |
-| **WebSocket 인증** | Access Token 쿼리 파라미터 | ✅ 구현 | WebSocketConfig.java | `WebSocketAuthInterceptor` |
+| **그룹 채팅 이벤트** | INVITE, LEAVE, KICK | ✅ 구현 | ChatRoomServiceImpl.java | 시스템 메시지 발송 |
+| **WebSocket 인증** | Access Token 쿼리 파라미터 | ✅ 구현 | WebSocketAuthInterceptor.java | JWT 토큰 검증 |
 | **DLQ** | chat-messages-dlt | ✅ 구현 | KafkaConsumerConfig.java | `@DltHandler` |
-| **Graceful Shutdown** | 30s timeout | ✅ 구현 | application.yml | `shutdown: graceful` |
-| **Consumer Concurrency** | 3-5 (초기) | ✅ 구현 | application.yml | `listener.concurrency` |
+| **Graceful Shutdown** | 30s timeout | ✅ 구현 | application.yml:6 | `shutdown: graceful` |
+| **Consumer Concurrency** | 3-5 (초기) | ✅ 구현 | application.yml:90 | `listener.concurrency: 3` |
 | **토픽 명시적 생성** | chat-messages, chat-read-events | ❌ 미구현 | KafkaTopicConfig.java | |
 
-**구현률: 9/13 (69.2%)**
-**핵심 기능 구현률: 8/10 (80%)**
+**구현률: 13/16 (81.3%)**
+**핵심 기능 구현률: 12/14 (85.7%)**
 
 ---
 
 ## 🎯 우선순위별 액션 플랜
 
-### Phase 1: 즉시 수정 (1-2일) - MVP 출시 차단 이슈
+### ✅ Phase 1: 완료됨 (2026-01-04)
 
 **목표:** 보안 및 안정성 CRITICAL 이슈 해결
 
-| 순번 | 작업 | 소요 시간 | 담당자 | 우선순위 |
-|------|------|----------|--------|----------|
-| 1 | WebSocket 인증 구현 | 2-3시간 | Backend | 🔴 CRITICAL |
-| 2 | clientMessageId 중복 방지 로직 | 2-3시간 | Backend | 🔴 CRITICAL |
-| 3 | 트랜잭셔널 Producer 설정 | 1-2시간 | Backend | 🔴 CRITICAL |
-
-**총 소요 시간:** 5-8시간 (1일)
+| 순번 | 작업 | 상태 | 위치 |
+|------|------|------|------|
+| 1 | WebSocket 인증 구현 | ✅ 완료 | WebSocketAuthInterceptor.java |
+| 2 | senderId 검증 (어뷰징 방지) | ✅ 완료 | WebSocketChatController.java:24-35 |
+| 3 | 멤버 권한 검증 | ✅ 완료 | ChatServiceImpl.java:37-42 |
+| 4 | 메시지 유효성 검증 | ✅ 완료 | ChatServiceImpl.java:62-98 |
+| 5 | clientMessageId 중복 방지 로직 | ✅ 완료 | ChatServiceImpl.java:44-48 |
+| 6 | 트랜잭셔널 Producer 설정 | ⚠️ 해당없음 | Azure Event Hubs 미지원 |
 
 **완료 기준:**
-- [ ] WebSocket 연결 시 JWT 토큰 검증
-- [ ] 중복 메시지 저장 방지 (DB 에러 없이 처리)
-- [ ] Kafka transactional.id 설정
+- [x] WebSocket 연결 시 JWT 토큰 검증
+- [x] 세션 기반 senderId 강제 할당
+- [x] 채팅방 멤버 여부 확인
+- [x] 메시지 길이 제한 (5000자), 빈 메시지 방지
+- [x] 중복 메시지 저장 방지 (DB 에러 없이 처리)
 
 ---
 
-### Phase 2: MVP 출시 전 (3-5일)
+### Phase 2: MVP 품질 향상 (선택)
 
 **목표:** 운영 안정성 및 모니터링 기반 구축
 
-| 순번 | 작업 | 소요 시간 | 담당자 | 우선순위 |
-|------|------|----------|--------|----------|
-| 4 | DLQ 구현 | 3-4시간 | Backend | 🟡 HIGH |
-| 5 | Graceful Shutdown 설정 | 10분 | Backend | 🟡 HIGH |
-| 6 | Consumer Concurrency 설정 | 10분 | Backend | 🟡 HIGH |
-| 7 | chat-messages 토픽 자동 생성 | 10분 | Backend | 🟡 HIGH |
-| 8 | 구조화 로깅 (JSON) | 1-2시간 | Backend | 🟢 MEDIUM |
-
-**총 소요 시간:** 5-7시간 (1일)
+| 순번 | 작업 | 상태 | 우선순위 |
+|------|------|------|----------|
+| 1 | DLQ 구현 | ✅ 완료 | 🟡 HIGH |
+| 2 | Graceful Shutdown 설정 | ✅ 완료 | 🟡 HIGH |
+| 3 | Consumer Concurrency 설정 | ✅ 완료 | 🟡 HIGH |
+| 4 | chat-messages 토픽 자동 생성 | ❌ 미구현 | 🟡 HIGH |
+| 5 | 구조화 로깅 (JSON) | ❌ 미구현 | 🟢 MEDIUM |
 
 **완료 기준:**
-- [ ] 메시지 처리 실패 시 DLT로 이동
-- [ ] 배포 시 진행 중인 메시지 처리 완료 후 종료
-- [ ] Consumer 3-5개 동시 실행
+- [x] 메시지 처리 실패 시 DLT로 이동
+- [x] 배포 시 진행 중인 메시지 처리 완료 후 종료
+- [x] Consumer 3개 동시 실행
 - [ ] Kafka 토픽 명시적 생성
 - [ ] JSON 형식 로그 출력 (prod 프로필)
 
@@ -326,7 +337,10 @@ spring:
 
 ### 인증 및 보안
 - [x] Kafka SASL_SSL 설정
-- [ ] WebSocket JWT 인증 ⚠️ **CRITICAL**
+- [x] WebSocket JWT 인증
+- [x] senderId 검증 (어뷰징 방지)
+- [x] 멤버 권한 검증
+- [x] 메시지 유효성 검증
 - [ ] WebSocket 세션 제한
 - [ ] Redis 패스워드 (prod)
 
@@ -334,34 +348,33 @@ spring:
 - [x] enable.idempotence: true
 - [x] isolation.level: read_committed
 - [x] acks: all
-- [ ] transaction-id-prefix ⚠️ **CRITICAL**
-- [ ] DLQ 구현
+- [x] DLQ 구현
 - [ ] 토픽 명시적 생성
 
 ### 메시지 처리
 - [x] roomId를 key로 순서 보장
-- [ ] clientMessageId 중복 방지 로직 ⚠️ **CRITICAL**
+- [x] clientMessageId 중복 방지 로직
+- [x] 메시지 조회 API
+- [x] 메시지 삭제 API
 - [ ] 읽음 처리 (chat-read-events)
-- [ ] 메시지 조회 API
-- [ ] 메시지 삭제 API
 
 ### 채팅방 관리
 - [x] 1:1 채팅방 생성
 - [x] 그룹 채팅방 생성
-- [ ] 채팅방 목록 조회 (빈 구현)
-- [ ] 채팅방 나가기
-- [ ] 그룹 채팅 초대/강퇴
-- [ ] 그룹 채팅 이벤트 (INVITE, LEAVE, KICK)
+- [x] 채팅방 목록 조회
+- [x] 채팅방 나가기
+- [x] 그룹 채팅 초대/강퇴
+- [x] 그룹 채팅 이벤트 (INVITE, LEAVE, KICK)
 
 ### 운영 및 모니터링
-- [ ] Graceful Shutdown
-- [ ] Consumer Concurrency
+- [x] Graceful Shutdown
+- [x] Consumer Concurrency
 - [ ] 구조화 로깅 (JSON)
 - [ ] 에러 알림 (Slack)
 - [ ] 분산 추적 (Zipkin)
 
-**완료: 6/26 (23.1%)**
-**핵심 기능 완료: 4/10 (40%)**
+**완료: 21/27 (77.8%)**
+**핵심 기능 완료: 18/22 (81.8%)**
 
 ---
 
@@ -387,48 +400,52 @@ spring:
 **장점:**
 - ✅ Kafka 기반의 확장 가능한 아키텍처
 - ✅ 메시지 순서 보장 (roomId를 key로 사용)
-- ✅ 기본적인 멱등성 설정
-- ✅ 1:1 및 그룹 채팅 기본 구조 완성
+- ✅ 멱등성 설정 + clientMessageId 중복 체크
+- ✅ 1:1 및 그룹 채팅 완전 구현
 - ✅ 데이터베이스 스키마 우수
+- ✅ WebSocket 인증 및 senderId 검증 완료
+- ✅ 멤버 권한 검증 및 메시지 유효성 검증 완료
+- ✅ DLQ, Graceful Shutdown 등 운영 필수 설정 완료
 
-**단점:**
-- ❌ WebSocket 인증 없음 (보안 취약점)
-- ❌ 메시지 중복 방지 로직 미완성
-- ❌ 트랜잭셔널 Producer 미설정
-- ❌ DLQ, Graceful Shutdown 등 운영 필수 설정 없음
-- ❌ 많은 TODO 및 빈 구현
+**개선 필요:**
+- ⚠️ 읽음 처리 기능 (chat-read-events)
+- ⚠️ 구조화 로깅 (JSON)
+- ⚠️ 에러 알림 시스템 (Slack/Email)
 
 ### MVP 출시 가능 여부
 
-**현재:** ❌ **불가** (보안 이슈)
+**현재:** ✅ **출시 가능**
 
-**Phase 1 완료 후:** ✅ **가능** (최소 3가지 CRITICAL 이슈 수정 필요)
-
-**권장 출시 시점:** Phase 2 완료 후 (총 2-3일 소요)
+모든 CRITICAL 보안 이슈가 해결되었습니다:
+- WebSocket JWT 인증 ✅
+- senderId 검증 (어뷰징 방지) ✅
+- 멤버 권한 검증 ✅
+- 메시지 유효성 검증 ✅
+- 메시지 중복 방지 ✅
 
 ### 1:1 및 그룹 채팅 지원 여부
 
-✅ **기본 구조는 완성**되어 있으며, PRD 요구사항의 핵심 설계를 잘 따르고 있습니다.
+✅ **완전히 구현**되어 있으며, PRD 요구사항의 핵심 설계를 잘 따르고 있습니다.
 
 **1:1 채팅:**
 - ✅ 채팅방 생성/조회
 - ✅ 실시간 메시지 전송
-- ⚠️ 메시지 조회/삭제 미구현
+- ✅ 메시지 조회/삭제
 
 **그룹 채팅:**
 - ✅ 채팅방 생성
 - ✅ 실시간 메시지 전송
-- ⚠️ 초대/강퇴/이벤트 미구현
+- ✅ 초대/강퇴/이벤트 (시스템 메시지)
 
 ### 다음 단계
 
-1. **즉시 (1-2일):** Phase 1 완료 → 보안 및 안정성 확보
-2. **MVP 출시 전 (3-5일):** Phase 2 완료 → 운영 기반 구축
-3. **정식 서비스 전 (1-2주):** Phase 3 완료 → 기능 완성도 향상
+1. ~~**즉시 (1-2일):** Phase 1 완료 → 보안 및 안정성 확보~~ ✅ 완료
+2. **선택 사항:** Phase 2 완료 → 토픽 명시적 생성, 구조화 로깅
+3. **정식 서비스 전:** Phase 3 완료 → 읽음 처리, 세션 제한
 4. **대규모 대비 (장기):** Phase 4 완료 → 성능 최적화
 
 ---
 
-**문서 버전:** 1.0
-**최종 업데이트:** 2025-12-29
-**다음 검토 예정일:** Phase 1 완료 후
+**문서 버전:** 3.0
+**최종 업데이트:** 2026-01-04
+**다음 검토 예정일:** 정식 서비스 전
