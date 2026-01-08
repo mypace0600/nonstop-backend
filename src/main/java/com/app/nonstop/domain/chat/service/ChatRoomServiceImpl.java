@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.chat.service;
 
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
+import com.app.nonstop.domain.chat.dto.ChatReadEventDto;
 import com.app.nonstop.domain.chat.dto.ChatRoomMemberResponseDto;
 import com.app.nonstop.domain.chat.dto.ChatRoomResponseDto;
 import com.app.nonstop.domain.chat.entity.ChatRoom;
@@ -29,6 +30,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final ChatRoomMapper chatRoomMapper;
     private final UserMapper userMapper;
     private final ChatKafkaProducer chatKafkaProducer;
+    private final ChatReadEventProducer chatReadEventProducer;
 
     @Override
     public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
@@ -115,9 +117,22 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     }
 
     @Override
-    @Transactional
     public void markAsRead(Long roomId, Long userId, Long messageId) {
-        chatRoomMapper.updateLastReadMessageId(roomId, userId, messageId);
+        // 멤버 여부 검증 (간단한 검증만 수행하고 실제 업데이트는 비동기로 처리)
+        if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
+            throw new AccessDeniedException("You are not a member of this chat room");
+        }
+
+        // Kafka로 읽음 이벤트 발행 (비동기 처리)
+        // DB 부하를 줄이고 WebSocket 브로드캐스팅을 Consumer에서 처리
+        ChatReadEventDto event = ChatReadEventDto.builder()
+                .roomId(roomId)
+                .userId(userId)
+                .messageId(messageId)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        chatReadEventProducer.sendReadEvent(event);
     }
 
     @Override

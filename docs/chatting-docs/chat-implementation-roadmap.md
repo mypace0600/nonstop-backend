@@ -15,13 +15,13 @@
 ### ✅ Milestone 1: Kafka 인프라 및 설정 고도화 (Infrastructure)
 **목표:** 운영 환경(Azure Event Hubs)과 로컬 환경(Docker)을 구분하고, 토픽의 내구성 및 안정성을 확보합니다.
 
-- [ ] **환경별 Kafka 설정 분리**
+- [x] **환경별 Kafka 설정 분리**
     - `KafkaTopicConfig.java`를 수정하여 `@Profile("local")`과 `@Profile("prod")`로 빈 생성을 분리합니다.
     - `prod` 프로필에서는 자동 토픽 생성을 비활성화(`allow.auto.create.topics: false`)하고 Azure Event Hubs 제약 사항을 반영합니다.
-- [ ] **토픽 상세 설정 적용**
+- [x] **토픽 상세 설정 적용**
     - `KafkaTopicConfig`에 토픽별 보존 기간(Retention), 파티션 수, Replica 설정을 명시합니다.
     - 상수 클래스(`KafkaTopicConfig.Topics`)를 도입하여 하드코딩된 문자열을 제거합니다.
-- [ ] **DLQ (Dead Letter Queue) 토픽 정의**
+- [x] **DLQ (Dead Letter Queue) 토픽 정의**
     - `chat-messages-dlt`, `chat-read-events-dlt` 등 실패 처리를 위한 토픽을 정의합니다.
 
 ### ✅ Milestone 2: 읽음 처리 비동기화 (Asynchronous Read Receipts)
