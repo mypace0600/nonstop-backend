@@ -28,4 +28,5 @@ public interface ChatRoomMapper {
     void updateChatRoom(ChatRoom chatRoom);
     void removeMember(@Param("roomId") Long roomId, @Param("userId") Long userId);
     int countActiveMembers(@Param("roomId") Long roomId);
+    int countUnreadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
 }

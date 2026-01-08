@@ -149,4 +149,17 @@
           AND left_at IS NULL
     </select>
 
+    <select id="countUnreadMessages" resultType="int">
+        SELECT COUNT(*)
+        FROM messages m
+        WHERE m.chat_room_id = #{roomId}
+          AND m.id > COALESCE(
+              (SELECT last_read_message_id
+               FROM chat_room_members
+               WHERE room_id = #{roomId} AND user_id = #{userId}),
+              0
+          )
+          AND m.sender_id != #{userId}
+    </select>
+
 </mapper>

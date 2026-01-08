@@ -27,17 +27,17 @@
 ### ✅ Milestone 2: 읽음 처리 비동기화 (Asynchronous Read Receipts)
 **목표:** 동기식 DB 업데이트로 인한 부하를 제거하고, 실시간 읽음 상태 동기화를 구현합니다.
 
-- [ ] **DTO 및 이벤트 정의**
+- [x] **DTO 및 이벤트 정의**
     - `ChatReadEventDto` (Kafka 페이로드) 및 `ChatReadStatusDto` (WebSocket 브로드캐스트용)를 생성합니다.
-- [ ] **Producer 구현 (`ChatReadEventProducer`)**
+- [x] **Producer 구현 (`ChatReadEventProducer`)**
     - `chat-read-events` 토픽으로 이벤트를 발행하는 서비스 로직을 구현합니다.
     - Kafka Key를 `userId`로 설정하여 순서를 보장합니다.
-- [ ] **Consumer 구현 (`ChatReadEventConsumer`)**
+- [x] **Consumer 구현 (`ChatReadEventConsumer`)**
     - 이벤트를 소비하여 DB (`chat_room_members.last_read_message_id`)를 업데이트합니다.
     - WebSocket (`/sub/chat/room/{roomId}/read`)을 통해 실시간으로 참여자들에게 읽음 상태를 전송합니다.
-- [ ] **Controller 리팩토링**
+- [x] **Controller 리팩토링**
     - `ChatController.markAsRead` 메서드가 DB를 직접 호출하지 않고 Producer를 호출하도록 수정합니다.
-- [ ] **Unread Count 로직 (MVP)**
+- [x] **Unread Count 로직 (MVP)**
     - 실시간 쿼리 기반의 `countUnreadMessages` 메서드를 Mapper에 추가합니다.
 
 ### ✅ Milestone 3: WebSocket 안정성 및 보안 (Stability & Security)
