@@ -98,6 +98,22 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+  # --- WebSocket ---
+  websocket:
+    session:
+      max-sessions-per-user: 3
+      handshake-timeout-seconds: 10
+      idle-timeout-minutes: 10
+    message:
+      max-size-kb: 64
+      buffer-size-kb: 512
+      send-buffer-size-kb: 512
+    heartbeat:
+      interval-seconds: 25
+      timeout-seconds: 60
+    rate-limit:
+      max-messages-per-minute: 60
+      enabled: true
 
 # ===================================================================
 # MYBATIS CONFIGURATION

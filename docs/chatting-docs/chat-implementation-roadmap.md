@@ -43,12 +43,12 @@
 ### ✅ Milestone 3: WebSocket 안정성 및 보안 (Stability & Security)
 **목표:** 리소스 고갈 공격(DoS)을 방지하고 세션 관리를 강화합니다.
 
-- [ ] **설정 중앙화 (`WebSocketProperties`)**
+- [x] **설정 중앙화 (`WebSocketProperties`)**
     - 세션 수, 메시지 크기, 타임아웃 등 하드코딩된 설정값을 `application.yml` 및 Properties 클래스로 추출합니다.
-- [ ] **세션 제한 구현 (`WebSocketSessionManager`)**
+- [x] **세션 제한 구현 (`WebSocketSessionManager`)**
     - Redis를 활용하여 사용자당 최대 세션 수(예: 3개)를 제한합니다.
     - 초과 연결 시 가장 오래된 세션을 종료하는 LIFO 로직을 구현합니다.
-- [ ] **메시지 크기 및 속도 제한**
+- [x] **메시지 크기 및 속도 제한**
     - `WebSocketConfig`에서 메시지 크기(64KB) 및 버퍼 사이즈를 제한합니다.
     - `WebSocketRateLimitInterceptor`를 구현하여 사용자당 전송 속도(예: 60 msg/min)를 제어합니다.
 
