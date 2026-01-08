@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.chat.service;
 
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
+import com.app.nonstop.global.config.KafkaTopicConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.DltHandler;
@@ -16,7 +17,7 @@ public class ChatKafkaConsumer {
 
     private final ChatService chatService;
 
-    @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}")
+    @KafkaListener(topics = KafkaTopicConfig.Topics.CHAT_MESSAGES, groupId = "${spring.kafka.consumer.group-id}")
     public void consume(ChatMessageDto message) {
         log.info("Consumed message from Kafka: roomId={}, senderId={}", message.getRoomId(), message.getSenderId());
         chatService.saveAndBroadcastMessage(message);

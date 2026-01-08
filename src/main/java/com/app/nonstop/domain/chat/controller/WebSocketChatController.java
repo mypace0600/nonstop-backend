@@ -1,14 +1,13 @@
-package com.app.nonstop.domain.chat.controller;
-
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
 import com.app.nonstop.domain.chat.service.ChatKafkaProducer;
+import com.app.nonstop.global.config.KafkaTopicConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 
-import java.util.Map;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Controller
@@ -17,24 +16,14 @@ public class WebSocketChatController {
 
     private final ChatKafkaProducer chatKafkaProducer;
 
-    /**
-     * WebSocket "/pub/chat/message"로 들어오는 메시징을 처리합니다.
-     */
     @MessageMapping("/chat/message")
-    public void message(ChatMessageDto message, SimpMessageHeaderAccessor headerAccessor) {
-        // 세션에서 인증된 userId 가져오기
-        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes == null || sessionAttributes.get("userId") == null) {
-            log.warn("Unauthorized message attempt: no userId in session");
-            return;
-        }
+    public void handleMessage(@Payload ChatMessageDto message) {
+        log.info("Received message via WebSocket: roomId={}, senderId={}", message.getRoomId(), message.getSenderId());
 
-        Long authenticatedUserId = (Long) sessionAttributes.get("userId");
+        // 메시지 시간 설정
+        message.setSentAt(LocalDateTime.now());
 
-        // 클라이언트가 보낸 senderId를 무시하고, 인증된 userId로 강제 할당
-        message.setSenderId(authenticatedUserId);
-
-        // 받은 메시지를 Kafka 토픽으로 전송
-        chatKafkaProducer.sendMessage("chat-messages", message);
+        // Kafka로 메시지 전송
+        chatKafkaProducer.sendMessage(KafkaTopicConfig.Topics.CHAT_MESSAGES, message);
     }
 }

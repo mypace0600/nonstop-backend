@@ -10,6 +10,7 @@ import com.app.nonstop.domain.chat.entity.MessageType;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.global.common.exception.AccessDeniedException;
 import com.app.nonstop.global.common.exception.ResourceNotFoundException;
+import com.app.nonstop.global.config.KafkaTopicConfig;
 import com.app.nonstop.mapper.ChatRoomMapper;
 import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -277,6 +278,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         systemMessage.setSenderId(senderId);
         systemMessage.setType(type);
         systemMessage.setContent(content);
-        chatKafkaProducer.sendMessage("chat-messages", systemMessage);
+        chatKafkaProducer.sendMessage(KafkaTopicConfig.Topics.CHAT_MESSAGES, systemMessage);
     }
 }
