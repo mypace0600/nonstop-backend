@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.mapper.UniversityMapper">
+
+    <resultMap id="universityResultMap" type="com.app.nonstop.domain.university.entity.University">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="region" column="region"/>
+        <result property="logoImageUrl" column="logo_image_url"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        ORDER BY name ASC
+    </select>
+
+    <select id="findByKeyword" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        WHERE name ILIKE '%' || #{keyword} || '%'
+        ORDER BY name ASC
+    </select>
+
+    <select id="findByRegion" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        WHERE region = #{region}
+        ORDER BY name ASC
+    </select>
+
+    <select id="findByKeywordAndRegion" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        WHERE name ILIKE '%' || #{keyword} || '%'
+          AND region = #{region}
+        ORDER BY name ASC
+    </select>
+
+    <select id="findById" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        WHERE id = #{id}
+    </select>
+
+    <select id="findAllRegions" resultType="String">
+        SELECT DISTINCT region
+        FROM universities
+        WHERE region IS NOT NULL
+        ORDER BY region ASC
+    </select>
+
+</mapper>
