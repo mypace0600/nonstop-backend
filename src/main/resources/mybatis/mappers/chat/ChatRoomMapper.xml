@@ -89,6 +89,14 @@
           AND user_id = #{userId}
     </update>
 
+    <update id="updateLastReadMessageIdIfGreater">
+        UPDATE chat_room_members
+        SET last_read_message_id = #{messageId}
+        WHERE room_id = #{roomId}
+          AND user_id = #{userId}
+          AND (last_read_message_id IS NULL OR last_read_message_id &lt; #{messageId})
+    </update>
+
     <select id="findById" resultMap="chatRoomResultMap">
         SELECT id, type, name, creator_id, created_at, updated_at
         FROM chat_rooms

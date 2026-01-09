@@ -110,4 +110,12 @@ public class KafkaTopicConfig {
                 .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(30).toMillis()))
                 .build();
     }
+
+    @Bean
+    public NewTopic chatReadEventsDltTopic() {
+        return TopicBuilder.name("chat-read-events-dlt")
+                .partitions(2)
+                .replicas(3)
+                .build();
+    }
 }

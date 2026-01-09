@@ -31,8 +31,8 @@ public class ChatReadEventConsumer {
                 event.getRoomId(), event.getUserId(), event.getMessageId());
 
         try {
-            // 1. DB 업데이트 (last_read_message_id)
-            chatRoomMapper.updateLastReadMessageId(
+            // 1. DB 업데이트 (last_read_message_id) - 멱등성 보장
+            chatRoomMapper.updateLastReadMessageIdIfGreater(
                 event.getRoomId(),
                 event.getUserId(),
                 event.getMessageId()
