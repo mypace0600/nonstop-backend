@@ -30,8 +30,8 @@
     </select>
 
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_verified)
-        VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false)
+        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_verified, university_id, major_id)
+        VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false, #{universityId}, #{majorId})
     </insert>
 
 </mapper>

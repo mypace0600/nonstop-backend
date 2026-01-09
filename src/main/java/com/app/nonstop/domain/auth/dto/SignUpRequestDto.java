@@ -22,16 +22,20 @@ public class SignUpRequestDto {
     private String email;
 
     @NotBlank(message = "비밀번호는 필수 입력 항목입니다.")
-    @Size(min = 8, max = 20, message = "비밀번호는 8자 이상 20자 이하로 입력해주세요.")
-    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-            message = "비밀번호는 영문, 숫자, 특수문자를 모두 포함해야 합니다.")
+    @Size(min = 6, max = 20, message = "비밀번호는 6자 이상 20자 이하로 입력해주세요.")
     @Schema(description = "비밀번호", example = "password123!")
     private String password;
 
     @NotBlank(message = "닉네임은 필수 입력 항목입니다.")
-    @Size(min = 2, max = 10, message = "닉네임은 2자 이상 10자 이하로 입력해주세요.")
+    @Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하로 입력해주세요.")
     @Schema(description = "닉네임", example = "테스트유저")
     private String nickname;
+
+    @Schema(description = "대학교 ID", example = "1")
+    private Long universityId;
+
+    @Schema(description = "전공 ID", example = "1")
+    private Long majorId;
 
     public User toEntity(PasswordEncoder passwordEncoder) {
         return User.builder()
@@ -39,6 +43,8 @@ public class SignUpRequestDto {
                 .password(passwordEncoder.encode(this.password))
                 .nickname(this.nickname)
                 .authProvider(AuthProvider.EMAIL)
+                .universityId(this.universityId)
+                .majorId(this.majorId)
                 .build();
     }
 }
