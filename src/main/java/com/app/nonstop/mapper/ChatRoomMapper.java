@@ -19,6 +19,9 @@ public interface ChatRoomMapper {
     List<ChatRoomResponseDto> findMyChatRooms(@Param("userId") Long userId);
     void updateLastReadMessageId(@Param("roomId") Long roomId, @Param("userId") Long userId, @Param("messageId") Long messageId);
 
+    // 멱등성 보장: 더 큰 messageId일 때만 업데이트
+    void updateLastReadMessageIdIfGreater(@Param("roomId") Long roomId, @Param("userId") Long userId, @Param("messageId") Long messageId);
+
     // 채팅방 나가기
     void leaveChatRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
     boolean isMemberOfRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
@@ -28,4 +31,7 @@ public interface ChatRoomMapper {
     void updateChatRoom(ChatRoom chatRoom);
     void removeMember(@Param("roomId") Long roomId, @Param("userId") Long userId);
     int countActiveMembers(@Param("roomId") Long roomId);
+
+    // 읽지 않은 메시지 수 조회
+    int countUnreadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
 }

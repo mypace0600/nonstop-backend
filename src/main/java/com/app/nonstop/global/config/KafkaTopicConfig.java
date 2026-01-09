@@ -31,4 +31,12 @@ public class KafkaTopicConfig {
                 .replicas(3)
                 .build();
     }
+
+    @Bean
+    public NewTopic chatReadEventsDltTopic() {
+        return TopicBuilder.name("chat-read-events-dlt")
+                .partitions(2)
+                .replicas(3)
+                .build();
+    }
 }
