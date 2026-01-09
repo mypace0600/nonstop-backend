@@ -1,5 +1,6 @@
 package com.app.nonstop.domain.user.controller;
 
+import com.app.nonstop.domain.university.dto.UserUniversityRequestDto;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
@@ -123,5 +124,27 @@ public class UserController {
     ) {
         VerificationStatusResponseDto responseDto = userService.getVerificationStatus(customUserDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(responseDto));
+    }
+
+    /**
+     * 현재 로그인된 사용자의 대학교 및 전공 정보를 설정합니다.
+     *
+     * @param customUserDetails Spring Security에서 주입한 현재 인증된 사용자 정보
+     * @param requestDto 대학교 ID와 전공 ID 정보 DTO
+     * @return ApiResponse<?> 성공 응답 (데이터 없음)
+     */
+    @Operation(summary = "대학교/전공 설정", description = "현재 로그인된 사용자의 대학교 및 전공 정보를 설정합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/me/university")
+    public ResponseEntity<ApiResponse<?>> updateMyUniversity(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody @Valid UserUniversityRequestDto requestDto
+    ) {
+        userService.updateUniversity(
+                customUserDetails.getUserId(),
+                requestDto.getUniversityId(),
+                requestDto.getMajorId()
+        );
+        return ResponseEntity.ok(ApiResponse.success());
     }
 }

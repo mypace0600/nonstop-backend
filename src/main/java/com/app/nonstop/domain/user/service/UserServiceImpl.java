@@ -12,7 +12,10 @@ import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
 import com.app.nonstop.domain.user.exception.InvalidPasswordChangeAttemptException;
 import com.app.nonstop.domain.user.exception.InvalidPasswordException;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
+import com.app.nonstop.global.common.exception.ResourceNotFoundException;
 import com.app.nonstop.mapper.DeviceMapper;
+import com.app.nonstop.mapper.MajorMapper;
+import com.app.nonstop.mapper.UniversityMapper;
 import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +29,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final DeviceMapper deviceMapper; // FCM 토큰 삭제를 위해 주입
+    private final UniversityMapper universityMapper;
+    private final MajorMapper majorMapper;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -180,5 +185,40 @@ public class UserServiceImpl implements UserService {
 
         // 2. 조회된 User 엔티티의 인증 관련 필드를 VerificationStatusResponseDto로 변환하여 반환합니다.
         return VerificationStatusResponseDto.of(user);
+    }
+
+    /**
+     * 사용자의 대학교 및 전공 정보를 설정합니다.
+     * - 대학교 ID가 유효한지 검증합니다.
+     * - 전공 ID가 제공된 경우, 해당 전공이 선택된 대학교에 속하는지 검증합니다.
+     *
+     * @param userId       사용자 ID
+     * @param universityId 대학교 ID
+     * @param majorId      전공 ID (선택)
+     * @throws UserNotFoundException     사용자를 찾을 수 없을 때
+     * @throws ResourceNotFoundException 대학교 또는 전공을 찾을 수 없을 때
+     * @throws IllegalArgumentException  전공이 해당 대학교에 속하지 않을 때
+     */
+    @Override
+    @Transactional
+    public void updateUniversity(Long userId, Long universityId, Long majorId) {
+        // 1. 사용자 존재 여부 확인
+        userMapper.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 대학교 존재 여부 확인
+        universityMapper.findById(universityId)
+                .orElseThrow(() -> new ResourceNotFoundException("University not found: " + universityId));
+
+        // 3. 전공이 제공된 경우, 해당 전공이 선택된 대학교에 속하는지 검증
+        if (majorId != null) {
+            boolean isValidMajor = majorMapper.existsByIdAndUniversityId(majorId, universityId);
+            if (!isValidMajor) {
+                throw new IllegalArgumentException("Major does not belong to the selected university");
+            }
+        }
+
+        // 4. 사용자 대학교/전공 정보 업데이트
+        userMapper.updateUniversity(userId, universityId, majorId);
     }
 }

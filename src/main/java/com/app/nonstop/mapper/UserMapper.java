@@ -25,4 +25,6 @@ public interface UserMapper {
     void updateUser(User user);
 
     void updateProfileImage(@Param("userId") Long userId, @Param("profileImageUrl") String profileImageUrl);
+
+    void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
 }

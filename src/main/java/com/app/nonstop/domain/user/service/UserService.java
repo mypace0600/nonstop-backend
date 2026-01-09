@@ -43,4 +43,13 @@ public interface UserService {
      * @return 인증 상태 응답 DTO
      */
     VerificationStatusResponseDto getVerificationStatus(Long userId);
+
+    /**
+     * 사용자의 대학교 및 전공 정보를 설정합니다.
+     *
+     * @param userId       사용자 ID
+     * @param universityId 대학교 ID
+     * @param majorId      전공 ID (선택)
+     */
+    void updateUniversity(Long userId, Long universityId, Long majorId);
 }
