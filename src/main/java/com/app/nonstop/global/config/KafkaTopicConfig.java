@@ -70,52 +70,10 @@ public class KafkaTopicConfig {
     // ========================================
     // Prod 환경용 토픽 설정 (Azure Event Hubs)
     // ========================================
-
-    @Bean
-    @Profile("prod")
-    public NewTopic chatMessagesTopicProd() {
-        return TopicBuilder.name(Topics.CHAT_MESSAGES)
-                .partitions(10)
-                .replicas(3)
-                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(7).toMillis()))
-                .build();
-    }
-
-    @Bean
-    @Profile("prod")
-    public NewTopic chatMessagesDltTopicProd() {
-        return TopicBuilder.name(Topics.CHAT_MESSAGES_DLT)
-                .partitions(3)
-                .replicas(3)
-                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(30).toMillis()))
-                .build();
-    }
-
-    @Bean
-    @Profile("prod")
-    public NewTopic chatReadEventsTopicProd() {
-        return TopicBuilder.name(Topics.CHAT_READ_EVENTS)
-                .partitions(5)
-                .replicas(3)
-                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(1).toMillis()))
-                .build();
-    }
-
-    @Bean
-    @Profile("prod")
-    public NewTopic chatReadEventsDltTopicProd() {
-        return TopicBuilder.name(Topics.CHAT_READ_EVENTS_DLT)
-                .partitions(2)
-                .replicas(3)
-                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(Duration.ofDays(30).toMillis()))
-                .build();
-    }
-
-    @Bean
-    public NewTopic chatReadEventsDltTopic() {
-        return TopicBuilder.name("chat-read-events-dlt")
-                .partitions(2)
-                .replicas(3)
-                .build();
-    }
+    // Azure Event Hubs에서는 토픽(Event Hub) 자동 생성이 불가능합니다.
+    // Azure Portal에서 다음 Event Hub들을 미리 생성해야 합니다:
+    // 1. chat-messages (파티션: 10, 보관기간: 7일)
+    // 2. chat-messages-dlt (파티션: 3, 보관기간: 30일)
+    // 3. chat-read-events (파티션: 5, 보관기간: 1일)
+    // 4. chat-read-events-dlt (파티션: 2, 보관기간: 30일)
 }

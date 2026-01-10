@@ -54,6 +54,9 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 
   # --- Kafka ---
   kafka:
@@ -191,26 +194,4 @@ logging:
 # ===================================================================
 # PROD PROFILE
 # ===================================================================
-spring:
-  config:
-    activate:
-      on-profile: prod
-  datasource:
-    hikari:
-      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
-      minimum-idle: ${HIKARI_MIN_IDLE:10}
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    properties:
-      allow.auto.create.topics: false
-      security.protocol: SASL_SSL
-      sasl.mechanism: PLAIN
-      sasl.jaas.config: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="$ConnectionString"
-        password="${KAFKA_CONNECTION_STRING}";
-
-logging:
-  level:
-    com.app.nonstop: info
-    org.springframework: warn
+# Production settings are now in application-prod.yml
