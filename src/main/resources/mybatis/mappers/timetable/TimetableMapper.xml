@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.mapper.TimetableMapper">
+
+    <resultMap id="timetableMap" type="com.app.nonstop.domain.timetable.entity.Timetable">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="semesterId" column="semester_id"/>
+        <result property="title" column="title"/>
+        <result property="isPublic" column="is_public"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO time_tables (user_id, semester_id, title, is_public, created_at)
+        VALUES (#{userId}, #{semesterId}, #{title}, #{isPublic}, NOW())
+    </insert>
+
+    <select id="existsByUserIdAndSemesterId" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM time_tables
+            WHERE user_id = #{userId} AND semester_id = #{semesterId}
+        )
+    </select>
+
+    <select id="findById" resultMap="timetableMap">
+        SELECT * FROM time_tables WHERE id = #{id}
+    </select>
+
+    <select id="findAllByUserId" resultMap="timetableMap">
+        SELECT * FROM time_tables 
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+    
+    <update id="update">
+        UPDATE time_tables
+        SET title = #{title},
+            is_public = #{isPublic}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM time_tables WHERE id = #{id}
+    </delete>
+
+    <select id="findAllPublicByUniversityId" resultMap="timetableMap">
+        SELECT t.*
+        FROM time_tables t
+        JOIN users u ON t.user_id = u.id
+        WHERE u.university_id = #{universityId} 
+          AND t.is_public = TRUE
+        ORDER BY t.created_at DESC
+    </select>
+
+</mapper>

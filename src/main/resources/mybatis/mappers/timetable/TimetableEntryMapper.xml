@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.app.nonstop.mapper.TimetableEntryMapper">
+
+    <resultMap id="entryMap" type="com.app.nonstop.domain.timetable.entity.TimetableEntry">
+        <id property="id" column="id"/>
+        <result property="timetableId" column="time_table_id"/>
+        <result property="subjectName" column="subject_name"/>
+        <result property="professor" column="professor"/>
+        <result property="dayOfWeek" column="day_of_week"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="place" column="place"/>
+        <result property="color" column="color"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO time_table_entries (
+            time_table_id, subject_name, professor, day_of_week, start_time, end_time, place, color
+        ) VALUES (
+            #{timetableId}, #{subjectName}, #{professor}, #{dayOfWeek}, #{startTime}, #{endTime}, #{place}, #{color}
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE time_table_entries
+        SET subject_name = #{subjectName},
+            professor = #{professor},
+            day_of_week = #{dayOfWeek},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            place = #{place},
+            color = #{color}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM time_table_entries WHERE id = #{id}
+    </delete>
+
+    <select id="findAllByTimetableId" resultMap="entryMap">
+        SELECT * FROM time_table_entries
+        WHERE time_table_id = #{timetableId}
+    </select>
+
+    <select id="findById" resultMap="entryMap">
+        SELECT * FROM time_table_entries WHERE id = #{id}
+    </select>
+
+</mapper>
