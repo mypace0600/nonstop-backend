@@ -135,16 +135,14 @@ university_id = null → 빈 배열 + universityRequired 플래그 반환
     *   **방안:** 채팅 메시지에 이미지를 포함할 경우, 클라이언트는 이미지 파일을 Azure Blob Storage에 직접 업로드(SAS URL 사용)하고, **`upload-complete` API 호출을 통해 서버에 파일 메타데이터 저장을 완료한 이후에** 해당 `blobUrl`을 포함한 실제 채팅 메시지를 `/pub/chat/message` (STOMP)로 전송하도록 클라이언트 로직을 설계합니다.
     *   **효과:** 상대방이 메시지를 수신했을 때 유효한 이미지 경로를 즉시 확인할 수 있도록 보장하며, 서버 부담을 줄입니다.
 
-##### Kafka 클러스터 운영 가이드 (필수 보완)
-- **토픽 구성**:
-  - `chat-messages` 토픽: 파티션 수 초기 10~50개 (roomId 키 기반), replication factor 최소 3.
-  - `chat-read-events` 토픽: 파티션 수 5~10개 (userId 키 기반), replication factor 최소 3.
-- **Retention policy**:
-  - `chat-messages`: 메시지 보관 기간 7~30일 (용량 관리).
-  - `chat-read-events`: 메시지 보관 기간 1~3일.
-- **모니터링**: Consumer lag, throughput, partition balance 모니터링 필수 (Prometheus + Grafana 추천).
-- **에러 핸들링**: Dead Letter Topic (DLQ) 추가 – 실패 메시지 라우팅.
-- **보안**: SASL/SSL + ACL 설정, producer/consumer 인증.
+##### Kafka 클러스터 운영 가이드
+> 상세 설정은 [채팅 시스템 통합 설계서](./chatting-docs/chat-system.md#4-kafka-설정) 참조
+
+- **토픽 구성**: `chat-messages` (파티션 10, roomId 키), `chat-read-events` (파티션 5, userId 키)
+- **Retention**: `chat-messages` 7일, `chat-read-events` 1일
+- **모니터링**: Consumer lag, throughput, partition balance (Prometheus + Grafana)
+- **에러 핸들링**: Dead Letter Topic (DLQ) – `chat-messages-dlt`, `chat-read-events-dlt`
+- **보안**: SASL/SSL + ACL 설정
 
 ##### 향후 개선 및 대안 고려 (선택적)
 - **과도한 복잡도 완화**: 초기 및 중기 트래픽의 대학생 앱 규모에서는 Kafka가 과도한 복잡도를 야기할 수 있습니다.

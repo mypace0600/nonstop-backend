@@ -8,7 +8,11 @@ com.app.nonstop
  │   │   ├── OpenApiConfig.java
  │   │   ├── AppProperties.java
  │   │   ├── AzureBlobStorageConfig.java
- │   │   └── FirebaseConfig.java
+ │   │   ├── FirebaseConfig.java
+ │   │   ├── WebSocketConfig.java                 # WebSocket/STOMP 설정
+ │   │   ├── KafkaTopicConfig.java                # Kafka 토픽 설정
+ │   │   ├── KafkaProducerConfig.java             # Kafka Producer 설정
+ │   │   └── KafkaConsumerConfig.java             # Kafka Consumer 설정
  │   │
  │   ├── security
  │   │   ├── jwt
@@ -16,6 +20,10 @@ com.app.nonstop
  │   │   │   └── JwtAuthenticationFilter.java
  │   │   ├── user
  │   │   │   └── CustomUserDetails.java
+ │   │   ├── websocket                            # WebSocket 보안 (채팅)
+ │   │   │   ├── WebSocketAuthInterceptor.java    # JWT 인증
+ │   │   │   ├── WebSocketSessionManager.java     # 세션 관리 (Redis)
+ │   │   │   └── WebSocketRateLimitInterceptor.java # Rate Limiting
  │   │   └── oauth2
  │   │       ├── HttpCookieOAuth2AuthorizationRequestRepository.java
  │   │       ├── exception
@@ -37,6 +45,9 @@ com.app.nonstop
  │   │   │   └── ApiResponse.java
  │   │   └── exception
  │   │       └── FileUploadException.java
+ │   │
+ │   ├── properties
+ │   │   └── WebSocketProperties.java             # WebSocket 설정값 관리
  │   │
  │   └── util
  │       └── CookieUtil.java
@@ -185,13 +196,25 @@ com.app.nonstop
  │       └── entity
  │           └── Major.java
  │
- │   ├── chat
+ │   ├── chat                              # 채팅 시스템 (상세: docs/chatting-docs/chat-system.md)
  │   │   ├── controller
- │   │   │   ├── ChatController.java
- │   │   │   └── WebSocketChatController.java
+ │   │   │   ├── ChatController.java              # REST API (채팅방 CRUD, 메시지 조회)
+ │   │   │   └── WebSocketChatController.java     # STOMP 메시지 수신
  │   │   ├── dto
+ │   │   │   ├── ChatMessageDto.java              # 메시지 DTO
+ │   │   │   ├── ChatReadEventDto.java            # 읽음 이벤트 DTO (Kafka)
+ │   │   │   └── ChatReadStatusDto.java           # 읽음 상태 DTO (WebSocket)
  │   │   ├── entity
+ │   │   │   ├── ChatRoom.java
+ │   │   │   ├── ChatRoomMember.java
+ │   │   │   └── Message.java
  │   │   └── service
+ │   │       ├── ChatService.java
+ │   │       ├── ChatServiceImpl.java
+ │   │       ├── ChatKafkaProducer.java           # 메시지 Kafka 발행
+ │   │       ├── ChatKafkaConsumer.java           # 메시지 Kafka 소비
+ │   │       ├── ChatReadEventProducer.java       # 읽음 이벤트 발행
+ │   │       └── ChatReadEventConsumer.java       # 읽음 이벤트 소비
  │   │
  │   ├── notification
  │   │   ├── controller
