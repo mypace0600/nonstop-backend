@@ -60,7 +60,7 @@ spring:
 
   # --- Kafka ---
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -69,6 +69,9 @@ spring:
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL}
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
     consumer:
       group-id: nonstop-chat
@@ -79,6 +82,9 @@ spring:
         spring.json.trusted.packages: com.app.nonstop.domain.chat.dto
         spring.json.use.type.headers: false
         isolation.level: read_committed
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL}
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
     listener:
       concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
@@ -180,10 +186,6 @@ spring:
       on-profile: local
   flyway:
     enabled: false
-  kafka:
-    bootstrap-servers: localhost:9092
-    properties:
-      security.protocol: PLAINTEXT
 
 logging:
   level:
