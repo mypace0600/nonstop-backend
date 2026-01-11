@@ -16,8 +16,6 @@ services:
     restart: always
     networks:
       - app-net
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
   db:
     image: postgres:15-alpine
