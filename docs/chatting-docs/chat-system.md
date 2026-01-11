@@ -50,7 +50,7 @@ Nonstop의 채팅 시스템은 **대규모 트래픽 처리가 가능한 실시�
 
 ### 2.1 전체 아키텍처 다이어그램
 
-```mermaid
+```
 graph TD
     Client[Client (App/Web)] -->|WebSocket/STOMP| LB[Load Balancer]
     LB -->|Connection| WS_Server[API Server (Spring Boot)]
@@ -172,7 +172,7 @@ Client
 ### 4.3 환경별 설정
 
 #### Local 환경 (Docker Kafka)
-```java
+```
 @Bean
 @Profile("local")
 public NewTopic chatMessagesTopicLocal() {
@@ -186,7 +186,7 @@ public NewTopic chatMessagesTopicLocal() {
 ```
 
 #### Prod 환경 (Azure Event Hubs)
-```java
+```
 @Bean
 @Profile("prod")
 public NewTopic chatMessagesTopicProd() {
@@ -201,7 +201,7 @@ public NewTopic chatMessagesTopicProd() {
 
 ### 4.4 토픽 상수 클래스
 
-```java
+```
 public static class Topics {
     public static final String CHAT_MESSAGES = "chat-messages";
     public static final String CHAT_MESSAGES_DLT = "chat-messages-dlt";
@@ -246,7 +246,7 @@ After:  API 호출 → Kafka 발행 → Consumer → DB 업데이트 + WebSocket
 ### 5.2 DTO 설계
 
 #### ChatReadEventDto.java (Kafka 페이로드)
-```java
+```
 @Getter @Setter @Builder
 public class ChatReadEventDto {
     private Long roomId;
@@ -257,7 +257,7 @@ public class ChatReadEventDto {
 ```
 
 #### ChatReadStatusDto.java (WebSocket 브로드캐스트용)
-```java
+```
 @Getter @Builder
 public class ChatReadStatusDto {
     private Long roomId;
@@ -270,7 +270,7 @@ public class ChatReadStatusDto {
 ### 5.3 Producer/Consumer 설계
 
 #### ChatReadEventProducer.java
-```java
+```
 @Service
 public class ChatReadEventProducer {
     private static final String TOPIC = "chat-read-events";
@@ -283,7 +283,7 @@ public class ChatReadEventProducer {
 ```
 
 #### ChatReadEventConsumer.java
-```java
+```
 @KafkaListener(topics = "chat-read-events", groupId = "nonstop-chat-read")
 public void consume(ChatReadEventDto event) {
     // 1. DB 업데이트
@@ -306,7 +306,7 @@ public void consume(ChatReadEventDto event) {
 
 **권장안: A. 실시간 계산 (MVP)**
 
-```sql
+```
 SELECT COUNT(*)
 FROM messages m
 WHERE m.chat_room_id = :roomId
@@ -340,7 +340,7 @@ WHERE m.chat_room_id = :roomId
 ### 6.2 설정값 클래스
 
 #### WebSocketProperties.java
-```java
+```
 @ConfigurationProperties(prefix = "websocket")
 public class WebSocketProperties {
     private Session session = new Session();
@@ -372,7 +372,7 @@ public class WebSocketProperties {
 ```
 
 #### application.yml 설정
-```yaml
+```
 websocket:
   session:
     max-sessions-per-user: 3
@@ -392,7 +392,7 @@ websocket:
 ### 6.3 세션 관리 (Redis)
 
 #### 데이터 구조
-```redis
+```
 # 사용자별 세션 목록 (Sorted Set, score = 연결 시간)
 ws:session:user:{userId}
 ├── sessionId1 (score: 1704355100000)
@@ -416,7 +416,7 @@ ws:ratelimit:user:{userId} = "45"
 ### 6.4 에러 처리
 
 **세션 제한 초과:**
-```json
+```
 {
   "type": "SESSION_CLOSED",
   "reason": "Maximum session limit exceeded. New session connected.",
@@ -425,7 +425,7 @@ ws:ratelimit:user:{userId} = "45"
 ```
 
 **Rate Limit 초과:**
-```json
+```
 {
   "type": "ERROR",
   "code": "RATE_LIMIT_EXCEEDED",
@@ -451,14 +451,14 @@ ws:ratelimit:user:{userId} = "45"
 ### 7.2 상세 검증 내역
 
 **senderId 위조 방지:**
-```java
+```
 // WebSocketChatController.java:34-35
 Long authenticatedUserId = (Long) sessionAttributes.get("userId");
 message.setSenderId(authenticatedUserId);  // 클라이언트 값 무시
 ```
 
 **멤버 권한 검증:**
-```java
+```
 // ChatServiceImpl.java:38
 if (!chatRoomMapper.isMemberOfRoom(message.getRoomId(), message.getSenderId())) {
     log.warn("Unauthorized message attempt...");
@@ -482,7 +482,7 @@ if (!chatRoomMapper.isMemberOfRoom(message.getRoomId(), message.getSenderId())) 
 
 동일한 (roomId, userId, messageId) 조합에 대해 여러 번 처리해도 결과 동일:
 
-```sql
+```
 UPDATE chat_room_members
 SET last_read_message_id = :messageId
 WHERE room_id = :roomId
@@ -559,7 +559,7 @@ ERROR - DLT - Failed to process: topic={}, roomId={}
 
 ### 9.3 Local 개발 환경 (Docker)
 
-```yaml
+```
 # docker-compose.yml
 services:
   kafka:
@@ -570,7 +570,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 ```
 
-```yaml
+```
 # application-local.yml
 spring:
   kafka:
@@ -581,7 +581,7 @@ spring:
 
 ### 9.4 Prod 환경 (Azure Event Hubs)
 
-```yaml
+```
 # application-prod.yml
 spring:
   kafka:
@@ -590,7 +590,7 @@ spring:
 ```
 
 **Azure CLI로 Event Hub 생성:**
-```bash
+```
 az eventhubs eventhub create \
   --resource-group nonstop-rg \
   --namespace-name nonstop-eventhubs \
@@ -602,7 +602,7 @@ az eventhubs eventhub create \
 ### 9.5 클라이언트 가이드
 
 **세션 종료 이벤트 처리:**
-```javascript
+```
 stompClient.subscribe('/user/queue/session', (message) => {
     const event = JSON.parse(message.body);
     if (event.type === 'SESSION_CLOSED') {
@@ -612,7 +612,7 @@ stompClient.subscribe('/user/queue/session', (message) => {
 ```
 
 **읽음 상태 구독:**
-```javascript
+```
 stompClient.subscribe('/sub/chat/room/123/read', (message) => {
     const readStatus = JSON.parse(message.body);
     updateReadStatus(readStatus.userId, readStatus.lastReadMessageId);
