@@ -5,7 +5,7 @@ services:
     build: .
     container_name: nonstop-app
     ports:
-      - "8080:8080"   # 나중에 nginx 앞에 두면 제거 가능
+      - "28080:28080"   # 나중에 nginx 앞에 두면 제거 가능
     env_file:
       - .env
     depends_on:
