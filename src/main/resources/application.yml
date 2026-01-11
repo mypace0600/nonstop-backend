@@ -71,7 +71,7 @@ spring:
         max.in.flight.requests.per.connection: 5
         security.protocol: ${KAFKA_SECURITY_PROTOCOL}
         sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
-        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${KAFKA_CONNECTION_STRING}";
 
     consumer:
       group-id: nonstop-chat
@@ -84,7 +84,7 @@ spring:
         isolation.level: read_committed
         security.protocol: ${KAFKA_SECURITY_PROTOCOL}
         sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
-        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+        sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${KAFKA_CONNECTION_STRING}";
 
     listener:
       concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
