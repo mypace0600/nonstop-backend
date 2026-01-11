@@ -59,11 +59,13 @@
 ### 3.4 Community & Boards
 학교별 커뮤니티 → 게시판 계층 구조  
 university_id = null → 빈 배열 + universityRequired 플래그 반환
+**보안:** 게시판 목록 조회(`GET /api/v1/communities/{id}/boards`) 시, 사용자의 `university_id`가 커뮤니티의 대학과 일치해야 하며, `is_verified=true`여야 함. 조건 불만족 시 403 Forbidden 반환.
 
 ### 3.5 Posts & Comments
 - 제목(150자), 내용, 다중 이미지, 익명/비밀글 옵션
 - 좋아요 토글 (soft delete 방식)
 - 계층형 댓글 (최대 2단계 대댓글 권장, 3단계 이상 차단)
+- **댓글 수정:** 내용 및 익명 여부 수정 가능 (작성자 본인만)
 - 댓글에도 이미지 첨부 가능
 - 신고·조회수·삭제(soft delete)
 
@@ -217,7 +219,7 @@ last_read_message_id + unread_count 자동 관리
 | Method | URI                                          | Description      |
 |--------|----------------------------------------------|------------------|
 | GET    | /api/v1/communities                          | 커뮤니티 목록    |
-| GET    | /api/v1/communities/{id}/boards              | 게시판 목록      |
+| GET    | /api/v1/communities/{id}/boards              | 게시판 목록 (본인 학교 & 인증 필수) |
 
 ### Post & Comment
 | Method | URI                                          | Description           |

@@ -48,6 +48,18 @@ public class CommentController {
     }
 
     /**
+     * 댓글 수정.
+     */
+    @PatchMapping("/comments/{commentId}")
+    public ApiResponse<CommentDto.Response> updateComment(
+            @PathVariable("commentId") Long commentId,
+            @RequestBody @Valid CommentDto.Request requestDto,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ApiResponse.success(commentService.updateComment(commentId, userDetails.getUserId(), requestDto));
+    }
+
+    /**
      * 댓글 삭제.
      */
     @DeleteMapping("/comments/{commentId}")

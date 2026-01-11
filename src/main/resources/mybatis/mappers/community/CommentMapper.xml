@@ -49,6 +49,7 @@
     <update id="update">
         UPDATE comments
         SET content = #{content},
+            is_anonymous = #{isAnonymous},
             updated_at = NOW()
         WHERE id = #{id}
     </update>

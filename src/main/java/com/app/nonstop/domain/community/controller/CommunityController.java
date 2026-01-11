@@ -30,9 +30,15 @@ public class CommunityController {
     }
 
     @GetMapping("/communities/{communityId}/boards")
-    public ApiResponse<List<BoardResponseDto>> getBoardsByCommunityId(@PathVariable Long communityId) {
-        // TODO: [보안] 사용자가 해당 커뮤니티에 접근 권한이 있는지(같은 학교 소속이며 인증되었는지) 확인하는 로직 추가 필요
-        List<BoardResponseDto> boards = boardService.getBoardsByCommunityId(communityId);
+    public ApiResponse<List<BoardResponseDto>> getBoardsByCommunityId(
+            @PathVariable Long communityId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        List<BoardResponseDto> boards = boardService.getBoardsByCommunityId(
+                communityId,
+                customUserDetails.getUniversityId(),
+                customUserDetails.getIsVerified()
+        );
         return ApiResponse.success(boards);
     }
 }

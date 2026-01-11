@@ -33,4 +33,8 @@
             sort_order ASC, name ASC
     </select>
 
+    <select id="findById" resultMap="communityMap">
+        SELECT * FROM communities WHERE id = #{id}
+    </select>
+
 </mapper>

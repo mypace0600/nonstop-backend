@@ -92,6 +92,45 @@ public class CommentService {
     }
 
     /**
+     * 댓글을 수정합니다.
+     * 작성자 본인만 수정 가능합니다.
+     *
+     * @param commentId  댓글 ID
+     * @param userId     요청 사용자 ID
+     * @param requestDto 수정할 데이터
+     * @return 수정된 댓글 정보
+     */
+    @Transactional
+    public CommentDto.Response updateComment(Long commentId, Long userId, CommentDto.Request requestDto) {
+        Comment comment = commentMapper.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("댓글을 찾을 수 없습니다."));
+
+        if (!comment.getUserId().equals(userId)) {
+            throw new AccessDeniedException("작성자만 수정할 수 있습니다.");
+        }
+
+        comment.setContent(requestDto.getContent());
+        comment.setIsAnonymous(requestDto.getIsAnonymous());
+
+        commentMapper.update(comment);
+
+        // 이미지 수정
+        fileService.updateImages(userId, "comments", commentId, requestDto.getImageUrls());
+
+        return CommentDto.Response.builder()
+                .id(comment.getId())
+                .postId(comment.getPostId())
+                .upperCommentId(comment.getUpperCommentId())
+                .content(comment.getContent())
+                .type(comment.getType())
+                .depth(comment.getDepth())
+                .isWriterAnonymous(comment.getIsAnonymous())
+                .isDeleted(false)
+                .updatedAt(java.time.LocalDateTime.now())
+                .build();
+    }
+
+    /**
      * 게시글의 전체 댓글 목록을 계층형 구조(트리)로 조회합니다.
      *
      * @param postId 게시글 ID
