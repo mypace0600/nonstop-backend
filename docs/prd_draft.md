@@ -26,12 +26,11 @@
 #### 3.1.3 Access Token Payload (표준)
 ```
 {
-  "sub": 12345,
+  "sub": "12345",            // userId (String)
+  "auth": "ROLE_USER",       // Authorities (Comma separated)
   "email": "hello@korea.ac.kr",
-  "nickname": "코알라",
   "universityId": 52,        // null 허용
-  "isVerified": true,        // 대학생 인증 여부 (v2 신규)
-  "authProvider": "EMAIL|GOOGLE",
+  "isVerified": true,        // 대학생 인증 여부
   "iat": 1735999999,
   "exp": 1736001799
 }
@@ -53,7 +52,7 @@
 | 방식                | 설명                                      | 자동/수동 | is_verified |
 |---------------------|-------------------------------------------|-----------|-------------|
 | 이메일 도메인 인증   | @*.ac.kr, 대학별 도메인 목록 자동 매칭     | 자동      | true        |
-| 학생증 사진 인증     | 사진 업로드 → 관리자 수동 검토             | 수동      | true        |
+| 학생증 사진 인증     | 사진 업로드(Multipart) → 관리자 수동 검토    | 수동      | true        |
 | 수동 승인 (운영자)   | 특수 케이스                               | 수동      | true        |
 
 ### 3.4 Community & Boards
@@ -178,11 +177,11 @@ last_read_message_id + unread_count 자동 관리
 ### 3.10 Rate Limit & Security
 - 모든 쓰기 API: 사용자당 분당 60회 제한
 
-#### 3.10.1 이미지 업로드 (Azure SAS URL)
-- 모든 파일(프로필 사진, 학생증, 게시물 첨부 등) 업로드는 클라이언트가 서버를 거치지 않고 Azure Blob Storage에 직접 업로드하는 방식을 사용합니다.
-- 이 방식은 서버의 부하를 줄이고, 업로드 속도를 향상시키며, 보안을 강화합니다.
+#### 3.10.1 이미지 업로드 전략
+- **일반 파일 (게시글/채팅/프로필)**: 클라이언트가 서버로부터 SAS URL을 발급받아 Azure Blob Storage에 직접 업로드합니다. (서버 부하 감소)
+- **보안 파일 (학생증 인증)**: 클라이언트가 `Multipart/form-data`로 서버에 전송하고, 서버가 검증 후 Azure Blob Storage에 업로드합니다.
 
-##### 데이터 흐름
+##### 데이터 흐름 (SAS URL 방식)
 1.  **SAS URL 요청 (Client → Server)**
     - 클라이언트는 `POST /api/v1/files/sas-url` 엔드포인트로 업로드할 파일의 정보(`fileName`, `contentType`, `purpose`, `targetId` 등)를 전송하여 업로드 권한이 담긴 일회성 URL(SAS URL)을 요청합니다.
     - `purpose`는 `PROFILE_IMAGE`, `BOARD_ATTACHMENT` 등 파일의 사용 목적을 나타내는 Enum입니다.
