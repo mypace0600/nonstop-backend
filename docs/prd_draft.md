@@ -159,9 +159,16 @@ DELETE /api/v1/chat/rooms/{roomId}/messages/{messageId}
 last_read_message_id + unread_count 자동 관리
 
 ### 3.8 Timetable
-- 학기별 시간표 CRUD
-- 공개 설정 시 동일 university_id & is_verified=true 인 사용자만 조회 가능
-- GET /api/v1/timetables/public → 요청자의 university_id 가 null 이면 403 + universityRequired
+- **학기별 시간표 관리 (CRUD)**
+  - **생성 (`POST`)**: 학기당 1개의 시간표만 생성 가능 (Unique 제약: `user_id`, `semester_id`).
+  - **수정/삭제 (`PATCH`, `DELETE`)**: 본인의 시간표만 수정/삭제 가능 (소유권 검증 필수).
+  - **목록/상세 조회 (`GET`)**: 본인의 시간표 목록 및 상세 조회.
+- **수업 항목(Entry) 관리**
+  - **추가/수정 (`POST`, `PATCH`)**: 시간표 내 기존 수업과 시간이 겹치는지 검증 필수 (Overlap Check).
+  - **권한**: 본인의 시간표에만 수업 항목 추가/수정/삭제 가능.
+- **공개 시간표 조회 (`GET /api/v1/timetables/public`)**
+  - **보안**: 요청자의 `university_id`가 null 이거나 `is_verified=false` 인 경우 `403 Forbidden` 반환.
+  - **로직**: 동일한 학교 소속 사용자 중 `is_public=true`로 설정된 시간표 목록 조회.
 
 ### 3.9 Notifications & Push
 - FCM 사용, 서버에서만 푸시 트리거
