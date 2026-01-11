@@ -1,3 +1,5 @@
+package com.app.nonstop.domain.chat.controller;
+
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
 import com.app.nonstop.domain.chat.service.ChatKafkaProducer;
 import com.app.nonstop.global.config.KafkaTopicConfig;
