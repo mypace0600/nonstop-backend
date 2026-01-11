@@ -34,25 +34,9 @@ public class KafkaConsumerConfig {
     @Value("${KAFKA_CONNECTION_STRING:}")
     private String kafkaConnectionString;
 
-    // Local 프로파일용 Consumer Factory (PLAINTEXT)
+    // 통합 Consumer Factory (환경변수 유무에 따라 설정 적용)
     @Bean
-    @Profile("local")
-    public ConsumerFactory<String, Object> localConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.app.nonstop.domain.chat.dto");
-        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    // Production 프로파일용 Consumer Factory (SASL_SSL)
-    @Bean
-    @Profile("prod")
-    public ConsumerFactory<String, Object> prodConsumerFactory() {
+    public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -62,13 +46,15 @@ public class KafkaConsumerConfig {
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 
-        // Azure Event Hubs 보안 설정
-        props.put("security.protocol", "SASL_SSL");
-        props.put("sasl.mechanism", "PLAIN");
-        props.put("sasl.jaas.config",
-                "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-                "username=\"$ConnectionString\" " +
-                "password=\"" + kafkaConnectionString + "\";");
+        // Azure Event Hubs 보안 설정 (Connection String이 있을 경우 적용)
+        if (kafkaConnectionString != null && !kafkaConnectionString.isEmpty()) {
+            props.put("security.protocol", "SASL_SSL");
+            props.put("sasl.mechanism", "PLAIN");
+            props.put("sasl.jaas.config",
+                    "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                            "username=\"$ConnectionString\" " +
+                            "password=\"" + kafkaConnectionString + "\";");
+        }
 
         return new DefaultKafkaConsumerFactory<>(props);
     }
