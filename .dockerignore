@@ -1,0 +1,10 @@
+.git
+.gradle
+.idea
+build
+out
+*.class
+*.jar
+*.war
+.DS_Store
+Thumbs.db
