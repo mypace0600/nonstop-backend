@@ -158,7 +158,7 @@ CREATE INDEX ix_semesters_university ON semesters(university_id);
 -- ===================================================================
 CREATE TABLE communities (
   id BIGSERIAL PRIMARY KEY,
-  university_id BIGINT NOT NULL REFERENCES universities(id),
+  university_id BIGINT REFERENCES universities(id),
   name VARCHAR(255) NOT NULL,
   description TEXT,
   icon VARCHAR(255),
