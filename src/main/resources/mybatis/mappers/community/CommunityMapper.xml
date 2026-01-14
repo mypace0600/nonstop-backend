@@ -28,7 +28,10 @@
         FROM
             communities
         WHERE
-            university_id = #{universityId}
+            university_id IS NULL
+            <if test="universityId != null">
+                OR university_id = #{universityId}
+            </if>
         ORDER BY
             sort_order ASC, name ASC
     </select>

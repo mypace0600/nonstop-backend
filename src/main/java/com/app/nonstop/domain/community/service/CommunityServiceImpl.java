@@ -20,22 +20,20 @@ public class CommunityServiceImpl implements CommunityService {
 
     @Override
     public CommunityListWrapper getCommunities(Long universityId, Boolean isVerified) {
-        // universityId가 없거나 isVerified가 false면 universityRequired를 true로 설정하고 빈 리스트 반환
-        if (universityId == null || !Boolean.TRUE.equals(isVerified)) {
-            return CommunityListWrapper.builder()
-                    .communities(Collections.emptyList())
-                    .universityRequired(true)
-                    .build();
-        }
+        // 인증된 사용자라면 본인 대학 ID를 사용, 아니라면 null (공통 커뮤니티만 조회)
+        Long queryUniversityId = (Boolean.TRUE.equals(isVerified)) ? universityId : null;
 
-        List<CommunityResponseDto> communities = communityMapper.findByUniversityId(universityId)
+        List<CommunityResponseDto> communities = communityMapper.findByUniversityId(queryUniversityId)
                 .stream()
                 .map(CommunityResponseDto::from)
                 .collect(Collectors.toList());
 
+        // 미인증 상태라면 '학교 인증 필요' 플래그는 true로 유지 (프론트엔드 안내용)
+        boolean universityRequired = universityId == null || !Boolean.TRUE.equals(isVerified);
+
         return CommunityListWrapper.builder()
                 .communities(communities)
-                .universityRequired(false)
+                .universityRequired(universityRequired)
                 .build();
     }
 }
