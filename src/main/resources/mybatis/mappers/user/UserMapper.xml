@@ -17,4 +17,13 @@
           AND deleted_at IS NULL
     </update>
 
+    <update id="updateVerificationStatus">
+        UPDATE users
+        SET is_verified = #{isVerified},
+            verification_method = #{verificationMethod}::verification_method,
+            updated_at = now()
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
 </mapper>

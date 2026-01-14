@@ -21,4 +21,8 @@ public interface UniversityMapper {
     Optional<University> findById(@Param("id") Long id);
 
     List<String> findAllRegions();
+
+    void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
+
+    Optional<University> findByDomain(@Param("domain") String domain);
 }

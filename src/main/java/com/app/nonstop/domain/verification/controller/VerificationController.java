@@ -1,5 +1,7 @@
 package com.app.nonstop.domain.verification.controller;
 
+import com.app.nonstop.domain.verification.dto.EmailVerificationConfirmDto;
+import com.app.nonstop.domain.verification.dto.EmailVerificationRequestDto;
 import com.app.nonstop.domain.verification.service.VerificationService;
 import com.app.nonstop.global.common.response.ApiResponse;
 import com.app.nonstop.global.security.user.CustomUserDetails;
@@ -7,14 +9,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -50,6 +50,34 @@ public class VerificationController {
             @RequestParam("file") MultipartFile file
     ) {
         verificationService.requestStudentIdVerification(customUserDetails.getUserId(), file);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(
+            summary = "학교 웹메일 인증 요청",
+            description = "사용자의 학교 웹메일로 인증 코드를 발송합니다. 인증 코드는 5분간 유효합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/email/request")
+    public ResponseEntity<ApiResponse<?>> requestEmailVerification(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody @Valid EmailVerificationRequestDto requestDto
+    ) {
+        verificationService.requestEmailVerification(customUserDetails.getUserId(), requestDto);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(
+            summary = "학교 웹메일 인증 코드 확인",
+            description = "발송된 인증 코드를 검증하고 대학생 인증을 완료합니다. 인증 성공 시 사용자의 학교 정보가 업데이트되고 인증 상태가 TRUE로 변경됩니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/email/confirm")
+    public ResponseEntity<ApiResponse<?>> confirmEmailVerification(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody @Valid EmailVerificationConfirmDto confirmDto
+    ) {
+        verificationService.confirmEmailVerification(customUserDetails.getUserId(), confirmDto);
         return ResponseEntity.ok(ApiResponse.success());
     }
 }
