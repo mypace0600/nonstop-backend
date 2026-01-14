@@ -27,12 +27,15 @@ public class BoardServiceImpl implements BoardService {
         Community community = communityMapper.findById(communityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Community not found"));
 
-        if (!Boolean.TRUE.equals(isVerified)) {
-             throw new BusinessException("University verification required");
-        }
+        // 공통 커뮤니티(universityId == null)는 인증 없이 접근 가능
+        if (community.getUniversityId() != null) {
+            if (!Boolean.TRUE.equals(isVerified)) {
+                throw new BusinessException("University verification required");
+            }
 
-        if (!community.getUniversityId().equals(universityId)) {
-            throw new AccessDeniedException("You do not have access to this community");
+            if (!community.getUniversityId().equals(universityId)) {
+                throw new AccessDeniedException("You do not have access to this community");
+            }
         }
 
         return boardMapper.findByCommunityId(communityId)

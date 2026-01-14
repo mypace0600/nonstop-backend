@@ -37,9 +37,9 @@
 ```
 
 #### 3.1.4 universityId = null 허용 정책 (Graceful Degradation)
-가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리  
+가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**  
 제한 기능 (universityRequired = true 반환):
-- 커뮤니티/게시판 이용
+- **학교별** 커뮤니티/게시판 이용
 - 공개 시간표 조회/공개
 - 일부 익명 게시판 (운영 정책에 따라)
 
@@ -56,9 +56,14 @@
 | 수동 승인 (운영자)   | 특수 케이스                               | 수동      | true        |
 
 ### 3.4 Community & Boards
-학교별 커뮤니티 → 게시판 계층 구조  
-university_id = null → 빈 배열 + universityRequired 플래그 반환
-**보안:** 게시판 목록 조회(`GET /api/v1/communities/{id}/boards`) 시, 사용자의 `university_id`가 커뮤니티의 대학과 일치해야 하며, `is_verified=true`여야 함. 조건 불만족 시 403 Forbidden 반환.
+학교별 커뮤니티 및 전역 공통 커뮤니티 → 게시판 계층 구조  
+- **공통 커뮤니티:** `university_id = null`. 모든 사용자(미인증 포함)가 접근 가능.
+- **학교 커뮤니티:** 사용자의 `university_id`와 일치하는 커뮤니티만 노출. 인증(`is_verified=true`) 필수.
+
+**보안:** 게시판 목록 조회(`GET /api/v1/communities/{id}/boards`) 시:
+1. 해당 커뮤니티가 **공통 커뮤니티**인 경우: 무조건 허용.
+2. 해당 커뮤니티가 **학교 커뮤니티**인 경우: 사용자의 `university_id`가 커뮤니티의 대학과 일치해야 하며, `is_verified=true`여야 함.
+조건 불만족 시 403 Forbidden 반환.
 
 ### 3.5 Posts & Comments
 - 제목(150자), 내용, 다중 이미지, 익명/비밀글 옵션
@@ -225,7 +230,7 @@ last_read_message_id + unread_count 자동 관리
 | Method | URI                                          | Description      |
 |--------|----------------------------------------------|------------------|
 | GET    | /api/v1/communities                          | 커뮤니티 목록    |
-| GET    | /api/v1/communities/{id}/boards              | 게시판 목록 (본인 학교 & 인증 필수) |
+| GET    | /api/v1/communities/{id}/boards              | 게시판 목록 (공통 또는 본인 학교 & 인증) |
 
 ### Post & Comment
 | Method | URI                                          | Description           |
