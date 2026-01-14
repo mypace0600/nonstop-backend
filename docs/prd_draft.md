@@ -51,9 +51,22 @@
 ### 3.3 University Verification (대학생 인증) – v2 신규 핵심 기능
 | 방식                | 설명                                      | 자동/수동 | is_verified |
 |---------------------|-------------------------------------------|-----------|-------------|
-| 이메일 도메인 인증   | @*.ac.kr, 대학별 도메인 목록 자동 매칭     | 자동      | true        |
+| 학교 웹메일 인증    | 학교 이메일 입력 → 인증 코드 발송 → 코드 검증 | 자동      | true        |
 | 학생증 사진 인증     | 사진 업로드(Multipart) → 관리자 수동 검토    | 수동      | true        |
 | 수동 승인 (운영자)   | 특수 케이스                               | 수동      | true        |
+
+#### 3.3.1 학교 웹메일 인증 프로세스 (신규 변경)
+1. **인증 요청 (`POST /api/v1/verification/email/request`)**
+   - 사용자가 학교 웹메일 주소 입력 (예: `user@univ.ac.kr`)
+   - 서버: 이메일 도메인으로 학교 식별 (`universities` 테이블의 도메인 정보 매칭)
+   - 서버: 6자리 난수 인증 코드 생성 및 해당 이메일로 발송 (유효시간 5분)
+2. **코드 검증 (`POST /api/v1/verification/email/confirm`)**
+   - 사용자가 수신한 인증 코드 입력
+   - 서버: 코드 일치 여부 및 유효시간 검증
+   - 성공 시:
+     - `users.university_id` 업데이트
+     - `users.is_verified = true` 업데이트
+     - `users.verification_method = EMAIL` 업데이트
 
 ### 3.4 Community & Boards
 학교별 커뮤니티 및 전역 공통 커뮤니티 → 게시판 계층 구조  
