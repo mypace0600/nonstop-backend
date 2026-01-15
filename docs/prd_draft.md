@@ -19,11 +19,42 @@
 - Refresh Token: 30일, DB 저장 (`refresh_tokens`), 개별 무효화 가능
 - 모든 보호 API: `Authorization: Bearer <accessToken>` 필수
 
-#### 3.1.2 지원 로그인 방식
+| 토큰 종류 | 유효 기간 | 저장소 (Client) | 저장소 (Server) | 용도 |
+|---|---|---|---|---|
+| Access Token | 30분 | Secure Storage | 없음 (Stateless) | API 요청 인증 |
+| Refresh Token | 30일 | Secure Storage | DB (refresh_tokens) | Access Token 재발급 |
+
+**Refresh Token Rotation (RTR):**
+- Access Token 재발급 시 Refresh Token도 함께 재발급(교체)
+- 한 번 사용된 Refresh Token은 즉시 폐기
+- 탈취된 Refresh Token의 재사용 방지
+
+#### 3.1.2 자동 로그인 (Auto Login)
+자동 로그인은 별도 API가 아닌, 클라이언트가 저장된 토큰으로 세션을 복구하는 과정입니다.
+
+**프로세스:**
+1. 앱 실행 시 Secure Storage에서 토큰 로드
+2. Access Token 유효 → 메인 화면 진입 (자동 로그인 성공)
+3. Access Token 만료 (401 응답) → Refresh 요청
+   - Refresh 성공 → 새 토큰 저장 후 원래 요청 재시도
+   - Refresh 실패 → 로컬 토큰 삭제 후 로그인 화면 이동
+
+**클라이언트 구현 요구사항:**
+- 토큰 저장: Android Keystore / iOS Keychain 사용 필수
+- API 인터셉터: 모든 요청에 `Authorization` 헤더 자동 추가
+- 401 처리: 요청 큐잉 → Refresh 시도 → 성공 시 재시도 / 실패 시 로그아웃
+
+**Refresh API 명세:**
+- `POST /api/v1/auth/refresh`
+- Request: `{ "refreshToken": "..." }`
+- Response (성공): `{ "accessToken": "...", "refreshToken": "..." }` (새 토큰 쌍)
+- Response (실패): `401 Unauthorized` 또는 `403 Forbidden`
+
+#### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
 - Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
 
-#### 3.1.3 Access Token Payload (표준)
+#### 3.1.4 Access Token Payload (표준)
 ```
 {
   "sub": "12345",            // userId (String)
@@ -36,7 +67,7 @@
 }
 ```
 
-#### 3.1.4 universityId = null 허용 정책 (Graceful Degradation)
+#### 3.1.5 universityId = null 허용 정책 (Graceful Degradation)
 가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**  
 제한 기능 (universityRequired = true 반환):
 - **학교별** 커뮤니티/게시판 이용
