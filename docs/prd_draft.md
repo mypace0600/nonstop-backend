@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.1 (2025.12 최종 실서비스 반영 버전 )**
+**Golden Master v2.2 (2026.01 프론트엔드 연동 버전)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -143,10 +143,18 @@ Community (커뮤니티)
 ### 3.5 Posts & Comments
 - 제목(150자), 내용, 다중 이미지, 익명/비밀글 옵션
 - 좋아요 토글 (soft delete 방식)
-- 계층형 댓글 (최대 2단계 대댓글 권장, 3단계 이상 차단)
+- 계층형 댓글 (최대 2단계: 댓글 → 대댓글)
 - **댓글 수정:** 내용 및 익명 여부 수정 가능 (작성자 본인만)
 - 댓글에도 이미지 첨부 가능
 - 신고·조회수·삭제(soft delete)
+
+#### 3.5.1 댓글 타입 (`comment_type`)
+| 타입 | 설명 | depth |
+|------|------|-------|
+| `GENERAL` | 최상위 댓글 | 0 |
+| `ANONYMOUS` | 대댓글 (상위 댓글에 대한 답글) | 1 |
+
+> **Note:** 프론트엔드 호환성을 위해 enum 값이 `COMMENT/REPLY`에서 `GENERAL/ANONYMOUS`로 변경됨 (v2.2)
 
 ### 3.6 Friends & Block
 - 친구 요청 → 대기/수락/거절/차단
@@ -428,3 +436,41 @@ last_read_message_id + unread_count 자동 관리
 |--------|----------------------------------------|---------------------------------|
 | POST   | /api/v1/files/sas-url                  | 파일 직접 업로드를 위한 SAS URL 요청 |
 | POST   | /api/v1/files/upload-complete          | 파일 업로드 완료 콜백             |
+
+---
+
+## 5. Frontend-Backend Integration Status (v2.2)
+
+### 5.1 Community & Board 기능 연동 현황
+
+#### 완료 (✅)
+| 기능 | 백엔드 API | 프론트엔드 |
+|------|-----------|-----------|
+| 커뮤니티 목록 조회 | `GET /communities` | `getCommunities()` |
+| 게시판 목록 조회 | `GET /communities/{id}/boards` | `getBoards()` |
+| 게시물 목록 조회 | `GET /boards/{id}/posts` | `getPosts()` |
+| 게시물 상세 조회 | `GET /posts/{id}` | `getPostDetail()` |
+| 게시물 작성 | `POST /boards/{id}/posts` | `createPost()` |
+| 게시물 좋아요 | `POST /posts/{id}/like` | `togglePostLike()` |
+| 댓글 목록 조회 | `GET /posts/{id}/comments` | `getComments()` |
+| 댓글 작성 | `POST /posts/{id}/comments` | `createComment()` |
+| 계층형 댓글 (대댓글) | 지원 (depth 0-1) | 지원 |
+| 익명 게시물/댓글 | 지원 | 지원 |
+
+#### 프론트엔드 미구현 (⚠️)
+| 기능 | 백엔드 API | 상태 |
+|------|-----------|------|
+| 게시물 수정 | `PATCH /posts/{id}` | API 완료, UI 없음 |
+| 게시물 삭제 | `DELETE /posts/{id}` | API 완료, UI 없음 |
+| 댓글 수정 | `PATCH /comments/{id}` | API 완료, UI 없음 |
+| 댓글 삭제 | `DELETE /comments/{id}` | API 완료, UI 없음 |
+| 댓글 좋아요 | `POST /comments/{id}/like` | API 완료, UI 없음 |
+| Board description 필드 | 응답에 포함 | Entity 필드 누락 |
+
+### 5.2 변경 이력
+
+| 버전 | 날짜 | 변경 내용 |
+|------|------|----------|
+| v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
+| v2.2 | 2026-01-15 | Board.description 필드 추가, 공통 로깅 설정 추가 |
+| v2.1 | 2025-12-20 | 초기 버전 |
