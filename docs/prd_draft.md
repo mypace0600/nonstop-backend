@@ -179,16 +179,60 @@ DELETE /api/v1/chat/rooms/{roomId}/messages/{messageId}
 last_read_message_id + unread_count 자동 관리
 
 ### 3.8 Timetable
-- **학기별 시간표 관리 (CRUD)**
-  - **생성 (`POST`)**: 학기당 1개의 시간표만 생성 가능 (Unique 제약: `user_id`, `semester_id`).
-  - **수정/삭제 (`PATCH`, `DELETE`)**: 본인의 시간표만 수정/삭제 가능 (소유권 검증 필수).
-  - **목록/상세 조회 (`GET`)**: 본인의 시간표 목록 및 상세 조회.
-- **수업 항목(Entry) 관리**
-  - **추가/수정 (`POST`, `PATCH`)**: 시간표 내 기존 수업과 시간이 겹치는지 검증 필수 (Overlap Check).
-  - **권한**: 본인의 시간표에만 수업 항목 추가/수정/삭제 가능.
-- **공개 시간표 조회 (`GET /api/v1/timetables/public`)**
-  - **보안**: 요청자의 `university_id`가 null 이거나 `is_verified=false` 인 경우 `403 Forbidden` 반환.
-  - **로직**: 동일한 학교 소속 사용자 중 `is_public=true`로 설정된 시간표 목록 조회.
+
+#### 3.8.1 학기 관리
+- **학기 목록 조회 (`GET /api/v1/semesters`)**
+  - 사용자의 `university_id`에 해당하는 학기 목록 반환
+  - `university_id`가 null인 경우 빈 배열 반환
+  - **학기 타입**: `FIRST` (1학기), `SECOND` (2학기), `SUMMER` (여름학기), `WINTER` (겨울학기)
+
+#### 3.8.2 시간표 관리 (CRUD)
+- **생성 (`POST /api/v1/timetables`)**
+  - 학기당 1개의 시간표만 생성 가능 (DB Unique 제약: `user_id`, `semester_id`)
+  - 중복 시 `400 Bad Request`: "이미 해당 학기의 시간표가 존재합니다."
+  - Request Body: `{ semesterId, title, isPublic }`
+
+- **목록 조회 (`GET /api/v1/timetables`)**
+  - 본인의 시간표 목록만 조회 (수업 항목 미포함)
+
+- **상세 조회 (`GET /api/v1/timetables/{id}`)**
+  - 본인 시간표: 항상 조회 가능
+  - 타인 시간표: `is_public=true`인 경우에만 조회 가능
+  - 비공개 타인 시간표 접근 시 `403 Forbidden`: "비공개 시간표는 본인만 조회할 수 있습니다."
+  - Response: 시간표 정보 + 수업 항목 목록 포함
+
+- **수정 (`PATCH /api/v1/timetables/{id}`)**
+  - 본인의 시간표만 수정 가능 (소유권 검증)
+  - 수정 가능 필드: `title`, `isPublic`
+  - 권한 없음 시 `403 Forbidden`: "본인의 시간표에만 수정할 수 있습니다."
+
+- **삭제 (`DELETE /api/v1/timetables/{id}`)**
+  - 본인의 시간표만 삭제 가능 (소유권 검증)
+  - 삭제 시 관련 수업 항목(Entry)도 함께 삭제
+  - 권한 없음 시 `403 Forbidden`: "본인의 시간표에만 삭제할 수 있습니다."
+
+#### 3.8.3 수업 항목(Entry) 관리
+- **추가 (`POST /api/v1/timetables/{id}/entries`)**
+  - 본인의 시간표에만 추가 가능
+  - **시간 중복 검증 (Overlap Check)**: 같은 요일에 기존 수업과 시간이 겹치면 `400 Bad Request`
+    - 에러 메시지: "수업 시간이 겹칩니다: {과목명} ({시작시간} ~ {종료시간})"
+  - Request Body: `{ subjectName, professor, dayOfWeek, startTime, endTime, place, color }`
+  - **dayOfWeek**: `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`
+
+- **수정 (`PATCH /api/v1/timetables/entries/{id}`)**
+  - 본인의 시간표에 속한 수업만 수정 가능
+  - 수정 시에도 시간 중복 검증 수행 (자기 자신 제외)
+
+- **삭제 (`DELETE /api/v1/timetables/entries/{id}`)**
+  - 본인의 시간표에 속한 수업만 삭제 가능
+
+#### 3.8.4 공개 시간표 조회
+- **엔드포인트**: `GET /api/v1/timetables/public`
+- **접근 제어**:
+  - `university_id`가 null인 경우 → `403 Forbidden`
+  - `is_verified=false`인 경우 → `403 Forbidden`
+  - 에러 메시지: "대학 인증이 완료된 사용자만 공개 시간표를 조회할 수 있습니다."
+- **로직**: 동일한 `university_id`를 가진 사용자 중 `is_public=true`로 설정된 시간표 목록 반환
 
 ### 3.9 Notifications & Push
 - FCM 사용, 서버에서만 푸시 트리거
@@ -294,18 +338,18 @@ last_read_message_id + unread_count 자동 관리
 | PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
 
 ### Timetable
-| Method | URI                                    | Description                     |
-|--------|----------------------------------------|---------------------------------|
-| GET    | /api/v1/semesters                      | 학기 목록                       |
-| GET    | /api/v1/timetables                     | 내 시간표 목록                  |
-| POST   | /api/v1/timetables                     | 시간표 생성                     |
-| GET    | /api/v1/timetables/{id}                | 시간표 상세                     |
-| PATCH  | /api/v1/timetables/{id}                | 시간표 제목·공개여부 수정       |
-| DELETE | /api/v1/timetables/{id}                | 시간표 삭제                     |
-| POST   | /api/v1/timetables/{id}/entries        | 수업 추가                       |
-| PATCH  | /api/v1/timetables/entries/{id}        | 수업 수정                       |
-| DELETE | /api/v1/timetables/entries/{id}        | 수업 삭제                       |
-| GET    | /api/v1/timetables/public              | 공개 시간표 목록 (같은 학교만)  |
+| Method | URI                                    | Description                                      |
+|--------|----------------------------------------|--------------------------------------------------|
+| GET    | /api/v1/semesters                      | 학기 목록 (사용자 대학 기준)                     |
+| GET    | /api/v1/timetables                     | 내 시간표 목록 (수업 항목 미포함)                |
+| POST   | /api/v1/timetables                     | 시간표 생성 (학기당 1개 제한)                    |
+| GET    | /api/v1/timetables/{id}                | 시간표 상세 (수업 항목 포함, 본인/공개만)        |
+| PATCH  | /api/v1/timetables/{id}                | 시간표 제목·공개여부 수정 (본인만)               |
+| DELETE | /api/v1/timetables/{id}                | 시간표 삭제 (본인만, 수업 항목 함께 삭제)        |
+| POST   | /api/v1/timetables/{id}/entries        | 수업 추가 (본인만, 시간 중복 검증)               |
+| PATCH  | /api/v1/timetables/entries/{id}        | 수업 수정 (본인만, 시간 중복 검증)               |
+| DELETE | /api/v1/timetables/entries/{id}        | 수업 삭제 (본인만)                               |
+| GET    | /api/v1/timetables/public              | 공개 시간표 목록 (같은 학교, 인증 사용자만)      |
 
 ### Notification
 | Method | URI                                    | Description           |
