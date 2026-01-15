@@ -40,6 +40,10 @@
         DELETE FROM time_table_entries WHERE id = #{id}
     </delete>
 
+    <delete id="deleteAllByTimetableId">
+        DELETE FROM time_table_entries WHERE time_table_id = #{timetableId}
+    </delete>
+
     <select id="findAllByTimetableId" resultMap="entryMap">
         SELECT * FROM time_table_entries
         WHERE time_table_id = #{timetableId}

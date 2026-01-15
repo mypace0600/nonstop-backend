@@ -68,32 +68,11 @@ public class TimetableService {
     @Transactional(readOnly = true)
     public TimetableDto.DetailResponse getTimetableDetail(Long userId, Long timetableId) {
         Timetable timetable = timetableMapper.findById(timetableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
 
-        // Only owner can see detail? Or public?
-        // PRD: "공개 설정 시 동일 university_id ... 사용자만 조회 가능"
-        // But this method is generally for "My Timetable Detail" or "Public Detail".
-        // Let's check ownership. If not owner, check isPublic logic (handled in public endpoint usually).
-        // Assuming this endpoint is for OWNER or generally authorized.
-        // For now, enforce ownership or public check.
-        // Simplified: If owner, OK. If not, check public (requires fetcher's uni ID, which is not passed here properly, 
-        // but let's assume this method is for /timetables/{id} which implies owner or public access).
-        
-        if (!timetable.getUserId().equals(userId)) {
-             // For generic access, we might need more checks.
-             // But if this is "get my timetable detail", then ownership is required.
-             // If it's "get ANY timetable detail", we need to check isPublic.
-             // PRD API: GET /api/v1/timetables/{id} -> usually implies specific resource.
-             if (!Boolean.TRUE.equals(timetable.getIsPublic())) {
-                 throw new AccessDeniedException("비공개 시간표입니다.");
-             }
-             // If public, we also need to check university match? 
-             // The service method signature only has userId. 
-             // We'll trust the controller to handle high-level auth or just check ownership here strictly for "My" endpoints.
-             // Let's assume strict ownership for the /timetables/{id} endpoint as per standard REST for private resources, 
-             // and public access via /timetables/public list.
-             // Wait, if I click a friend's timetable? PRD says "Public Timetable List".
-             // Let's allow if public.
+        // 본인 시간표가 아니고 비공개인 경우 접근 거부
+        if (!timetable.getUserId().equals(userId) && !Boolean.TRUE.equals(timetable.getIsPublic())) {
+            throw new AccessDeniedException("비공개 시간표는 본인만 조회할 수 있습니다.");
         }
 
         List<TimetableEntryDto.Response> entries = timetableEntryMapper.findAllByTimetableId(timetableId).stream()
@@ -106,11 +85,9 @@ public class TimetableService {
     @Transactional
     public TimetableDto.Response updateTimetable(Long userId, Long timetableId, TimetableDto.Request request) {
         Timetable timetable = timetableMapper.findById(timetableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
 
-        if (!timetable.getUserId().equals(userId)) {
-            throw new AccessDeniedException("본인의 시간표만 수정할 수 있습니다.");
-        }
+        validateTimetableOwnership(timetable, userId, "수정");
 
         timetable.setTitle(request.getTitle());
         timetable.setIsPublic(request.getIsPublic());
@@ -122,19 +99,12 @@ public class TimetableService {
     @Transactional
     public void deleteTimetable(Long userId, Long timetableId) {
         Timetable timetable = timetableMapper.findById(timetableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
 
-        if (!timetable.getUserId().equals(userId)) {
-            throw new AccessDeniedException("본인의 시간표만 삭제할 수 있습니다.");
-        }
-        
-        // Entries should be deleted by cascade in DB or manually here.
-        // Since we didn't define CASCADE in SQL migration explicitly (it uses REFERENCES but not ON DELETE CASCADE usually default is NO ACTION),
-        // we should delete entries first manually to be safe.
-        List<TimetableEntry> entries = timetableEntryMapper.findAllByTimetableId(timetableId);
-        for(TimetableEntry entry : entries) {
-            timetableEntryMapper.delete(entry.getId());
-        }
+        validateTimetableOwnership(timetable, userId, "삭제");
+
+        // 시간표 삭제 전 수업 항목들 먼저 삭제 (CASCADE 없음)
+        timetableEntryMapper.deleteAllByTimetableId(timetableId);
 
         timetableMapper.delete(timetableId);
     }
@@ -142,21 +112,11 @@ public class TimetableService {
     @Transactional
     public TimetableEntryDto.Response addEntry(Long userId, Long timetableId, TimetableEntryDto.Request request) {
         Timetable timetable = timetableMapper.findById(timetableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
 
-        if (!timetable.getUserId().equals(userId)) {
-            throw new AccessDeniedException("본인의 시간표에만 수업을 추가할 수 있습니다.");
-        }
+        validateTimetableOwnership(timetable, userId, "수업을 추가");
 
-        // Validation: Overlap
-        List<TimetableEntry> existingEntries = timetableEntryMapper.findAllByTimetableId(timetableId);
-        for (TimetableEntry entry : existingEntries) {
-            if (entry.getDayOfWeek().equals(request.getDayOfWeek().name())) {
-                if (request.getStartTime().isBefore(entry.getEndTime()) && request.getEndTime().isAfter(entry.getStartTime())) {
-                    throw new BusinessException("수업 시간이 겹칩니다.");
-                }
-            }
-        }
+        validateNoTimeOverlap(timetableId, request, null);
 
         TimetableEntry entry = TimetableEntry.builder()
                 .timetableId(timetableId)
@@ -168,37 +128,23 @@ public class TimetableService {
                 .place(request.getPlace())
                 .color(request.getColor())
                 .build();
-        
+
         timetableEntryMapper.insert(entry);
-        
+
         return TimetableEntryDto.Response.from(entry);
     }
-
-    // Update/Delete Entry omitted for brevity but follows same pattern. 
-    // I will implement them now.
 
     @Transactional
     public TimetableEntryDto.Response updateEntry(Long userId, Long entryId, TimetableEntryDto.Request request) {
         TimetableEntry entry = timetableEntryMapper.findById(entryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entry not found"));
-        
+                .orElseThrow(() -> new ResourceNotFoundException("수업을 찾을 수 없습니다."));
+
         Timetable timetable = timetableMapper.findById(entry.getTimetableId())
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
 
-        if (!timetable.getUserId().equals(userId)) {
-            throw new AccessDeniedException("권한이 없습니다.");
-        }
+        validateTimetableOwnership(timetable, userId, "수업을 수정");
 
-        // Validation: Overlap (Exclude self)
-        List<TimetableEntry> existingEntries = timetableEntryMapper.findAllByTimetableId(entry.getTimetableId());
-        for (TimetableEntry e : existingEntries) {
-            if (e.getId().equals(entryId)) continue;
-            if (e.getDayOfWeek().equals(request.getDayOfWeek().name())) {
-                 if (request.getStartTime().isBefore(e.getEndTime()) && request.getEndTime().isAfter(e.getStartTime())) {
-                    throw new BusinessException("수업 시간이 겹칩니다.");
-                }
-            }
-        }
+        validateNoTimeOverlap(entry.getTimetableId(), request, entryId);
 
         entry.setSubjectName(request.getSubjectName());
         entry.setProfessor(request.getProfessor());
@@ -216,14 +162,12 @@ public class TimetableService {
     @Transactional
     public void deleteEntry(Long userId, Long entryId) {
         TimetableEntry entry = timetableEntryMapper.findById(entryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Entry not found"));
-        
-        Timetable timetable = timetableMapper.findById(entry.getTimetableId())
-                .orElseThrow(() -> new ResourceNotFoundException("Timetable not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("수업을 찾을 수 없습니다."));
 
-        if (!timetable.getUserId().equals(userId)) {
-            throw new AccessDeniedException("권한이 없습니다.");
-        }
+        Timetable timetable = timetableMapper.findById(entry.getTimetableId())
+                .orElseThrow(() -> new ResourceNotFoundException("시간표를 찾을 수 없습니다."));
+
+        validateTimetableOwnership(timetable, userId, "수업을 삭제");
 
         timetableEntryMapper.delete(entryId);
     }
@@ -242,5 +186,42 @@ public class TimetableService {
     private TimetableDto.Response toResponse(Timetable timetable) {
         Semester semester = semesterMapper.findById(timetable.getSemesterId());
         return TimetableDto.Response.from(timetable, semester != null ? semester.getYear() : null, semester != null ? semester.getType() : null);
+    }
+
+    /**
+     * 시간표 소유권 검증
+     * @param timetable 검증할 시간표
+     * @param userId 현재 사용자 ID
+     * @param action 수행하려는 동작 (에러 메시지용)
+     */
+    private void validateTimetableOwnership(Timetable timetable, Long userId, String action) {
+        if (!timetable.getUserId().equals(userId)) {
+            throw new AccessDeniedException("본인의 시간표에만 " + action + "할 수 있습니다.");
+        }
+    }
+
+    /**
+     * 수업 시간 중복 검증
+     * @param timetableId 시간표 ID
+     * @param request 수업 요청 정보
+     * @param excludeEntryId 제외할 수업 ID (수정 시 자기 자신 제외, 추가 시 null)
+     */
+    private void validateNoTimeOverlap(Long timetableId, TimetableEntryDto.Request request, Long excludeEntryId) {
+        List<TimetableEntry> existingEntries = timetableEntryMapper.findAllByTimetableId(timetableId);
+
+        for (TimetableEntry entry : existingEntries) {
+            if (excludeEntryId != null && entry.getId().equals(excludeEntryId)) {
+                continue;
+            }
+
+            if (entry.getDayOfWeek().equals(request.getDayOfWeek().name())) {
+                boolean isOverlap = request.getStartTime().isBefore(entry.getEndTime())
+                        && request.getEndTime().isAfter(entry.getStartTime());
+                if (isOverlap) {
+                    throw new BusinessException("수업 시간이 겹칩니다: " + entry.getSubjectName()
+                            + " (" + entry.getStartTime() + " ~ " + entry.getEndTime() + ")");
+                }
+            }
+        }
     }
 }

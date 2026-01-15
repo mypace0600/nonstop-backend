@@ -12,6 +12,7 @@ public interface TimetableEntryMapper {
     void insert(TimetableEntry entry);
     void update(TimetableEntry entry);
     void delete(Long id);
+    void deleteAllByTimetableId(Long timetableId);
     List<TimetableEntry> findAllByTimetableId(Long timetableId);
     Optional<TimetableEntry> findById(Long id);
 }
