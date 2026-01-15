@@ -165,6 +165,17 @@ admin:
   email: ${ADMIN_EMAIL}
 
 # ===================================================================
+# LOGGING CONFIGURATION (COMMON)
+# ===================================================================
+logging:
+  level:
+    root: info
+    com.app.nonstop: debug
+    org.mybatis: debug
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ===================================================================
 # ACTUATOR CONFIGURATION
 # ===================================================================
 management:
