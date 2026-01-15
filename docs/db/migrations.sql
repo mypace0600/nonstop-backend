@@ -9,6 +9,7 @@
 --   V2 (2025-12-26): 채팅 기능 강화, 파일 테이블 추가
 --   V3 (2026-01-03): client_message_id UUID → BIGINT 변환
 --   V4 (2026-01-15): boards 테이블 description 컬럼 추가
+--   V5 (2026-01-15): comment_type ENUM 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS)
 -- ===================================================================
 
 
@@ -41,7 +42,7 @@ CREATE TYPE report_status AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJEC
 CREATE TYPE chat_room_type AS ENUM ('ONE_TO_ONE', 'GROUP');
 CREATE TYPE verification_method AS ENUM ('EMAIL_DOMAIN', 'MANUAL_REVIEW', 'STUDENT_ID_PHOTO');
 CREATE TYPE user_role AS ENUM ('USER', 'ADMIN', 'MANAGER');
-CREATE TYPE comment_type AS ENUM ('COMMENT', 'REPLY');
+CREATE TYPE comment_type AS ENUM ('GENERAL', 'ANONYMOUS');
 
 -- ===================================================================
 -- Users & Authentication
@@ -452,3 +453,30 @@ CREATE UNIQUE INDEX ux_messages_client_id
 
 -- boards 테이블에 description 컬럼 추가
 ALTER TABLE boards ADD COLUMN IF NOT EXISTS description TEXT;
+
+
+-- ###################################################################
+-- V5: comment_type ENUM 변경 (2026-01-15)
+-- COMMENT → GENERAL, REPLY → ANONYMOUS
+-- ###################################################################
+
+-- PostgreSQL에서 enum 값 변경은 복잡하므로 새 타입 생성 후 교체
+-- 1. 새 enum 타입 생성
+CREATE TYPE comment_type_new AS ENUM ('GENERAL', 'ANONYMOUS');
+
+-- 2. 기존 데이터 변환하며 컬럼 타입 변경
+ALTER TABLE comments
+  ALTER COLUMN type TYPE comment_type_new
+  USING (
+    CASE type::text
+      WHEN 'COMMENT' THEN 'GENERAL'::comment_type_new
+      WHEN 'REPLY' THEN 'ANONYMOUS'::comment_type_new
+      ELSE type::text::comment_type_new
+    END
+  );
+
+-- 3. 기존 enum 타입 삭제
+DROP TYPE comment_type;
+
+-- 4. 새 타입 이름 변경
+ALTER TYPE comment_type_new RENAME TO comment_type;

@@ -67,10 +67,10 @@ public class CommentService {
 
             comment.setUpperCommentId(requestDto.getUpperCommentId());
             comment.setDepth(parent.getDepth() + 1);
-            comment.setType(CommentType.REPLY);
+            comment.setType(CommentType.ANONYMOUS);
         } else {
             comment.setDepth(0);
-            comment.setType(CommentType.COMMENT);
+            comment.setType(CommentType.GENERAL);
         }
 
         commentMapper.insert(comment);
@@ -244,8 +244,8 @@ public class CommentService {
         // 게시글 조회
         postMapper.findById(postId).ifPresent(post -> {
              // 대댓글이면 "답글", 아니면 "댓글"
-             String msg = (comment.getType() == CommentType.REPLY) 
-                     ? "회원님의 글에 달린 댓글에 새 답글이 달렸습니다." 
+             String msg = (comment.getType() == CommentType.ANONYMOUS)
+                     ? "회원님의 글에 달린 댓글에 새 답글이 달렸습니다."
                      : "회원님의 게시글에 새 댓글이 달렸습니다.";
              
              notificationService.createNotification(
