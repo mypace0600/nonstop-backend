@@ -14,6 +14,7 @@ public class Board extends BaseTimeEntity {
     private Long id;
     private Long communityId;
     private String name;
+    private String description;
     private BoardType type;
     private Boolean isSecret;
 }
