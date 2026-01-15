@@ -8,6 +8,7 @@
 --   V1 (2025-12-20): 초기 스키마 생성
 --   V2 (2025-12-26): 채팅 기능 강화, 파일 테이블 추가
 --   V3 (2026-01-03): client_message_id UUID → BIGINT 변환
+--   V4 (2026-01-15): boards 테이블 description 컬럼 추가
 -- ===================================================================
 
 
@@ -171,6 +172,7 @@ CREATE TABLE boards (
   id BIGSERIAL PRIMARY KEY,
   community_id BIGINT NOT NULL REFERENCES communities(id),
   name VARCHAR(255) NOT NULL,
+  description TEXT,
   type board_type NOT NULL,
   is_secret BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT now()
@@ -442,3 +444,11 @@ ALTER TABLE messages ADD COLUMN client_message_id BIGINT;
 -- 새 인덱스 생성
 CREATE UNIQUE INDEX ux_messages_client_id
   ON messages(client_message_id) WHERE client_message_id IS NOT NULL;
+
+
+-- ###################################################################
+-- V4: boards 테이블 description 컬럼 추가 (2026-01-15)
+-- ###################################################################
+
+-- boards 테이블에 description 컬럼 추가
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS description TEXT;

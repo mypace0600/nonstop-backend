@@ -1,8 +1,8 @@
 # Nonstop Database Schema
 
-**Version:** v2.2
+**Version:** v2.3
 **DBMS:** PostgreSQL
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-15
 
 ---
 
@@ -91,7 +91,10 @@ erDiagram
   boards {
     BIGINT id PK
     BIGINT community_id FK
+    VARCHAR name
+    TEXT description
     board_type type
+    BOOLEAN is_secret
   }
 
   posts {
@@ -463,6 +466,7 @@ CREATE TABLE boards (
   id BIGSERIAL PRIMARY KEY,
   community_id BIGINT NOT NULL REFERENCES communities(id),
   name VARCHAR(255) NOT NULL,
+  description TEXT,
   type board_type NOT NULL,
   is_secret BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT now()

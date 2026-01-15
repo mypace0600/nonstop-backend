@@ -79,6 +79,15 @@
 - 이메일 유저만 비밀번호 변경 가능
 - 회원 탈퇴 → soft delete (deleted_at)
 
+#### 3.2.1 대학/전공 설정
+- **대학 목록 조회**: 검색어(keyword) 및 지역(region) 필터 지원
+- **지역 목록 조회**: 대학 필터링용 지역 목록 제공
+- **전공 목록 조회**: 대학별 전공 목록, 검색어 필터 지원
+- **대학/전공 설정** (`PATCH /api/v1/users/me/university`):
+  - 전공 유효성 검증: 선택한 전공이 해당 대학에 속하는지 확인
+  - 전공은 선택사항 (`majorId` nullable)
+  - 대학 변경 시 기존 전공은 무효화될 수 있음
+
 ### 3.3 University Verification (대학생 인증) – v2 신규 핵심 기능
 | 방식                | 설명                                      | 자동/수동 | is_verified |
 |---------------------|-------------------------------------------|-----------|-------------|
@@ -103,14 +112,33 @@
      - `users.verification_method = EMAIL` 업데이트
 
 ### 3.4 Community & Boards
-학교별 커뮤니티 및 전역 공통 커뮤니티 → 게시판 계층 구조  
-- **공통 커뮤니티:** `university_id = null`. 모든 사용자(미인증 포함)가 접근 가능.
-- **학교 커뮤니티:** 사용자의 `university_id`와 일치하는 커뮤니티만 노출. 인증(`is_verified=true`) 필수.
 
-**보안:** 게시판 목록 조회(`GET /api/v1/communities/{id}/boards`) 시:
-1. 해당 커뮤니티가 **공통 커뮤니티**인 경우: 무조건 허용.
-2. 해당 커뮤니티가 **학교 커뮤니티**인 경우: 사용자의 `university_id`가 커뮤니티의 대학과 일치해야 하며, `is_verified=true`여야 함.
-조건 불만족 시 403 Forbidden 반환.
+#### 3.4.1 계층 구조
+```
+Community (커뮤니티)
+  └── Board (게시판)
+        └── Post (게시글)
+              └── Comment (댓글/대댓글)
+```
+
+#### 3.4.2 커뮤니티 종류
+| 종류 | university_id | 접근 권한 |
+|------|---------------|----------|
+| **공통 커뮤니티** | `NULL` | 모든 사용자 (미인증 포함) |
+| **대학교 커뮤니티** | 대학 ID | 해당 대학 인증 사용자만 (`is_verified=true`) |
+
+#### 3.4.3 게시판 관리 (관리자 전용)
+- **생성** (`POST /api/v1/communities/{id}/boards`): 관리자(ADMIN, MANAGER)만 가능
+- **수정** (`PATCH /api/v1/boards/{id}`): 관리자만 가능
+- **삭제** (`DELETE /api/v1/boards/{id}`): 관리자만 가능
+- **게시판 필드**: name(이름), type(타입), description(설명), is_secret(비밀글 전용 여부)
+- **게시판 타입** (`board_type`): `GENERAL`, `NOTICE`, `QNA`, `ANONYMOUS`
+
+#### 3.4.4 접근 제어
+게시판 목록 조회(`GET /api/v1/communities/{id}/boards`) 시:
+1. **공통 커뮤니티**: 무조건 허용
+2. **대학교 커뮤니티**: 사용자의 `university_id`가 일치하고 `is_verified=true`여야 함
+3. 조건 불만족 시 `403 Forbidden` 반환
 
 ### 3.5 Posts & Comments
 - 제목(150자), 내용, 다중 이미지, 익명/비밀글 옵션
@@ -312,16 +340,22 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
 
 ### University
-| Method | URI                                   | Description   |
-|--------|---------------------------------------|---------------|
-| GET    | /api/v1/universities                  | 대학 목록     |
-| GET    | /api/v1/universities/{id}/majors      | 전공 목록     |
+| Method | URI                                   | Description                              |
+|--------|---------------------------------------|------------------------------------------|
+| GET    | /api/v1/universities                  | 대학 목록 (검색, 지역 필터 지원)         |
+| GET    | /api/v1/universities/{id}             | 대학 상세 조회                           |
+| GET    | /api/v1/universities/{id}/majors      | 전공 목록 (검색 지원)                    |
+| GET    | /api/v1/universities/regions          | 지역 목록 조회 (필터용)                  |
+| PATCH  | /api/v1/users/me/university           | 대학/전공 설정 (전공 유효성 검증 포함)   |
 
 ### Community & Board
-| Method | URI                                          | Description      |
-|--------|----------------------------------------------|------------------|
-| GET    | /api/v1/communities                          | 커뮤니티 목록    |
+| Method | URI                                          | Description                              |
+|--------|----------------------------------------------|------------------------------------------|
+| GET    | /api/v1/communities                          | 커뮤니티 목록                            |
 | GET    | /api/v1/communities/{id}/boards              | 게시판 목록 (공통 또는 본인 학교 & 인증) |
+| POST   | /api/v1/communities/{id}/boards              | 게시판 생성 (관리자 전용)                |
+| PATCH  | /api/v1/boards/{id}                          | 게시판 수정 (관리자 전용)                |
+| DELETE | /api/v1/boards/{id}                          | 게시판 삭제 (관리자 전용)                |
 
 ### Post & Comment
 | Method | URI                                          | Description           |
