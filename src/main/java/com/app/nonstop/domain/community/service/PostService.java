@@ -76,7 +76,7 @@ public class PostService {
      * @param userId 현재 조회하는 사용자 ID (좋아요 여부 확인용, 비로그인 시 null)
      * @return 게시글 상세 정보
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public PostDto.Response getPostDetail(Long postId, Long userId) {
         // TODO: 조회수 중복 증가 방지 로직 (Redis, Cookie 등) 고려 필요. 현재는 호출 시 무조건 증가.
         postMapper.incrementViewCount(postId);

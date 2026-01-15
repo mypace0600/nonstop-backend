@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.app.nonstop.domain.file.mapper.FileMapper">
+<mapper namespace="com.app.nonstop.mapper.FileMapper">
 
     <resultMap id="fileMap" type="com.app.nonstop.domain.file.entity.File">
         <id property="id" column="id"/>
