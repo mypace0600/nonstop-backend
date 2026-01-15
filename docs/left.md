@@ -5,23 +5,23 @@
 
 ---
 
-## 📊 전체 현황
+## 전체 현황
 
 | 상태 | 개수 | 비율 |
 |------|------|------|
-| ✅ 구현 완료 | 72개 API | 97% |
-| ❌ 미구현 | 2개 API | 3% |
+| 구현 완료 | 65개 API | 93% |
+| 미구현 | 5개 API | 7% |
 
 ---
 
-## 🚨 미구현 항목
+## 미구현 항목
 
 ### 1. 이메일 대학 인증 (핵심 기능)
 
 | 상태 | 엔드포인트 | 설명 |
 |------|-----------|------|
-| ❌ | `POST /api/v1/verification/email/request` | 인증 코드 발송 |
-| ❌ | `POST /api/v1/verification/email/confirm` | 인증 코드 확인 |
+| :x: | `POST /api/v1/verification/email/request` | 인증 코드 발송 |
+| :x: | `POST /api/v1/verification/email/confirm` | 인증 코드 확인 |
 
 **PRD 요구사항 (3.3.1):**
 
@@ -44,14 +44,34 @@
 
 ---
 
-## ⚠️ 부분 구현 / 개선 필요 항목
+### 2. 관리자 게시판 관리 API
+
+| 상태 | 엔드포인트 | 설명 |
+|------|-----------|------|
+| :x: | `POST /api/v1/communities/{id}/boards` | 게시판 생성 (관리자 전용) |
+| :x: | `PATCH /api/v1/boards/{id}` | 게시판 수정 (관리자 전용) |
+| :x: | `DELETE /api/v1/boards/{id}` | 게시판 삭제 (관리자 전용) |
+
+**PRD 요구사항 (3.4.3):**
+
+```
+- 생성 (POST /api/v1/communities/{id}/boards): 관리자(ADMIN, MANAGER)만 가능
+- 수정 (PATCH /api/v1/boards/{id}): 관리자만 가능
+- 삭제 (DELETE /api/v1/boards/{id}): 관리자만 가능
+- 게시판 필드: name(이름), type(타입), description(설명), is_secret(비밀글 전용 여부)
+- 게시판 타입 (board_type): GENERAL, NOTICE, QNA, ANONYMOUS
+```
+
+---
+
+## 부분 구현 / 개선 필요 항목
 
 ### 1. Rate Limiting (분당 60회 제한)
 
 | 범위 | 상태 | 비고 |
 |------|------|------|
-| WebSocket 채팅 메시지 | ✅ 구현됨 | Redis 기반, 60/분 제한 |
-| **HTTP REST API (POST/PATCH/DELETE)** | ❌ **미구현** | PRD 요구사항 미충족 |
+| WebSocket 채팅 메시지 | :white_check_mark: 구현됨 | Redis 기반, 60/분 제한 |
+| **HTTP REST API (POST/PATCH/DELETE)** | :x: **미구현** | PRD 요구사항 미충족 |
 
 **현재 상태:**
 - WebSocket: `WebSocketRateLimitInterceptor.java`에서 Redis 카운터 사용
@@ -65,7 +85,7 @@
 
 ### 2. 학생증 인증 동시성 문제
 
-**상태:** ⚠️ TODO 미해결
+**상태:** TODO 미해결
 
 **문제점:** `VerificationServiceImpl.java:61-62`
 ```java
@@ -80,7 +100,7 @@
 CREATE UNIQUE INDEX ux_student_verification_user
   ON student_verification_requests(user_id);
 ```
-- user_id에만 UNIQUE → status='PENDING' 조건부 인덱스 아님
+- user_id에만 UNIQUE -> status='PENDING' 조건부 인덱스 아님
 
 **필요 작업:**
 - PostgreSQL 조건부 인덱스 생성:
@@ -93,36 +113,53 @@ CREATE UNIQUE INDEX ux_student_verification_user
 
 ---
 
-## ✅ 구현 완료된 주요 기능
+## 구현 완료된 주요 기능
 
 | 도메인 | 상태 | 비고 |
 |--------|------|------|
-| Authentication (JWT, OAuth) | ✅ | RTR, 자동 로그인 포함 |
-| Refresh Token Rotation | ✅ | 재발급 시 기존 토큰 폐기 + 새 토큰 발급 |
-| 자동 로그인 | ✅ | refresh API에서 새 토큰 쌍 반환 |
-| User Management | ✅ | |
-| Community & Boards | ✅ | 공통/학교별 접근 제어 |
-| Posts & Comments | ✅ | 계층형 댓글, 좋아요, 신고 |
-| Friends & Block | ✅ | |
-| Chat (Kafka, WebSocket) | ✅ | 1:1, 그룹 채팅 |
-| Timetable | ✅ | 시간 중복 검증, 소유권 검증 |
-| Notifications (FCM) | ✅ | |
-| File Upload (Azure SAS) | ✅ | |
-| 학생증 사진 인증 | ✅ | 동시성 이슈 별도 |
+| Authentication (JWT, OAuth) | :white_check_mark: | RTR, 자동 로그인 포함 |
+| Refresh Token Rotation | :white_check_mark: | 재발급 시 기존 토큰 폐기 + 새 토큰 발급 |
+| 자동 로그인 | :white_check_mark: | refresh API에서 새 토큰 쌍 반환 |
+| User Management | :white_check_mark: | |
+| Community & Boards | :white_check_mark: | 공통/학교별 접근 제어 (관리자 CRUD 제외) |
+| Posts & Comments | :white_check_mark: | 계층형 댓글, 좋아요, 신고 |
+| Friends & Block | :white_check_mark: | |
+| Chat (Kafka, WebSocket) | :white_check_mark: | 1:1, 그룹 채팅 |
+| Timetable | :white_check_mark: | 시간 중복 검증, 소유권 검증 |
+| Notifications (FCM) | :white_check_mark: | |
+| File Upload (Azure SAS) | :white_check_mark: | |
+| 학생증 사진 인증 | :white_check_mark: | 동시성 이슈 별도 |
 
 ---
 
-## 📋 구현 우선순위
+## 구현 우선순위
 
 | 순위 | 항목 | 중요도 | 난이도 |
 |------|------|--------|--------|
-| 1 | 이메일 대학 인증 API | 🔴 높음 | 중간 |
-| 2 | HTTP REST API Rate Limiting | 🔴 높음 | 낮음 |
-| 3 | 학생증 인증 동시성 해결 | 🟡 중간 | 낮음 |
+| 1 | 이메일 대학 인증 API (2개) | 높음 | 중간 |
+| 2 | 관리자 게시판 관리 API (3개) | 중간 | 낮음 |
+| 3 | HTTP REST API Rate Limiting | 높음 | 낮음 |
+| 4 | 학생증 인증 동시성 해결 | 중간 | 낮음 |
 
 ---
 
-## 📁 관련 문서
+## 참고: API 경로 차이점
+
+Chat 그룹 관련 API 경로가 PRD와 실제 구현이 다릅니다:
+
+| PRD 경로 | 실제 구현 경로 |
+|----------|----------------|
+| `POST /api/v1/chat/group-rooms` | `POST /api/v1/chat/rooms/group-rooms` |
+| `PATCH /api/v1/chat/group-rooms/{roomId}` | `PATCH /api/v1/chat/rooms/group-rooms/{roomId}` |
+| `GET /api/v1/chat/group-rooms/{roomId}/members` | `GET /api/v1/chat/rooms/group-rooms/{roomId}/members` |
+| `POST /api/v1/chat/group-rooms/{roomId}/invite` | `POST /api/v1/chat/rooms/group-rooms/{roomId}/invite` |
+| `DELETE /api/v1/chat/group-rooms/{roomId}/members/{userId}` | `DELETE /api/v1/chat/rooms/group-rooms/{roomId}/members/{userId}` |
+
+**결정 필요:** PRD 수정 또는 API 경로 변경
+
+---
+
+## 관련 문서
 
 - PRD: `docs/prd_draft.md`
 - 이메일 인증 계획: `docs/uni/university_email_verification_plan.md`
