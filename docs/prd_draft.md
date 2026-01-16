@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.3 (2026.01 웹메일 인증 추가)**
+**Golden Master v2.4 (2026.01 회원가입용 대학교 목록 API 추가)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -351,9 +351,10 @@ last_read_message_id + unread_count 자동 관리
 | Method | URI                                   | Description                              |
 |--------|---------------------------------------|------------------------------------------|
 | GET    | /api/v1/universities                  | 대학 목록 (검색, 지역 필터 지원)         |
+| GET    | /api/v1/universities/list             | 대학 목록 (회원가입용, 인증 불필요, 페이징 지원) |
 | GET    | /api/v1/universities/{id}             | 대학 상세 조회                           |
 | GET    | /api/v1/universities/{id}/majors      | 전공 목록 (검색 지원)                    |
-| GET    | /api/v1/universities/regions          | 지역 목록 조회 (필터용)                  |
+| GET    | /api/v1/universities/regions          | 지역 목록 조회 (필터용, 인증 불필요)     |
 | PATCH  | /api/v1/users/me/university           | 대학/전공 설정 (전공 유효성 검증 포함)   |
 
 ### Community & Board
@@ -487,6 +488,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.4 | 2026-01-16 | 대학교 목록 조회 API 추가 (회원가입용, 인증 불필요, 페이징 지원) |
 | v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |
 | v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
 | v2.2 | 2026-01-15 | Board.description 필드 추가, 공통 로깅 설정 추가 |
