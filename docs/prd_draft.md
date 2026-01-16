@@ -439,37 +439,39 @@ last_read_message_id + unread_count 자동 관리
 
 ---
 
-## 5. Frontend-Backend Integration Status (v2.2)
+## 5. Backend Implementation Status (v2.3)
 
-### 5.1 Community & Board 기능 연동 현황
+### 5.1 Community & Board 기능
 
 #### 완료 (✅)
-| 기능 | 백엔드 API | 프론트엔드 |
-|------|-----------|-----------|
-| 커뮤니티 목록 조회 | `GET /communities` | `getCommunities()` |
-| 게시판 목록 조회 | `GET /communities/{id}/boards` | `getBoards()` |
-| 게시물 목록 조회 | `GET /boards/{id}/posts` | `getPosts()` |
-| 게시물 상세 조회 | `GET /posts/{id}` | `getPostDetail()` |
-| 게시물 작성 | `POST /boards/{id}/posts` | `createPost()` |
-| 게시물 좋아요 | `POST /posts/{id}/like` | `togglePostLike()` |
-| 댓글 목록 조회 | `GET /posts/{id}/comments` | `getComments()` |
-| 댓글 작성 | `POST /posts/{id}/comments` | `createComment()` |
-| 계층형 댓글 (대댓글) | 지원 (depth 0-1) | 지원 |
-| 익명 게시물/댓글 | 지원 | 지원 |
-
-#### 프론트엔드 미구현 (⚠️)
 | 기능 | 백엔드 API | 상태 |
 |------|-----------|------|
-| 게시물 수정 | `PATCH /posts/{id}` | API 완료, UI 없음 |
-| 게시물 삭제 | `DELETE /posts/{id}` | API 완료, UI 없음 |
-| 댓글 수정 | `PATCH /comments/{id}` | API 완료, UI 없음 |
-| 댓글 삭제 | `DELETE /comments/{id}` | API 완료, UI 없음 |
-| 댓글 좋아요 | `POST /comments/{id}/like` | API 완료, UI 없음 |
-| Board description 필드 | 응답에 포함 | Entity 필드 누락 |
+| 커뮤니티 목록 조회 | `GET /communities` | ✅ 완료 |
+| 게시판 목록 조회 | `GET /communities/{id}/boards` | ✅ 완료 |
+| 게시물 목록 조회 | `GET /boards/{id}/posts` | ✅ 완료 |
+| 게시물 상세 조회 | `GET /posts/{id}` | ✅ 완료 |
+| 게시물 작성 | `POST /boards/{id}/posts` | ✅ 완료 |
+| 게시물 수정 | `PATCH /posts/{id}` | ✅ 완료 |
+| 게시물 삭제 | `DELETE /posts/{id}` | ✅ 완료 |
+| 게시물 좋아요 | `POST /posts/{id}/like` | ✅ 완료 |
+| 댓글 목록 조회 | `GET /posts/{id}/comments` | ✅ 완료 |
+| 댓글 작성 | `POST /posts/{id}/comments` | ✅ 완료 |
+| 댓글 수정 | `PATCH /comments/{id}` | ✅ 완료 |
+| 댓글 삭제 | `DELETE /comments/{id}` | ✅ 완료 |
+| 댓글 좋아요 | `POST /comments/{id}/like` | ✅ 완료 |
+| 계층형 댓글 (대댓글) | depth 0-1 지원 | ✅ 완료 |
+| 익명 게시물/댓글 | 지원 | ✅ 완료 |
 
-### 5.2 University Verification 기능 연동 현황
+#### 미구현 (관리자 전용)
+| 기능 | 백엔드 API | 상태 |
+|------|-----------|------|
+| 게시판 생성 | `POST /communities/{id}/boards` | ❌ 미구현 |
+| 게시판 수정 | `PATCH /boards/{id}` | ❌ 미구현 |
+| 게시판 삭제 | `DELETE /boards/{id}` | ❌ 미구현 |
 
-#### 백엔드 완료 (✅)
+### 5.2 University Verification 기능
+
+#### 완료 (✅)
 | 기능 | 백엔드 API | 상태 |
 |------|-----------|------|
 | 학생증 사진 인증 요청 | `POST /verification/student-id` | ✅ 완료 |
