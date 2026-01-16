@@ -56,6 +56,7 @@ public class CommentDto {
         private Integer depth;
         private Long likeCount;
         private Boolean isLiked;
+        private Boolean isMine;
         private Boolean isDeleted;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;

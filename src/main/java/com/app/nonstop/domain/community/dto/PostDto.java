@@ -55,6 +55,7 @@ public class PostDto {
         private Long commentCount;
         private Boolean isSecret;
         private Boolean isLiked; // 현재 로그인한 유저가 좋아요를 눌렀는지 여부
+        private Boolean isMine;  // 현재 로그인한 유저가 작성자인지 여부
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private java.util.List<String> imageUrls;

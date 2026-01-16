@@ -32,6 +32,7 @@
         <result property="commentCount" column="comment_count"/>
         <result property="isSecret" column="is_secret"/>
         <result property="isLiked" column="is_liked"/>
+        <result property="isMine" column="is_mine"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -83,6 +84,17 @@
         UPDATE user_post_likes SET deleted_at = NULL WHERE user_id = #{userId} AND post_id = #{postId}
     </update>
 
+    <select id="getLikeCount" resultType="long">
+        SELECT COUNT(*) FROM user_post_likes WHERE post_id = #{postId} AND deleted_at IS NULL
+    </select>
+
+    <select id="isLiked" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM user_post_likes 
+            WHERE post_id = #{postId} AND user_id = #{userId} AND deleted_at IS NULL
+        )
+    </select>
+
     <!-- Complex Selects -->
     <select id="findByIdWithDetail" resultMap="postResponseMap">
         SELECT 
@@ -101,7 +113,8 @@
             EXISTS(
                 SELECT 1 FROM user_post_likes l 
                 WHERE l.post_id = p.id AND l.user_id = #{currentUserId} AND l.deleted_at IS NULL
-            ) AS is_liked
+            ) AS is_liked,
+            (p.user_id = #{currentUserId}) AS is_mine
         FROM posts p
         JOIN users u ON p.user_id = u.id
         WHERE p.id = #{id} AND p.deleted_at IS NULL
@@ -131,7 +144,15 @@
                 <otherwise>
                     FALSE
                 </otherwise>
-            </choose> AS is_liked
+            </choose> AS is_liked,
+            <choose>
+                <when test="currentUserId != null">
+                    (p.user_id = #{currentUserId})
+                </when>
+                <otherwise>
+                    FALSE
+                </otherwise>
+            </choose> AS is_mine
         FROM posts p
         JOIN users u ON p.user_id = u.id
         WHERE p.board_id = #{boardId} AND p.deleted_at IS NULL
