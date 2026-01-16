@@ -59,4 +59,37 @@
         LIMIT 1
     </select>
 
+    <select id="findAllWithPaging" resultMap="universityResultMap">
+        SELECT id, name, region, logo_image_url, created_at
+        FROM universities
+        <where>
+            <if test="keyword != null and keyword != ''">
+                name ILIKE '%' || #{keyword} || '%'
+            </if>
+            <if test="region != null and region != ''">
+                AND region = #{region}
+            </if>
+        </where>
+        ORDER BY name ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+        <if test="offset != null">
+            OFFSET #{offset}
+        </if>
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM universities
+        <where>
+            <if test="keyword != null and keyword != ''">
+                name ILIKE '%' || #{keyword} || '%'
+            </if>
+            <if test="region != null and region != ''">
+                AND region = #{region}
+            </if>
+        </where>
+    </select>
+
 </mapper>

@@ -25,4 +25,12 @@ public interface UniversityMapper {
     void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
 
     Optional<University> findByDomain(@Param("domain") String domain);
+
+    // 페이징 지원 쿼리
+    List<University> findAllWithPaging(@Param("keyword") String keyword,
+                                       @Param("region") String region,
+                                       @Param("limit") Integer limit,
+                                       @Param("offset") Integer offset);
+
+    long countAll(@Param("keyword") String keyword, @Param("region") String region);
 }
