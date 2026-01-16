@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.2 (2026.01 프론트엔드 연동 버전)**
+**Golden Master v2.3 (2026.01 웹메일 인증 추가)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -467,10 +467,25 @@ last_read_message_id + unread_count 자동 관리
 | 댓글 좋아요 | `POST /comments/{id}/like` | API 완료, UI 없음 |
 | Board description 필드 | 응답에 포함 | Entity 필드 누락 |
 
-### 5.2 변경 이력
+### 5.2 University Verification 기능 연동 현황
+
+#### 백엔드 완료 (✅)
+| 기능 | 백엔드 API | 상태 |
+|------|-----------|------|
+| 학생증 사진 인증 요청 | `POST /verification/student-id` | ✅ 완료 |
+| 웹메일 인증 요청 | `POST /verification/email/request` | ✅ 완료 |
+| 웹메일 인증 코드 확인 | `POST /verification/email/confirm` | ✅ 완료 |
+| 인증 상태 조회 | `GET /users/me/verification-status` | ✅ 완료 |
+
+#### 구현 상세
+- **웹메일 인증**: 이메일 도메인으로 대학교 식별 → 6자리 인증코드 발송 → Redis TTL 5분 → 코드 검증 후 인증 완료
+- **학생증 인증**: Multipart 이미지 업로드 → Azure Blob Storage 저장 → 관리자 수동 검토
+
+### 5.3 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |
 | v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
 | v2.2 | 2026-01-15 | Board.description 필드 추가, 공통 로깅 설정 추가 |
 | v2.1 | 2025-12-20 | 초기 버전 |
