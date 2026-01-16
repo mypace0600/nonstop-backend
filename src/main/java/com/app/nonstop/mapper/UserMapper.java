@@ -27,4 +27,6 @@ public interface UserMapper {
     void updateProfileImage(@Param("userId") Long userId, @Param("profileImageUrl") String profileImageUrl);
 
     void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
+
+    void updateVerificationStatus(@Param("userId") Long userId, @Param("isVerified") boolean isVerified, @Param("verificationMethod") com.app.nonstop.domain.user.entity.VerificationMethod verificationMethod);
 }

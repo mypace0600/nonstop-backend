@@ -51,4 +51,12 @@
         ORDER BY region ASC
     </select>
 
+    <select id="findByDomain" resultMap="universityResultMap">
+        SELECT u.id, u.name, u.region, u.logo_image_url, u.created_at
+        FROM universities u
+        JOIN university_email_domains d ON u.id = d.university_id
+        WHERE d.domain = #{domain}
+        LIMIT 1
+    </select>
+
 </mapper>
