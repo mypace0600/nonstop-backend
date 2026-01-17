@@ -489,3 +489,264 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 *Report Generated: 2026-01-17*
 *Analysis Tool: Claude Code*
+
+---
+
+# Nonstop App: Golden Master Readiness Report (Updated)
+
+**Date:** 2026-01-17
+**Version:** v2.5.1
+**Status:** Backend (v2.5.1 main) vs Frontend (dev branch)
+
+---
+
+## 1. Executive Summary
+
+| Category     | Previous | Current | Reason for Change                                                                     |
+| :----------- | :------: | :-----: | :------------------------------------------------------------------------------------ |
+| **Backend**  |    90%   | **80%** | No Admin features, FCM Notification incomplete, File service in Mock state            |
+| **Frontend** |    60%   | **55%** | Friends module missing, Timetable API structure mismatch, Notification module missing |
+
+### Critical Blockers
+
+1. **[Frontend] Friends module completely missing**: Only `.gitkeep` exists under `features/friends/`
+2. **[Frontend] Timetable API structure mismatch**: Frontend is event-based, Backend is timetable/entry-based
+3. **[Frontend] Notification module missing**: No FCM integration or notification list UI
+4. **[Frontend] Email Verification API not connected**: UI exists, no API call
+5. **[Backend] Admin features missing**: No student ID review or report management APIs
+
+---
+
+## 2. Domain-by-Domain Progress Analysis
+
+### 2.1 Authentication & Verification
+
+| Item                           | Backend | Frontend |    Integration   | Details                                          |
+| :----------------------------- | :-----: | :------: | :--------------: | :----------------------------------------------- |
+| **Login**                      |  ✅ 100% |  ✅ 100%  |      ✅ Done      | JWT Access/Refresh tokens issued correctly       |
+| **Sign Up**                    |  ✅ 100% |  ✅ 100%  |      ✅ Done      | Includes University/Major selection              |
+| **Logout**                     |  ✅ 100% |  ✅ 100%  |      ✅ Done      | Refresh token invalidation                       |
+| **Google OAuth**               |  ✅ 100% |  ⚠️ 50%  |    ⚠️ Partial    | Frontend button exists, integration not verified |
+| **Email Verification**         |  ✅ 100% |   ❌ 0%   |  ❌ Not connected | `verifyEmail()` throws `UnimplementedError`      |
+| **Student ID Verification**    |  ✅ 90%  |   ❌ 0%   |  ❌ Not connected | Backend implemented, frontend missing            |
+| **Email Duplication Check**    |  ✅ 100% |  ✅ 100%  |      ✅ Done      | `/api/v1/auth/email/check`                       |
+| **Nickname Duplication Check** |  ✅ 100% |  ✅ 100%  |      ✅ Done      | `/api/v1/auth/nickname/check`                    |
+| **Token Refresh**              |  ✅ 100% |  ⚠️ 70%  | ⚠️ Needs testing | Edge cases unverified                            |
+
+**Backend**
+
+* `AuthController`: login, signup, logout, refresh
+* `VerificationController`: email & student ID verification
+* JWT: Access 30min, Refresh 30 days
+
+**Frontend**
+
+* `auth_api_impl.dart`: email verification methods unimplemented
+* `email_verification_screen.dart`: navigates without API call
+
+---
+
+### 2.2 User Profile
+
+| Item                | Backend | Frontend |     Integration     | Details |
+| :------------------ | :-----: | :------: | :-----------------: | :------ |
+| **Get My Profile**  |  ✅ 100% |  ✅ 100%  |        ✅ Done       |         |
+| **Update Profile**  |  ✅ 100% |  ⚠️ 70%  | ⚠️ Needs validation |         |
+| **Change Password** |  ✅ 100% |   ❌ 0%   |      ❌ Missing      |         |
+| **Delete Account**  |  ✅ 100% |  ✅ 100%  | ⚠️ Needs validation |         |
+| **Profile Image**   |  ✅ 100% |  ⚠️ 50%  | ⚠️ Needs validation |         |
+
+---
+
+### 2.3 University & Major
+
+| Item                | Backend | Frontend | Integration |
+| :------------------ | :-----: | :------: | :---------: |
+| **University List** |  ✅ 100% |  ✅ 100%  |    ✅ Done   |
+| **Major List**      |  ✅ 100% |  ✅ 100%  |    ✅ Done   |
+
+---
+
+### 2.4 Community & Board
+
+All community, board, post, and interaction features are **fully implemented and integrated (100%)** on both Backend and Frontend.
+
+---
+
+### 2.5 Comment
+
+All comment-related features (CRUD, likes, nested comments, `isMine`) are **fully implemented and integrated (100%)**.
+
+---
+
+### 2.6 Friends — **CRITICAL**
+
+| Item              | Backend | Frontend | Integration |
+| :---------------- | :-----: | :------: | :---------: |
+| Friend List       |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Send Request      |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Incoming Requests |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Accept / Reject   |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Remove Friend     |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Block List        |  ✅ 100% |   ❌ 0%   |      ❌      |
+| Block / Unblock   |  ✅ 100% |   ❌ 0%   |      ❌      |
+
+**Frontend status:**
+Only empty directories with `.gitkeep` files exist.
+
+---
+
+### 2.7 Timetable — **CRITICAL**
+
+**Major structural mismatch**
+
+| Aspect      | Backend                          | Frontend        |
+| :---------- | :------------------------------- | :-------------- |
+| Core Entity | Timetable                        | Event           |
+| Sub Entity  | TimetableEntry                   | None            |
+| API Pattern | `/timetables/{id}/entries`       | `/events`       |
+| Concept     | Multiple timetables per semester | Flat event list |
+
+Backend is **fully implemented**, Frontend uses **mock-only, incompatible structure**.
+
+---
+
+### 2.8 Chat
+
+| Item          | Backend | Frontend | Status                       |
+| :------------ | :-----: | :------: | :--------------------------- |
+| Chat Rooms    |    ✅    |     ✅    | Needs verification           |
+| Messages      |    ✅    |     ✅    | Needs verification           |
+| Realtime      |    ✅    |    ⚠️    | Kafka/STOMP testing required |
+| Image Message |    ✅    |     ❌    | Missing                      |
+| Read Receipts |    ✅    |    ⚠️    | Partial                      |
+
+---
+
+### 2.9 Notification — **CRITICAL**
+
+| Item              | Backend | Frontend |
+| :---------------- | :-----: | :------: |
+| Notification List |    ✅    |     ❌    |
+| Mark as Read      |    ✅    |     ❌    |
+| FCM Push          |    ⚠️   |     ❌    |
+
+Frontend has **no notification module at all**.
+
+---
+
+### 2.10 Report
+
+| Item             | Backend | Frontend |
+| :--------------- | :-----: | :------: |
+| Create Report    |    ✅    |     ❌    |
+| Admin Management |    ❌    |     ❌    |
+
+---
+
+### 2.11 File Upload
+
+* Backend: Mock SAS URL implementation
+* Frontend: Partial implementation
+* Real cloud integration required
+
+---
+
+### 2.12 Admin — **NOT IMPLEMENTED**
+
+All admin-related features (student verification review, report moderation, user management, dashboards) are missing on both sides.
+
+---
+
+## 3. API Integration Matrix
+
+| Domain       |  Backend  |  Frontend | Integration |
+| :----------- | :-------: | :-------: | :---------: |
+| Auth         |   10/10   |    7/10   |     70%     |
+| User         |    5/5    |    4/5    |     80%     |
+| University   |    2/2    |    2/2    |     100%    |
+| Community    |    100%   |    100%   |     100%    |
+| Friend       |    7/7    |    0/7    |      0%     |
+| Timetable    |    9/9    |    0/9    |      0%     |
+| Notification |    3/3    |    0/3    |      0%     |
+| Chat         |    7/7    |    5/7    |     71%     |
+| **Total**    | **63/63** | **34/63** |   **54%**   |
+
+---
+
+## 4. Remaining Work (Prioritized)
+
+### Phase 1: MVP Critical
+
+1. Frontend Friends module (full implementation)
+2. Timetable API redesign and integration
+3. Email verification API connection
+4. Notification module + FCM
+
+### Phase 2: High Priority
+
+* Backend Admin module
+* Student ID verification UI
+* Chat image messages
+* Report API integration
+* Change password UI
+
+### Phase 3: Polish
+
+* Real FCM integration
+* Real Azure Blob Storage
+* End-to-End testing
+* Unified error handling
+
+---
+
+## 5. Tech Stack Summary
+
+### Backend
+
+* Spring Boot 3.x
+* PostgreSQL + MyBatis
+* JWT Auth
+* WebSocket (STOMP) + Kafka
+* Azure Blob Storage (SAS)
+* Firebase Cloud Messaging
+
+### Frontend
+
+* Flutter
+* Riverpod
+* Dio
+* STOMP WebSocket
+* Clean Architecture
+* fpdart (Either)
+
+---
+
+## 6. Conclusion & Recommendation
+
+### Current State
+
+* **Backend**: 80% complete, Admin & infra polish required
+* **Frontend**: 55% integrated, core social features missing
+
+### Recommended Priority
+
+1. Friends module
+2. Timetable redesign
+3. Notification system
+4. Email verification
+5. Admin features
+6. Chat image support
+
+### Golden Master Criteria
+
+* **Phase 1 complete**: MVP release
+* **Phase 2 complete**: Production-ready
+* **Phase 3 complete**: Fully stabilized
+
+---
+
+*Report Generated: 2026-01-17*
+*Analysis Tool: Claude Code*
+
+---
