@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.2 (2026.01 Admin Report Context)**
+**Golden Master v2.5.2 (2026.01 Backend Status: 80% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -163,13 +163,12 @@ Community (커뮤니티)
 
 ### 3.7 Chat (1:1 + 그룹 실시간 채팅)
 
-#### 3.7.1 채팅방 생성
-- **1:1 채팅**: `POST /api/v1/chat/rooms`
-  - 요청: `{ "targetUserId": 999 }`
-  - 로직: 서버는 (userA, userB) 정규화하여 기존 방 조회. 있으면 기존 roomId 반환, 없으면 생성.
-- **그룹 채팅**: `POST /api/v1/chat/group-rooms`
-  - 요청: `{ "roomName": "과제 스터디", "userIds": [101, 102, 103] }`
-  - 로직: 새로운 그룹 채팅방 생성 후, 요청자를 포함한 모든 참여자 초대.
+#### 3.7.1 채팅방 생성 (Unified Endpoint)
+- **통합 생성 API**: `POST /api/v1/chat/rooms`
+  - **1:1 채팅**: `{ "targetUserId": 999 }`
+    - 로직: 서버는 (userA, userB) 정규화하여 기존 방 조회. 있으면 기존 roomId 반환, 없으면 생성.
+  - **그룹 채팅**: `{ "roomName": "과제 스터디", "userIds": [101, 102, 103] }`
+    - 로직: 새로운 그룹 채팅방 생성 후, 요청자를 포함한 모든 참여자 초대.
 
 #### 3.7.2 실시간 채팅 (Kafka 기반 v2.2)
 - **Client → Server:** STOMP over WebSocket (`/ws/v1/chat`)
@@ -216,7 +215,7 @@ Community (커뮤니티)
 4.  **그룹 채팅 초대 및 퇴장 이벤트 처리**
     *   **방안:** 그룹 채팅의 `INVITE`, `LEAVE`, `KICK` 등 시스템 관련 이벤트도 일반 채팅 메시지와 동일하게 Kafka를 통해 처리합니다. 이들 이벤트는 특별한 `messageType`을 가지는 시스템 메시지로 정의합니다.
     *   **데이터 흐름 예시 (`INVITE`):**
-        1.  `POST /api/v1/chat/group-rooms/{roomId}/invite` API 호출.
+        1.  `POST /api/v1/chat/rooms/{roomId}/invite` API 호출.
         2.  Backend는 초대 비즈니스 로직 수행 (DB 내 유저-방 매핑 추가 등).
         3.  `chat-messages` 토픽으로 `type: INVITE` (시스템 메시지 타입), `content: "OOO님이 초대되었습니다."` 등의 Payload를 가진 메시지 발행.
         4.  `ChatKafkaConsumer`가 이 메시지를 받아 해당 방 모든 유저에게 브로드캐스팅 및 DB 저장.
@@ -326,6 +325,7 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.11 Admin Features (Mobile App Integrated)
 별도의 웹 관리자 페이지 없이, 앱 내에서 관리자(ADMIN, MANAGER) 권한을 가진 사용자가 접근할 수 있는 관리 기능을 제공합니다.
+**Note: v2.5.1 기준 아직 구현되지 않았습니다.**
 
 #### 3.11.1 대학생 인증 관리 (학생증)
 - **인증 요청 목록 조회 (`GET /api/v1/admin/verification/requests`)**
@@ -364,7 +364,7 @@ last_read_message_id + unread_count 자동 관리
   - **신고 반려**: 신고를 기각하고 콘텐츠 유지
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
-## 4. API Endpoint Summary – Golden Master v2.1 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.1 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     |
@@ -377,7 +377,7 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
 | GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
 
-### Admin (New)
+### Admin (New - Not Implemented)
 | Method | URI                                             | Description                                      |
 |--------|-------------------------------------------------|--------------------------------------------------|
 | GET    | /api/v1/admin/verification/requests             | 학생증 인증 요청 목록 (Paging, Status 필터)      |
@@ -451,15 +451,14 @@ last_read_message_id + unread_count 자동 관리
 | Method | URI                                                | Description                                |
 |:-------|:---------------------------------------------------|:-------------------------------------------|
 | GET    | /api/v1/chat/rooms                                 | 내 채팅방 목록 (1:1, 그룹 포함)            |
-| POST   | /api/v1/chat/rooms                                 | 1:1 채팅방 생성 (with targetUserId)        |
+| POST   | /api/v1/chat/rooms                                 | 채팅방 생성 (1:1 또는 그룹 - Payload로 구분)|
 | DELETE | /api/v1/chat/rooms/{roomId}                        | 채팅방 나가기 (1:1, 그룹 공통)             |
 | GET    | /api/v1/chat/rooms/{roomId}/messages               | 과거 메시지 조회 (Pagination)              |
 | DELETE | /api/v1/chat/rooms/{roomId}/messages/{msgId}       | 나에게만 메시지 삭제                       |
-| POST   | /api/v1/chat/group-rooms                           | 그룹 채팅방 생성                           |
-| PATCH  | /api/v1/chat/group-rooms/{roomId}                  | 그룹 채팅방 정보 수정 (이름 등)            |
-| GET    | /api/v1/chat/group-rooms/{roomId}/members          | 그룹 채팅방 참여자 목록 조회               |
-| POST   | /api/v1/chat/group-rooms/{roomId}/invite           | 그룹 채팅방에 사용자 초대                  |
-| DELETE | /api/v1/chat/group-rooms/{roomId}/members/{userId} | 그룹 채팅방에서 사용자 강퇴 (방장 권한)    |
+| PATCH  | /api/v1/chat/rooms/{roomId}                        | 채팅방 정보 수정 (그룹 채팅 이름 등)       |
+| GET    | /api/v1/chat/rooms/{roomId}/members                | 채팅방 참여자 목록 조회                    |
+| POST   | /api/v1/chat/rooms/{roomId}/invite                 | 채팅방에 사용자 초대 (그룹)                |
+| DELETE | /api/v1/chat/rooms/{roomId}/members/{userId}       | 채팅방에서 사용자 강퇴 (그룹 방장 권한)    |
 | WS     | wss://api.nonstop.app/ws/v1/chat                   | 실시간 채팅 연결 (STOMP Handshake)         |
 | SUB    | /sub/chat/room/{roomId}                            | (STOMP) 채팅방 메시지 구독                 |
 | PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
@@ -504,11 +503,13 @@ last_read_message_id + unread_count 자동 관리
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
 | **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll |
 | **Board (Admin)** | ❌ Not Implemented | Create/Edit/Delete Board endpoints missing |
-| **Admin (App)** | ❌ Not Implemented | Verification Review, Report Management endpoints missing |
-| **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
+| **Friend** | ✅ Fully Implemented | Request, Accept/Reject, Block, List View |
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
+| **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
 | **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
-| **File** | ✅ Fully Implemented | SAS URL generation, Upload Callback |
+| **Admin (App)** | ❌ Not Implemented | Verification Review, Report Management endpoints missing |
+| **Notification** | ⚠️ Partial | Controller ready, FCM Service incomplete (Mock/Log only) |
+| **File** | ⚠️ Partial | Controller ready, Azure Blob Service is Mock |
 
 ### 5.2 Detailed Verification Notes (2026-01-17)
 
@@ -533,11 +534,13 @@ last_read_message_id + unread_count 자동 관리
 - **Verified:** `ChatKafkaProducer` and `ChatKafkaConsumer` classes exist, confirming the Kafka-based architecture.
 - **Verified:** `WebSocketChatController` handles STOMP messages.
 - **Verified:** `MessageType` includes `IMAGE`, `SYSTEM` types.
+- **Verified:** Endpoint paths corrected to `/api/v1/chat/rooms/group-rooms` to match Controller.
 
 #### Timetable
 - **Verified:** `TimetableController` provides full CRUD.
 - **Verified:** `TimetableService` implements overlap validation (`validateNoTimeOverlap`) and ownership checks.
 - **Verified:** `DayOfWeek` enum matches spec.
+- **Verified:** Public timetable endpoint is `/api/v1/timetables/public`.
 
 #### Report
 - **Verified:** `ReportController` provides `/posts/{postId}/report` and `/comments/{commentId}/report`.
@@ -547,7 +550,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
-| v2.5.1 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
+| v2.5.1 | 2026-01-17 | Backend Progress Update: Friend, Timetable, Chat 완전 구현 확인. Admin/FCM 미구현 상태 반영. |
 | v2.5 | 2026-01-17 | 게시글/댓글 DTO에 isMine 필드 추가 (작성자 본인 여부 판단용) |
 | v2.4 | 2026-01-16 | 대학교 목록 조회 API 추가 (회원가입용, 인증 불필요, 페이징 지원) |
 | v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |

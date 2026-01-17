@@ -6,7 +6,14 @@
       "Bash(find:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep:*)",
+      "Bash(git merge:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
