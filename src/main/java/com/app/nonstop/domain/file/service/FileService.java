@@ -4,19 +4,31 @@ import com.app.nonstop.domain.file.dto.FileUploadCompleteDto;
 import com.app.nonstop.domain.file.dto.FileUploadRequestDto;
 import com.app.nonstop.domain.file.entity.File;
 import com.app.nonstop.domain.file.entity.FilePurpose;
+import com.app.nonstop.global.config.AzureBlobStorageConfig;
 import com.app.nonstop.mapper.FileMapper;
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.sas.BlobSasPermission;
+import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileService {
 
     private final FileMapper fileMapper;
+    private final BlobServiceClient blobServiceClient;
+    private final AzureBlobStorageConfig azureBlobStorageConfig;
 
     /**
      * 이미지 URL 리스트를 DB에 저장합니다.
@@ -79,27 +91,68 @@ public class FileService {
     }
 
     /**
-     * SAS URL 생성 (Mock)
+     * SAS URL 생성
+     * 클라이언트가 Azure Blob Storage에 직접 업로드할 수 있도록 일회성 권한 URL을 생성합니다.
      */
     public String generateSasUrl(Long userId, FileUploadRequestDto requestDto) {
-        // TODO: 실제 Azure Blob SAS URL 생성 로직 구현
-        return "https://mock-azure-blob-url.com/" + requestDto.getFileName() + "?sasToken=mock";
+        // 1. 설정된 단일 컨테이너 이름 가져오기
+        String containerName = azureBlobStorageConfig.getContainerName();
+        
+        // 2. Blob 컨테이너 클라이언트 가져오기
+        BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+        if (!containerClient.exists()) {
+            containerClient.create();
+        }
+
+        // 3. 파일명 생성 (Purpose를 폴더 구조로 활용 + UUID 조합)
+        String directoryPrefix = requestDto.getPurpose().name().toLowerCase();
+        String fileName = directoryPrefix + "/" + UUID.randomUUID() + "_" + requestDto.getFileName();
+        BlobClient blobClient = containerClient.getBlobClient(fileName);
+
+        // 4. SAS 권한 및 만료 시간 설정 (10분간 쓰기 권한)
+        BlobSasPermission permission = new BlobSasPermission().setWritePermission(true);
+        OffsetDateTime expiryTime = OffsetDateTime.now().plusMinutes(10);
+        
+        BlobServiceSasSignatureValues values = new BlobServiceSasSignatureValues(expiryTime, permission)
+                .setProtocol(com.azure.storage.common.sas.SasProtocol.HTTPS_ONLY);
+
+        // 5. SAS URL 생성 및 반환
+        return blobClient.getBlobUrl() + "?" + blobClient.generateSas(values);
     }
 
     /**
-     * 업로드 완료 처리 (Mock: DB 저장)
+     * 업로드 완료 처리
+     * 클라이언트가 업로드를 마친 후 메타데이터를 저장합니다.
      */
     @Transactional
     public void processUploadComplete(Long userId, FileUploadCompleteDto completeDto) {
-        // targetDomain 결정 로직 필요 (Purpose에 따라 다름)
-        // 일단 단순하게 매핑하거나, purpose를 저장
-        FilePurpose entityPurpose = FilePurpose.valueOf(completeDto.getPurpose().name());
+        FilePurpose purpose = FilePurpose.valueOf(completeDto.getPurpose().name());
+        
+        // TargetDomain 결정 (Purpose에 따라 매핑)
+        String targetDomain;
+        switch (purpose) {
+            case PROFILE_IMAGE:
+                targetDomain = "USER";
+                break;
+            case BOARD_ATTACHMENT:
+                targetDomain = "POST";
+                break;
+            case CHAT_IMAGE:
+                targetDomain = "CHAT";
+                break;
+            case STUDENT_ID_CARD:
+            case STUDENT_ID_VERIFICATION:
+                targetDomain = "VERIFICATION";
+                break;
+            default:
+                targetDomain = "ETC";
+        }
         
         File file = File.builder()
                 .uploaderId(userId)
-                .targetDomain("UNKNOWN") // Purpose를 보고 결정해야 함
+                .targetDomain(targetDomain)
                 .targetId(completeDto.getTargetId() != null ? completeDto.getTargetId() : 0L)
-                .purpose(entityPurpose)
+                .purpose(purpose)
                 .fileUrl(completeDto.getBlobUrl())
                 .originalFileName(completeDto.getOriginalFileName())
                 .build();

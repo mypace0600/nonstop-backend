@@ -2,6 +2,8 @@ package com.app.nonstop.global.config;
 
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.azure.storage.common.StorageSharedKeyCredential;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,11 +20,17 @@ public class AzureBlobStorageConfig {
     @Value("${spring.cloud.azure.storage.blob.endpoint}")
     private String endpoint;
 
+    @Getter
+    @Value("${spring.cloud.azure.storage.blob.container-name}")
+    private String containerName;
+
     @Bean
     public BlobServiceClient blobServiceClient() {
-        String connectionString = "DefaultEndpointsProtocol=https;AccountName=" + accountName + ";AccountKey=" + accountKey + ";EndpointSuffix=core.windows.net";
+        StorageSharedKeyCredential credential = new StorageSharedKeyCredential(accountName, accountKey);
+        
         return new BlobServiceClientBuilder()
-                .connectionString(connectionString)
+                .endpoint(endpoint)
+                .credential(credential)
                 .buildClient();
     }
 }

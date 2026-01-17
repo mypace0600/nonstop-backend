@@ -9,7 +9,7 @@
 
 | 구분 | 이전 평가 | 현재 평가 | 변경 사유 |
 |:---|:---:|:---:|:---|
-| **Backend** | 90% | **80%** | Admin 기능 전무, Notification FCM 미구현, File 서비스 Mock 상태 |
+| **Backend** | 90% | **80%** | Admin 기능 전무 |
 | **Frontend** | 60% | **55%** | Friends 모듈 완전 부재, Timetable API 구조 불일치, Notification 전무 |
 
 ### 핵심 블로커 (Critical Blockers)
@@ -20,6 +20,7 @@
 5. **[Backend] Admin 기능 전무**: 학생증 심사, 신고 관리 API 없음
 
 ---
+
 
 ## 2. 도메인별 상세 진척도 분석
 
@@ -312,12 +313,13 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 | 항목 | Backend | Frontend | 연동 상태 | 상세 분석 |
 |:---|:---:|:---:|:---:|:---|
-| **SAS URL 발급** | ⚠️ Mock | ⚠️ 부분 | ⚠️ 검증필요 | Backend Mock 구현, Frontend 일부 구현 |
-| **이미지 업로드** | ⚠️ Mock | ⚠️ 부분 | ⚠️ 검증필요 | 게시글 이미지는 URL 전달 방식 |
+| **SAS URL 발급** | ✅ 100% | ⚠️ 부분 | ⚠️ 검증필요 | Backend Azure Blob 연동 완료 (단일 컨테이너 + 폴더 구조) |
+| **이미지 업로드** | ✅ 100% | ⚠️ 부분 | ⚠️ 검증필요 | Client Direct Upload 지원 |
 
 **Backend 상세:**
-- `FileController`: `POST /files/upload-url` - SAS URL 발급
-- `AzureStorageService`: Mock 구현 상태 (실제 Azure 연동 필요)
+- `FileController`: `POST /files/upload-url` - SAS URL 발급 (실제 Azure 연동)
+- `AzureStorageService`: `BlobServiceClient` 설정 완료, `nonstop` 컨테이너 사용
+- `FileService`: Purpose별 폴더 구조(`profile_image/uuid...`) 적용된 SAS 생성
 
 ---
 
@@ -647,9 +649,9 @@ Frontend has **no notification module at all**. Backend FCM integration is compl
 
 ### 2.11 File Upload
 
-* Backend: Mock SAS URL implementation
+* Backend: Real SAS URL implementation (Azure Blob Storage)
 * Frontend: Partial implementation
-* Real cloud integration required
+* Real cloud integration complete (Backend)
 
 ---
 
