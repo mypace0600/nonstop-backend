@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/chat/rooms")
+@RequestMapping("/api/v1/chat")
 @RequiredArgsConstructor
 public class ChatController {
 
@@ -25,7 +25,7 @@ public class ChatController {
     /**
      * 내 채팅방 목록 조회
      */
-    @GetMapping
+    @GetMapping("/rooms")
     public ResponseEntity<ApiResponse<List<ChatRoomResponseDto>>> getMyChatRooms(@AuthenticationPrincipal CustomUserDetails userDetails) {
         List<ChatRoomResponseDto> chatRooms = chatRoomService.getMyChatRooms(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(chatRooms));
@@ -34,7 +34,7 @@ public class ChatController {
     /**
      * 1:1 채팅방 생성
      */
-    @PostMapping
+    @PostMapping("/rooms")
     public ResponseEntity<ApiResponse<ChatRoomResponseDto>> createOneToOneChatRoom(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody OneToOneChatRoomRequestDto requestDto) {
@@ -56,7 +56,7 @@ public class ChatController {
     /**
      * 과거 메시지 조회 (페이지네이션)
      */
-    @GetMapping("/{roomId}/messages")
+    @GetMapping("/rooms/{roomId}/messages")
     public ResponseEntity<ApiResponse<List<MessageResponseDto>>> getMessages(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId,
@@ -69,7 +69,7 @@ public class ChatController {
     /**
      * 읽음 처리 (채팅방의 마지막 읽은 메시지 업데이트)
      */
-    @PatchMapping("/{roomId}/read")
+    @PatchMapping("/rooms/{roomId}/read")
     public ResponseEntity<ApiResponse<Void>> markAsRead(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId,
@@ -81,7 +81,7 @@ public class ChatController {
     /**
      * 채팅방 나가기
      */
-    @DeleteMapping("/{roomId}")
+    @DeleteMapping("/rooms/{roomId}")
     public ResponseEntity<ApiResponse<Void>> leaveChatRoom(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId) {
@@ -92,7 +92,7 @@ public class ChatController {
     /**
      * 나에게만 메시지 삭제
      */
-    @DeleteMapping("/{roomId}/messages/{messageId}")
+    @DeleteMapping("/rooms/{roomId}/messages/{messageId}")
     public ResponseEntity<ApiResponse<Void>> deleteMessageForMe(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long roomId,
