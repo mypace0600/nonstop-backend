@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.2 (2026.01 Admin Report Context)**
+**Golden Master v2.5.3 (2026.01 Backend Status: 80% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -326,6 +326,7 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.11 Admin Features (Mobile App Integrated)
 별도의 웹 관리자 페이지 없이, 앱 내에서 관리자(ADMIN, MANAGER) 권한을 가진 사용자가 접근할 수 있는 관리 기능을 제공합니다.
+**Note: v2.5.3 기준 아직 구현되지 않았습니다.**
 
 #### 3.11.1 대학생 인증 관리 (학생증)
 - **인증 요청 목록 조회 (`GET /api/v1/admin/verification/requests`)**
@@ -364,7 +365,7 @@ last_read_message_id + unread_count 자동 관리
   - **신고 반려**: 신고를 기각하고 콘텐츠 유지
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
-## 4. API Endpoint Summary – Golden Master v2.1 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.3 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     |
@@ -377,7 +378,7 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
 | GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
 
-### Admin (New)
+### Admin (New - Not Implemented)
 | Method | URI                                             | Description                                      |
 |--------|-------------------------------------------------|--------------------------------------------------|
 | GET    | /api/v1/admin/verification/requests             | 학생증 인증 요청 목록 (Paging, Status 필터)      |
@@ -493,7 +494,7 @@ last_read_message_id + unread_count 자동 관리
 
 ---
 
-## 5. Backend Implementation Status (v2.5.1)
+## 5. Backend Implementation Status (v2.5.3)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
@@ -547,7 +548,8 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
-| v2.5.1 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
+| v2.5.3 | 2026-01-17 | Backend Progress Update: Chat API 경로 정규화 반영 (/api/v1/chat/group-rooms) |
+| v2.5.2 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
 | v2.5 | 2026-01-17 | 게시글/댓글 DTO에 isMine 필드 추가 (작성자 본인 여부 판단용) |
 | v2.4 | 2026-01-16 | 대학교 목록 조회 API 추가 (회원가입용, 인증 불필요, 페이징 지원) |
 | v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |
