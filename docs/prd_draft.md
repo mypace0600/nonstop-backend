@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.4 (2026.01 회원가입용 대학교 목록 API 추가)**
+**Golden Master v2.5 (2026.01 게시글/댓글 isMine 필드 추가)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -147,6 +147,7 @@ Community (커뮤니티)
 - **댓글 수정:** 내용 및 익명 여부 수정 가능 (작성자 본인만)
 - 댓글에도 이미지 첨부 가능
 - 신고·조회수·삭제(soft delete)
+- **isMine 필드**: 게시글/댓글 조회 시 현재 로그인한 유저가 작성자인지 여부를 `isMine` 필드로 반환 (수정/삭제 버튼 표시 판단용)
 
 #### 3.5.1 댓글 타입 (`comment_type`)
 | 타입 | 설명 | depth |
@@ -488,6 +489,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5 | 2026-01-17 | 게시글/댓글 DTO에 isMine 필드 추가 (작성자 본인 여부 판단용) |
 | v2.4 | 2026-01-16 | 대학교 목록 조회 API 추가 (회원가입용, 인증 불필요, 페이징 지원) |
 | v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |
 | v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
