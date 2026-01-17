@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5 (2026.01 게시글/댓글 isMine 필드 추가)**
+**Golden Master v2.5.2 (2026.01 Admin Report Context)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -324,6 +324,46 @@ last_read_message_id + unread_count 자동 관리
     - 업로드 성공 후, 클라이언트는 `POST /api/v1/files/upload-complete` 엔드포인트로 업로드된 파일의 최종 경로(`blobUrl`)와 원본 파일명, `purpose` 등을 다시 서버에 알려줍니다.
     - 서버는 이 정보를 받아 파일 메타데이터를 `files` 테이블에 저장하고, `purpose`에 따라 사용자 프로필 이미지 URL을 업데이트하는 등의 후속 처리를 수행합니다.
 
+### 3.11 Admin Features (Mobile App Integrated)
+별도의 웹 관리자 페이지 없이, 앱 내에서 관리자(ADMIN, MANAGER) 권한을 가진 사용자가 접근할 수 있는 관리 기능을 제공합니다.
+
+#### 3.11.1 대학생 인증 관리 (학생증)
+- **인증 요청 목록 조회 (`GET /api/v1/admin/verification/requests`)**
+  - 필터: 처리 상태 (`PENDING`, `ACCEPTED`, `REJECTED`), 페이징 지원
+  - `PENDING` 상태인 요청을 우선적으로 노출
+- **인증 요청 상세 조회 (`GET /api/v1/admin/verification/requests/{id}`)**
+  - 학생증 이미지, 요청자 정보, 요청 시간 확인
+- **인증 처리 (`POST /api/v1/admin/verification/requests/{id}/process`)**
+  - 승인(`ACCEPTED`): 유저의 `is_verified=true`, `university_id` 확정
+  - 반려(`REJECTED`): 반려 사유 입력 가능
+
+#### 3.11.2 커뮤니티 및 게시판 관리
+- **커뮤니티 목록 조회**: 기존 API 활용하되 관리자용 뷰 필요 시 확장
+- **게시판 생성 (`POST /api/v1/communities/{id}/boards`)**
+  - 커뮤니티 내 새로운 게시판 개설
+  - 설정: 이름, 설명, 타입(일반/익명/공지 등), 익명 허용 여부
+- **게시판 수정 (`PATCH /api/v1/boards/{id}`)**
+  - 이름, 설명, 상태(활성/비활성) 수정
+- **게시판 비활성화 (`DELETE /api/v1/boards/{id}`)**
+  - Soft Delete 처리 (목록에서 숨김)
+
+#### 3.11.3 신고 관리
+- **신고 목록 조회 (`GET /api/v1/admin/reports`)**
+  - 필터: 대상(`POST`, `COMMENT`), 처리 상태(`PENDING`, `RESOLVED`), 페이징
+  - **응답 데이터 필수 항목 (네비게이션 지원)**:
+    - `id`: 신고 ID
+    - `targetType`: `POST` 또는 `COMMENT`
+    - `targetId`: 신고된 게시글 또는 댓글의 ID
+    - `relatedPostId`: **이동할 게시글 ID**. (게시글 신고 시 `targetId`와 동일, 댓글 신고 시 해당 댓글이 달린 `postId`)
+    - `content`: 신고된 내용 미리보기
+    - `reason`: 신고 사유
+    - `reporterName`: 신고자 닉네임 (운영 판단용)
+    - `createdAt`: 신고 시각
+- **신고 처리 (`POST /api/v1/admin/reports/{id}/process`)**
+  - **콘텐츠 비활성화**: 신고된 게시글/댓글을 `BLIND` 또는 `DELETED` 처리
+  - **신고 반려**: 신고를 기각하고 콘텐츠 유지
+  - 처리 시 신고 상태를 `RESOLVED`로 변경
+
 ## 4. API Endpoint Summary – Golden Master v2.1 (완전 목록)
 
 ### Authentication
@@ -336,6 +376,18 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/auth/logout                    | Refresh Token 무효화               |
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
 | GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
+
+### Admin (New)
+| Method | URI                                             | Description                                      |
+|--------|-------------------------------------------------|--------------------------------------------------|
+| GET    | /api/v1/admin/verification/requests             | 학생증 인증 요청 목록 (Paging, Status 필터)      |
+| GET    | /api/v1/admin/verification/requests/{id}        | 학생증 인증 요청 상세 (이미지 확인)              |
+| POST   | /api/v1/admin/verification/requests/{id}/process| 학생증 인증 승인/반려 처리                       |
+| POST   | /api/v1/communities/{id}/boards                 | 게시판 생성 (관리자 전용)                        |
+| PATCH  | /api/v1/boards/{id}                             | 게시판 수정 (관리자 전용)                        |
+| DELETE | /api/v1/boards/{id}                             | 게시판 비활성화 (관리자 전용)                    |
+| GET    | /api/v1/admin/reports                           | 신고 목록 조회 (Paging, Target, Status 필터)     |
+| POST   | /api/v1/admin/reports/{id}/process              | 신고 처리 (콘텐츠 비활성화/반려)                 |
 
 ### User & Device
 | Method | URI                                       | Description                              |
@@ -441,54 +493,61 @@ last_read_message_id + unread_count 자동 관리
 
 ---
 
-## 5. Backend Implementation Status (v2.3)
+## 5. Backend Implementation Status (v2.5.1)
 
-### 5.1 Community & Board 기능
+### 5.1 Overview
+| Feature Domain | Implementation Status | Note |
+|---|---|---|
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google) |
+| **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support |
+| **University** | ✅ Fully Implemented | Search, Paging (`/list`), Major validation |
+| **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
+| **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll |
+| **Board (Admin)** | ❌ Not Implemented | Create/Edit/Delete Board endpoints missing |
+| **Admin (App)** | ❌ Not Implemented | Verification Review, Report Management endpoints missing |
+| **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
+| **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
+| **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
+| **File** | ✅ Fully Implemented | SAS URL generation, Upload Callback |
 
-#### 완료 (✅)
-| 기능 | 백엔드 API | 상태 |
-|------|-----------|------|
-| 커뮤니티 목록 조회 | `GET /communities` | ✅ 완료 |
-| 게시판 목록 조회 | `GET /communities/{id}/boards` | ✅ 완료 |
-| 게시물 목록 조회 | `GET /boards/{id}/posts` | ✅ 완료 |
-| 게시물 상세 조회 | `GET /posts/{id}` | ✅ 완료 |
-| 게시물 작성 | `POST /boards/{id}/posts` | ✅ 완료 |
-| 게시물 수정 | `PATCH /posts/{id}` | ✅ 완료 |
-| 게시물 삭제 | `DELETE /posts/{id}` | ✅ 완료 |
-| 게시물 좋아요 | `POST /posts/{id}/like` | ✅ 완료 |
-| 댓글 목록 조회 | `GET /posts/{id}/comments` | ✅ 완료 |
-| 댓글 작성 | `POST /posts/{id}/comments` | ✅ 완료 |
-| 댓글 수정 | `PATCH /comments/{id}` | ✅ 완료 |
-| 댓글 삭제 | `DELETE /comments/{id}` | ✅ 완료 |
-| 댓글 좋아요 | `POST /comments/{id}/like` | ✅ 완료 |
-| 계층형 댓글 (대댓글) | depth 0-1 지원 | ✅ 완료 |
-| 익명 게시물/댓글 | 지원 | ✅ 완료 |
+### 5.2 Detailed Verification Notes (2026-01-17)
 
-#### 미구현 (관리자 전용)
-| 기능 | 백엔드 API | 상태 |
-|------|-----------|------|
-| 게시판 생성 | `POST /communities/{id}/boards` | ❌ 미구현 |
-| 게시판 수정 | `PATCH /boards/{id}` | ❌ 미구현 |
-| 게시판 삭제 | `DELETE /boards/{id}` | ❌ 미구현 |
+#### Community & Board
+- **Verified:** `CommunityController`, `PostController`, `CommentController` exist and function as expected.
+- **Verified:** `isMine` field in `PostResponseDto` and `CommentResponseDto` (via MyBatis `CASE WHEN`).
+- **Verified:** `Board.description` field exists.
+- **Verified:** `CommentType` uses `GENERAL/ANONYMOUS`.
+- **Missing:** Admin-only Board management APIs (`POST/PATCH/DELETE /boards`) are not present in the codebase.
 
-### 5.2 University Verification 기능
+#### University Verification
+- **Verified:** `VerificationController` handles both `student-id` (multipart) and `email` (request/confirm).
+- **Verified:** `VerificationService` implements logic for redis-based code validation (inferred) and database updates.
+- **Missing:** Admin endpoints to list pending requests and approve/reject them.
 
-#### 완료 (✅)
-| 기능 | 백엔드 API | 상태 |
-|------|-----------|------|
-| 학생증 사진 인증 요청 | `POST /verification/student-id` | ✅ 완료 |
-| 웹메일 인증 요청 | `POST /verification/email/request` | ✅ 완료 |
-| 웹메일 인증 코드 확인 | `POST /verification/email/confirm` | ✅ 완료 |
-| 인증 상태 조회 | `GET /users/me/verification-status` | ✅ 완료 |
+#### Admin Features (New)
+- **Missing:** All `Admin` endpoints defined in section 3.11.
+- **Missing:** Logic to list reports and process them (deactivate content).
+- **Missing:** Logic to list/approve verification requests.
 
-#### 구현 상세
-- **웹메일 인증**: 이메일 도메인으로 대학교 식별 → 6자리 인증코드 발송 → Redis TTL 5분 → 코드 검증 후 인증 완료
-- **학생증 인증**: Multipart 이미지 업로드 → Azure Blob Storage 저장 → 관리자 수동 검토
+#### Chat System
+- **Verified:** `ChatKafkaProducer` and `ChatKafkaConsumer` classes exist, confirming the Kafka-based architecture.
+- **Verified:** `WebSocketChatController` handles STOMP messages.
+- **Verified:** `MessageType` includes `IMAGE`, `SYSTEM` types.
+
+#### Timetable
+- **Verified:** `TimetableController` provides full CRUD.
+- **Verified:** `TimetableService` implements overlap validation (`validateNoTimeOverlap`) and ownership checks.
+- **Verified:** `DayOfWeek` enum matches spec.
+
+#### Report
+- **Verified:** `ReportController` provides `/posts/{postId}/report` and `/comments/{commentId}/report`.
+- **Missing:** Admin capabilities to view and act on these reports.
 
 ### 5.3 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.1 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
 | v2.5 | 2026-01-17 | 게시글/댓글 DTO에 isMine 필드 추가 (작성자 본인 여부 판단용) |
 | v2.4 | 2026-01-16 | 대학교 목록 조회 API 추가 (회원가입용, 인증 불필요, 페이징 지원) |
 | v2.3 | 2026-01-16 | 웹메일 인증 기능 추가 (email/request, email/confirm) |
