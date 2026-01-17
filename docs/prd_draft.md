@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.3 (2026.01 Backend Status: 80% Completed)**
+**Golden Master v2.5.5 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -326,7 +326,7 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.11 Admin Features (Mobile App Integrated)
 별도의 웹 관리자 페이지 없이, 앱 내에서 관리자(ADMIN, MANAGER) 권한을 가진 사용자가 접근할 수 있는 관리 기능을 제공합니다.
-**Note: v2.5.3 기준 아직 구현되지 않았습니다.**
+**Note: v2.5.5 기준 아직 구현되지 않았습니다.**
 
 #### 3.11.1 대학생 인증 관리 (학생증)
 - **인증 요청 목록 조회 (`GET /api/v1/admin/verification/requests`)**
@@ -365,7 +365,7 @@ last_read_message_id + unread_count 자동 관리
   - **신고 반려**: 신고를 기각하고 콘텐츠 유지
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
-## 4. API Endpoint Summary – Golden Master v2.5.3 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.5 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     |
@@ -494,7 +494,7 @@ last_read_message_id + unread_count 자동 관리
 
 ---
 
-## 5. Backend Implementation Status (v2.5.3)
+## 5. Backend Implementation Status (v2.5.5)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
@@ -509,7 +509,7 @@ last_read_message_id + unread_count 자동 관리
 | **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
 | **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
-| **File** | ✅ Fully Implemented | SAS URL generation, Upload Callback |
+| **File** | ✅ Fully Implemented | Real Azure Blob Integration (SAS URL + Single Container) |
 | **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService) |
 
 ### 5.2 Detailed Verification Notes (2026-01-17)
@@ -549,10 +549,16 @@ last_read_message_id + unread_count 자동 관리
 - **Verified:** `NotificationController` provides list/read/read-all endpoints.
 - **Verified:** `NotificationService` calls `FirebaseMessaging` to send multicast push notifications using tokens from `DeviceService`.
 
+#### File Upload
+- **Verified:** `FileController` provides SAS URL generation and completion callback.
+- **Verified:** `AzureBlobStorageConfig` uses environment variables for real integration.
+- **Verified:** `FileService` generates real Azure SAS URLs with 10-min write permission, using a single container (`nonstop`) and purpose-based prefixes.
+
 ### 5.3 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.5 | 2026-01-17 | Backend Progress: Azure Blob Storage (SAS URL) 실제 연동 완료 |
 | v2.5.4 | 2026-01-17 | Backend Progress: Notification (FCM Push) 구현 완료 반영 |
 | v2.5.3 | 2026-01-17 | Backend Progress Update: Chat API 경로 정규화 반영 (/api/v1/chat/group-rooms) |
 | v2.5.2 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
