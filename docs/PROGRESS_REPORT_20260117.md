@@ -248,12 +248,12 @@ abstract class TimetableApi {
 
 **Backend 상세:**
 - `ChatController`:
-  - `GET /api/v1/chat/rooms` - 채팅방 목록
-  - `POST /api/v1/chat/rooms` - 채팅방 생성 (1:1 및 그룹 통합)
-  - `GET /api/v1/chat/rooms/{id}` - 채팅방 상세
-  - `GET /api/v1/chat/rooms/{id}/messages` - 메시지 목록 (페이지네이션)
-  - `PATCH /api/v1/chat/rooms/{id}/read` - 읽음 처리
-  - `DELETE /api/v1/chat/rooms/{id}` - 채팅방 나가기
+  - `GET /chats` - 채팅방 목록
+  - `POST /chats` - 채팅방 생성
+  - `GET /chats/{id}` - 채팅방 상세
+  - `GET /chats/{id}/messages` - 메시지 목록 (페이지네이션)
+  - `POST /chats/{id}/read` - 읽음 처리
+  - `DELETE /chats/{id}/leave` - 채팅방 나가기
 - WebSocket (STOMP):
   - Subscribe: `/topic/chat/{chatRoomId}`
   - Send: `/app/chat/{chatRoomId}/message`
