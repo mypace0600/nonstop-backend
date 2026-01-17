@@ -35,10 +35,18 @@
     </select>
 
     <!--
+        [Select: findAllTokensByUserId]
+        특정 사용자의 활성화된 모든 FCM 디바이스 토큰을 조회합니다.
+    -->
+    <select id="findAllTokensByUserId" resultType="string">
+        SELECT token
+        FROM device_tokens
+        WHERE user_id = #{userId} AND is_active = true
+    </select>
+
+    <!--
         [Insert: save]
         새로운 FCM 디바이스 토큰 정보를 저장합니다.
-        - user_id, device_type, token, is_active, created_at, updated_at 필드를 포함합니다.
-        - useGeneratedKeys="true" keyProperty="id": DB에서 자동 생성된 ID를 DeviceToken 객체의 id 필드에 주입합니다.
     -->
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO device_tokens (user_id, device_type, token, is_active, created_at, updated_at)

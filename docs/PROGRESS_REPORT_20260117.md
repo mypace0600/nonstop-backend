@@ -274,13 +274,14 @@ abstract class TimetableApi {
 |:---|:---:|:---:|:---:|:---|
 | **알림 목록** | ✅ 100% | ❌ 0% | ❌ 미구현 | **Frontend notification 모듈 전무** |
 | **알림 읽음** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **FCM Push** | ⚠️ 50% | ❌ 0% | ❌ 미구현 | Backend에 NotificationService 존재하나 FCM 연동 미완성 |
+| **FCM Push** | ✅ 100% | ❌ 0% | ❌ 미구현 | Backend FCM 연동 완료. Frontend 수신 로직 필요 |
 
 **Backend 상세:**
 - `NotificationController`:
   - `GET /notifications` - 알림 목록
   - `PUT /notifications/{id}/read` - 읽음 처리
   - `PUT /notifications/read-all` - 전체 읽음
+- `NotificationService`: FCM MulticastMessage 발송 로직 구현됨 (DeviceService 연동)
 - `NotificationDto`: id, userId, type, title, body, data, isRead, createdAt
 - NotificationType ENUM: FRIEND_REQUEST, FRIEND_ACCEPTED, NEW_COMMENT, NEW_LIKE, NEW_CHAT_MESSAGE
 
@@ -629,9 +630,9 @@ Backend is **fully implemented**, Frontend uses **mock-only, incompatible struct
 | :---------------- | :-----: | :------: |
 | Notification List |    ✅    |     ❌    |
 | Mark as Read      |    ✅    |     ❌    |
-| FCM Push          |    ⚠️   |     ❌    |
+| FCM Push          |    ✅    |     ❌    |
 
-Frontend has **no notification module at all**.
+Frontend has **no notification module at all**. Backend FCM integration is complete.
 
 ---
 

@@ -510,6 +510,7 @@ last_read_message_id + unread_count 자동 관리
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
 | **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
 | **File** | ✅ Fully Implemented | SAS URL generation, Upload Callback |
+| **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService) |
 
 ### 5.2 Detailed Verification Notes (2026-01-17)
 
@@ -544,10 +545,15 @@ last_read_message_id + unread_count 자동 관리
 - **Verified:** `ReportController` provides `/posts/{postId}/report` and `/comments/{commentId}/report`.
 - **Missing:** Admin capabilities to view and act on these reports.
 
+#### Notification
+- **Verified:** `NotificationController` provides list/read/read-all endpoints.
+- **Verified:** `NotificationService` calls `FirebaseMessaging` to send multicast push notifications using tokens from `DeviceService`.
+
 ### 5.3 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.4 | 2026-01-17 | Backend Progress: Notification (FCM Push) 구현 완료 반영 |
 | v2.5.3 | 2026-01-17 | Backend Progress Update: Chat API 경로 정규화 반영 (/api/v1/chat/group-rooms) |
 | v2.5.2 | 2026-01-17 | Codebase Verification 완료 (Chat/Kafka, Timetable, Report, University Verified) |
 | v2.5 | 2026-01-17 | 게시글/댓글 DTO에 isMine 필드 추가 (작성자 본인 여부 판단용) |

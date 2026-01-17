@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -58,5 +59,17 @@ public class DeviceServiceImpl implements DeviceService {
                     .build();
             deviceMapper.save(newDeviceToken);
         }
+    }
+
+    /**
+     * 특정 사용자의 활성화된 모든 디바이스 토큰을 조회합니다.
+     *
+     * @param userId 조회할 사용자의 ID
+     * @return 활성화된 FCM 토큰 리스트
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getDeviceTokens(Long userId) {
+        return deviceMapper.findAllTokensByUserId(userId);
     }
 }
