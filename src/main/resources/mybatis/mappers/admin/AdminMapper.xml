@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.app.nonstop.domain.admin.mapper.AdminMapper">
+
+    <!-- Result Maps -->
+    <resultMap id="AdminVerificationResultMap" type="com.app.nonstop.domain.admin.dto.AdminVerificationDto">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userNickname" column="user_nickname"/>
+        <result property="universityName" column="university_name"/>
+        <result property="majorName" column="major_name"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="status" column="status"/>
+        <result property="submittedAt" column="created_at"/>
+    </resultMap>
+
+    <resultMap id="AdminReportResultMap" type="com.app.nonstop.domain.admin.dto.AdminReportDto">
+        <id property="id" column="id"/>
+        <result property="reporterNickname" column="reporter_nickname"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="reason" column="reason"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <resultMap id="AdminUserResultMap" type="com.app.nonstop.domain.admin.dto.AdminUserDto">
+        <id property="id" column="id"/>
+        <result property="email" column="email"/>
+        <result property="nickname" column="nickname"/>
+        <result property="universityName" column="university_name"/>
+        <result property="majorName" column="major_name"/>
+        <result property="userRole" column="user_role"/>
+        <result property="isActive" column="is_active"/>
+        <result property="isVerified" column="is_verified"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- Verification Queries -->
+    <select id="selectPendingVerifications" resultMap="AdminVerificationResultMap">
+        SELECT
+            svr.id,
+            svr.user_id,
+            u.nickname AS user_nickname,
+            uni.name AS university_name,
+            m.name AS major_name,
+            svr.image_url,
+            svr.status,
+            svr.created_at
+        FROM student_verification_requests svr
+        JOIN users u ON svr.user_id = u.id
+        LEFT JOIN universities uni ON u.university_id = uni.id
+        LEFT JOIN majors m ON u.major_id = m.id
+        WHERE svr.status = 'PENDING'
+        ORDER BY svr.created_at ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="updateVerificationStatus">
+        UPDATE student_verification_requests
+        SET status = #{status},
+            reject_reason = #{rejectReason},
+            reviewed_by = #{adminId},
+            reviewed_at = NOW(),
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="getUserIdByVerificationId" resultType="Long">
+        SELECT user_id FROM student_verification_requests WHERE id = #{verificationId}
+    </select>
+
+    <update id="updateUserVerificationStatus">
+        UPDATE users
+        SET is_verified = #{isVerified},
+            updated_at = NOW()
+        WHERE id = #{userId}
+    </update>
+
+    <!-- Report Queries -->
+    <select id="selectReports" resultMap="AdminReportResultMap">
+        SELECT
+            r.id,
+            u.nickname AS reporter_nickname,
+            r.target_type,
+            r.target_id,
+            r.reason,
+            r.description,
+            r.status,
+            r.created_at
+        FROM reports r
+        JOIN users u ON r.reporter_id = u.id
+        ORDER BY r.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectReportById" resultMap="AdminReportResultMap">
+        SELECT
+            r.id,
+            u.nickname AS reporter_nickname,
+            r.target_type,
+            r.target_id,
+            r.reason,
+            r.description,
+            r.status,
+            r.created_at
+        FROM reports r
+        JOIN users u ON r.reporter_id = u.id
+        WHERE r.id = #{id}
+    </select>
+
+    <update id="updateReportStatus">
+        UPDATE reports
+        SET status = #{status},
+            handled_by = #{adminId},
+            handled_at = NOW(),
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- User Queries -->
+    <select id="selectUsers" resultMap="AdminUserResultMap">
+        SELECT
+            u.id,
+            u.email,
+            u.nickname,
+            uni.name AS university_name,
+            m.name AS major_name,
+            u.user_role,
+            u.is_active,
+            u.is_verified,
+            u.created_at
+        FROM users u
+        LEFT JOIN universities uni ON u.university_id = uni.id
+        LEFT JOIN majors m ON u.major_id = m.id
+        <where>
+            <if test="search != null and search != ''">
+                u.nickname ILIKE CONCAT('%', #{search}, '%')
+                OR u.email ILIKE CONCAT('%', #{search}, '%')
+            </if>
+        </where>
+        ORDER BY u.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="updateUserRole">
+        UPDATE users
+        SET user_role = #{role},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateUserStatus">
+        UPDATE users
+        SET is_active = #{isActive},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>
