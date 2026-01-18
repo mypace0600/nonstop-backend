@@ -36,8 +36,25 @@ public class TimetableService {
             return List.of();
         }
         return semesterMapper.findAllByUniversityId(universityId).stream()
-                .map(SemesterDto.Response::from)
+                .map(semester -> SemesterDto.Response.from(semester, isCurrentSemester(semester)))
                 .collect(Collectors.toList());
+    }
+
+    private boolean isCurrentSemester(Semester semester) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        int month = now.getMonthValue();
+        int year = now.getYear();
+
+        switch (semester.getType()) {
+            case FIRST:
+                return year == semester.getYear() && month >= 1 && month <= 7;
+                
+            case SECOND:
+                return year == semester.getYear() && month >= 8 && month <= 12;
+                
+            default:
+                return false;
+        }
     }
 
     @Transactional

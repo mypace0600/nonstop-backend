@@ -83,12 +83,14 @@ public class JwtTokenProvider {
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-        Long universityId = claims.get("universityId", Long.class);
-        Boolean isVerified = claims.get("isVerified", Boolean.class);
+        Object universityIdObj = claims.get("universityId");
+        Long universityId = null;
+        if (universityIdObj != null) {
+            universityId = Long.valueOf(universityIdObj.toString());
+        }
 
-        // universityId and isVerified can be null if the token was issued before this change or if logic allows nulls (e.g. signup)
-        // However, CustomUserDetails constructor expects them.
-        // Assuming they are nullable in CustomUserDetails as well (field types are Long and Boolean object wrappers).
+        Object isVerifiedObj = claims.get("isVerified");
+        Boolean isVerified = isVerifiedObj != null && (Boolean) isVerifiedObj;
 
         CustomUserDetails principal = new CustomUserDetails(
                 Long.parseLong(claims.getSubject()),

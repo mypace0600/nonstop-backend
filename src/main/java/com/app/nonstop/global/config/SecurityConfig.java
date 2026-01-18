@@ -5,6 +5,7 @@ import com.app.nonstop.global.security.oauth2.handler.OAuth2AuthenticationFailur
 import com.app.nonstop.global.security.oauth2.handler.OAuth2AuthenticationSuccessHandler;
 import com.app.nonstop.global.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.app.nonstop.global.security.oauth2.service.CustomOAuth2UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,6 +57,17 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json");
+                                response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}}");
+                            } else {
+                                response.sendRedirect("/oauth2/authorize/google");
+                            }
+                        })
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
