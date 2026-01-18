@@ -59,10 +59,6 @@ public class TimetableService {
 
     @Transactional
     public TimetableDto.Response createTimetable(Long userId, TimetableDto.Request request) {
-        if (timetableMapper.existsByUserIdAndSemesterId(userId, request.getSemesterId())) {
-            throw new BusinessException("이미 해당 학기의 시간표가 존재합니다.");
-        }
-
         Timetable timetable = Timetable.builder()
                 .userId(userId)
                 .semesterId(request.getSemesterId())
