@@ -17,12 +17,23 @@ public class SemesterDto {
         private Long id;
         private Integer year;
         private SemesterType type;
+        private Boolean isCurrent;
 
         public static Response from(Semester semester) {
             return Response.builder()
                     .id(semester.getId())
                     .year(semester.getYear())
                     .type(semester.getType())
+                    .isCurrent(false)
+                    .build();
+        }
+
+        public static Response from(Semester semester, boolean isCurrent) {
+            return Response.builder()
+                    .id(semester.getId())
+                    .year(semester.getYear())
+                    .type(semester.getType())
+                    .isCurrent(isCurrent)
                     .build();
         }
     }

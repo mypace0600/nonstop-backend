@@ -36,16 +36,29 @@ public class TimetableService {
             return List.of();
         }
         return semesterMapper.findAllByUniversityId(universityId).stream()
-                .map(SemesterDto.Response::from)
+                .map(semester -> SemesterDto.Response.from(semester, isCurrentSemester(semester)))
                 .collect(Collectors.toList());
+    }
+
+    private boolean isCurrentSemester(Semester semester) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        int month = now.getMonthValue();
+        int year = now.getYear();
+
+        switch (semester.getType()) {
+            case FIRST:
+                return year == semester.getYear() && month >= 1 && month <= 7;
+                
+            case SECOND:
+                return year == semester.getYear() && month >= 8 && month <= 12;
+                
+            default:
+                return false;
+        }
     }
 
     @Transactional
     public TimetableDto.Response createTimetable(Long userId, TimetableDto.Request request) {
-        if (timetableMapper.existsByUserIdAndSemesterId(userId, request.getSemesterId())) {
-            throw new BusinessException("이미 해당 학기의 시간표가 존재합니다.");
-        }
-
         Timetable timetable = Timetable.builder()
                 .userId(userId)
                 .semesterId(request.getSemesterId())
