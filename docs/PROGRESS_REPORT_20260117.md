@@ -9,7 +9,7 @@
 
 | 구분 | 이전 평가 | 현재 평가 | 변경 사유 |
 |:---|:---:|:---:|:---|
-| **Backend** | 90% | **80%** | Admin 기능 전무 |
+| **Backend** | 90% | **85%** | Admin 기능 구현 완료 (Board Admin 제외) |
 | **Frontend** | 60% | **55%** | Friends 모듈 완전 부재, Timetable API 구조 불일치, Notification 전무 |
 
 ### 핵심 블로커 (Critical Blockers)
@@ -17,7 +17,7 @@
 2. **[Frontend] Timetable API 구조 불일치**: Frontend는 Event 중심, Backend는 Timetable/Entry 중심
 3. **[Frontend] Notification 모듈 전무**: FCM 연동 및 알림 목록 화면 없음
 4. **[Frontend] Email Verification API 미연결**: UI만 존재, API 호출 코드 없음
-5. **[Backend] Admin 기능 전무**: 학생증 심사, 신고 관리 API 없음
+5. **[Backend] Board 관리 기능 전무**: 게시판 생성/수정/삭제 API 없음 (Admin 모듈은 구현됨)
 
 ---
 
@@ -323,14 +323,20 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 ---
 
-### 2.12 Admin (관리자) - NOT IMPLEMENTED
+### 2.12 Admin (관리자) - BACKEND IMPLEMENTED
 
 | 항목 | Backend | Frontend | 연동 상태 | 상세 분석 |
 |:---|:---:|:---:|:---:|:---|
-| **학생증 인증 심사** | ❌ 0% | ❌ 0% | ❌ 미구현 | 심사 목록/승인/반려 API 없음 |
-| **신고 관리** | ❌ 0% | ❌ 0% | ❌ 미구현 | 신고 목록/BLIND 처리 API 없음 |
-| **사용자 관리** | ❌ 0% | ❌ 0% | ❌ 미구현 | |
+| **학생증 인증 심사** | ✅ 100% | ❌ 0% | ❌ 미구현 | Backend API 구현 완료 (`/api/v1/admin/verifications`) |
+| **신고 관리** | ✅ 100% | ❌ 0% | ❌ 미구현 | Backend API 구현 완료 (`/api/v1/admin/reports`) |
+| **사용자 관리** | ✅ 100% | ❌ 0% | ❌ 미구현 | Backend API 구현 완료 (`/api/v1/admin/users`) |
 | **통계 대시보드** | ❌ 0% | ❌ 0% | ❌ 미구현 | |
+
+**Backend 상세:**
+- `AdminController`: 인증 심사, 신고 처리, 사용자 관리 API 제공
+- `AdminService`: 승인/반려, BLIND 처리 로직 구현
+- `AdminMapper`: 관련 조회 및 업데이트 쿼리 구현
+- **Security**: `/api/v1/admin/**`는 `ADMIN` 권한 필수
 
 ---
 
@@ -351,8 +357,9 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 | Chat | 7/7 | 5/7 | **71%** |
 | Notification | 3/3 | 0/3 | **0%** |
 | Report | 1/1 | 0/1 | **0%** |
+| Admin | 8/8 | 0/8 | **0%** |
 | File | 1/1 | 1/1 | **100%** (Mock) |
-| **총계** | **63/63** | **34/63** | **54%** |
+| **총계** | **71/71** | **34/71** | **47%** |
 
 ---
 
@@ -404,11 +411,8 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 ### Phase 2: High Priority (기능 완성)
 
-#### 2.1 [Backend] Admin 모듈 구현
-**예상 파일:**
-- `AdminController`: 학생증 심사 목록/승인/반려
-- `AdminReportController`: 신고 목록/BLIND 처리
-- `AdminService`, `AdminMapper`
+#### 2.1 [Backend] Board 관리 (Admin) 기능 구현
+- `BoardController`에 관리자용 API 추가 (생성/수정/삭제)
 
 #### 2.2 [Frontend] 학생증 인증 화면 구현
 - 이미지 선택 UI
@@ -507,7 +511,7 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 | Category     | Previous | Current | Reason for Change                                                                     |
 | :----------- | :------: | :-----: | :------------------------------------------------------------------------------------ |
-| **Backend**  |    90%   | **80%** | No Admin features, FCM Notification incomplete, File service in Mock state            |
+| **Backend**  |    90%   | **85%** | Admin module implemented, Board Admin API missing                                     |
 | **Frontend** |    60%   | **55%** | Friends module missing, Timetable API structure mismatch, Notification module missing |
 
 ### Critical Blockers
@@ -516,7 +520,7 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 2. **[Frontend] Timetable API structure mismatch**: Frontend is event-based, Backend is timetable/entry-based
 3. **[Frontend] Notification module missing**: No FCM integration or notification list UI
 4. **[Frontend] Email Verification API not connected**: UI exists, no API call
-5. **[Backend] Admin features missing**: No student ID review or report management APIs
+5. **[Backend] Board Admin features missing**: No API to create/update boards
 
 ---
 
@@ -655,9 +659,9 @@ Frontend has **no notification module at all**. Backend FCM integration is compl
 
 ---
 
-### 2.12 Admin — **NOT IMPLEMENTED**
+### 2.12 Admin — **BACKEND IMPLEMENTED**
 
-All admin-related features (student verification review, report moderation, user management, dashboards) are missing on both sides.
+All admin-related features (student verification review, report moderation, user management) are implemented on Backend. Frontend implementation is pending.
 
 ---
 
@@ -673,7 +677,8 @@ All admin-related features (student verification review, report moderation, user
 | Timetable    |    9/9    |    0/9    |      0%     |
 | Notification |    3/3    |    0/3    |      0%     |
 | Chat         |    7/7    |    5/7    |     71%     |
-| **Total**    | **63/63** | **34/63** |   **54%**   |
+| Admin        |    8/8    |    0/8    |      0%     |
+| **Total**    | **71/71** | **34/71** |   **47%**   |
 
 ---
 
@@ -688,7 +693,7 @@ All admin-related features (student verification review, report moderation, user
 
 ### Phase 2: High Priority
 
-* Backend Admin module
+* Backend Board Admin API
 * Student ID verification UI
 * Chat image messages
 * Report API integration

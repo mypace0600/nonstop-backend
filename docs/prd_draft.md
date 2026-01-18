@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.5 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.6 (2026.01 Backend Status: 90% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -326,7 +326,7 @@ last_read_message_id + unread_count 자동 관리
 
 ### 3.11 Admin Features (Mobile App Integrated)
 별도의 웹 관리자 페이지 없이, 앱 내에서 관리자(ADMIN, MANAGER) 권한을 가진 사용자가 접근할 수 있는 관리 기능을 제공합니다.
-**Note: v2.5.5 기준 아직 구현되지 않았습니다.**
+**Note: v2.5.6 기준 Backend API 구현 완료되었습니다. (Frontend 미구현)**
 
 #### 3.11.1 대학생 인증 관리 (학생증)
 - **인증 요청 목록 조회 (`GET /api/v1/admin/verification/requests`)**
@@ -378,17 +378,20 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
 | GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
 
-### Admin (New - Not Implemented)
+### Admin (Backend Implemented, Frontend Pending)
 | Method | URI                                             | Description                                      |
 |--------|-------------------------------------------------|--------------------------------------------------|
-| GET    | /api/v1/admin/verification/requests             | 학생증 인증 요청 목록 (Paging, Status 필터)      |
-| GET    | /api/v1/admin/verification/requests/{id}        | 학생증 인증 요청 상세 (이미지 확인)              |
-| POST   | /api/v1/admin/verification/requests/{id}/process| 학생증 인증 승인/반려 처리                       |
+| GET    | /api/v1/admin/verifications                     | 학생증 인증 요청 목록 (Paging)                   |
+| POST   | /api/v1/admin/verifications/{id}/approve        | 학생증 인증 승인                                 |
+| POST   | /api/v1/admin/verifications/{id}/reject         | 학생증 인증 반려                                 |
+| GET    | /api/v1/admin/reports                           | 신고 목록 조회 (Paging)                          |
+| POST   | /api/v1/admin/reports/{id}/process              | 신고 처리 (BLIND/REJECT)                         |
+| GET    | /api/v1/admin/users                             | 사용자 목록 조회 (Search, Paging)                |
+| PATCH  | /api/v1/admin/users/{id}/role                   | 사용자 권한 변경 (USER/ADMIN)                    |
+| PATCH  | /api/v1/admin/users/{id}/status                 | 사용자 상태 변경 (활성/비활성)                   |
 | POST   | /api/v1/communities/{id}/boards                 | 게시판 생성 (관리자 전용)                        |
 | PATCH  | /api/v1/boards/{id}                             | 게시판 수정 (관리자 전용)                        |
 | DELETE | /api/v1/boards/{id}                             | 게시판 비활성화 (관리자 전용)                    |
-| GET    | /api/v1/admin/reports                           | 신고 목록 조회 (Paging, Target, Status 필터)     |
-| POST   | /api/v1/admin/reports/{id}/process              | 신고 처리 (콘텐츠 비활성화/반려)                 |
 
 ### User & Device
 | Method | URI                                       | Description                              |
@@ -505,7 +508,7 @@ last_read_message_id + unread_count 자동 관리
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
 | **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll |
 | **Board (Admin)** | ❌ Not Implemented | Create/Edit/Delete Board endpoints missing |
-| **Admin (App)** | ❌ Not Implemented | Verification Review, Report Management endpoints missing |
+| **Admin (App)** | ✅ Fully Implemented | Verification Review, Report Management, User Control implemented |
 | **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
 | **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
@@ -527,9 +530,9 @@ last_read_message_id + unread_count 자동 관리
 - **Missing:** Admin endpoints to list pending requests and approve/reject them.
 
 #### Admin Features (New)
-- **Missing:** All `Admin` endpoints defined in section 3.11.
-- **Missing:** Logic to list reports and process them (deactivate content).
-- **Missing:** Logic to list/approve verification requests.
+- **Verified:** `AdminController` provides endpoints for verification review (`/verifications`), report processing (`/reports`), and user management (`/users`).
+- **Verified:** `AdminService` implements business logic for approving/rejecting verifications and blinding reported content.
+- **Verified:** `SecurityConfig` restricts access to `/api/v1/admin/**` to users with `ADMIN` authority.
 
 #### Chat System
 - **Verified:** `ChatKafkaProducer` and `ChatKafkaConsumer` classes exist, confirming the Kafka-based architecture.
@@ -558,6 +561,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.6 | 2026-01-18 | Backend Progress: Admin 모듈 (인증/신고/유저 관리) 구현 완료 |
 | v2.5.5 | 2026-01-17 | Backend Progress: Azure Blob Storage (SAS URL) 실제 연동 완료 |
 | v2.5.4 | 2026-01-17 | Backend Progress: Notification (FCM Push) 구현 완료 반영 |
 | v2.5.3 | 2026-01-17 | Backend Progress Update: Chat API 경로 정규화 반영 (/api/v1/chat/group-rooms) |
