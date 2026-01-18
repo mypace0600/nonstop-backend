@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.6 (2026.01 Backend Status: 90% Completed)**
+**Golden Master v2.5.6 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
