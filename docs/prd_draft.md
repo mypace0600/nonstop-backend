@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.7 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.9 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -68,11 +68,72 @@
 ```
 
 #### 3.1.5 universityId = null 허용 정책 (Graceful Degradation)
-가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**  
+가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**
 제한 기능 (universityRequired = true 반환):
 - **학교별** 커뮤니티/게시판 이용
 - 공개 시간표 조회/공개
 - 일부 익명 게시판 (운영 정책에 따라)
+
+#### 3.1.6 회원가입 시 약관 동의 (Terms & Consent)
+회원가입 시 법적 요구사항을 충족하기 위한 약관 동의 절차입니다.
+
+##### 동의 항목
+| 항목 | 필수 여부 | 설명 |
+|------|----------|------|
+| **서비스 이용약관** | 필수 | 서비스 이용에 관한 기본 약관 |
+| **개인정보 수집 및 이용** | 필수 | 개인정보 처리방침 동의 |
+| **마케팅 정보 수신** | 선택 | 푸시 알림, 이메일 마케팅 수신 동의 |
+
+##### 회원가입 API 변경
+**이메일 회원가입 (`POST /api/v1/auth/signup`)**
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123!",
+  "nickname": "논스톱",
+  "agreements": {
+    "termsOfService": true,       // 필수
+    "privacyPolicy": true,        // 필수
+    "marketingConsent": false     // 선택
+  }
+}
+```
+- 필수 항목 미동의 시: `400 Bad Request` ("필수 약관에 동의해야 합니다.")
+
+**Google OAuth 회원가입 (`POST /api/v1/auth/google`)**
+- 최초 가입 시 약관 동의 필요
+- 기존 회원 로그인 시 동의 불필요 (기존 동의 내역 유지)
+- Response에 `isNewUser: true` 포함 시, 클라이언트에서 약관 동의 화면 표시 후 동의 정보 전송
+
+##### 데이터 모델
+```sql
+CREATE TABLE user_agreements (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  agreement_type VARCHAR(30) NOT NULL,  -- TERMS_OF_SERVICE, PRIVACY_POLICY, MARKETING
+  agreed BOOLEAN NOT NULL DEFAULT FALSE,
+  agreed_at TIMESTAMP,
+  ip_address VARCHAR(45),               -- 동의 시점 IP (법적 증빙용)
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+  UNIQUE(user_id, agreement_type)
+);
+```
+
+##### 동의 내역 관리
+- **동의 내역 조회 (`GET /api/v1/users/me/agreements`)**
+  - 현재 동의 상태 및 동의 일시 반환
+- **동의 변경 (`PATCH /api/v1/users/me/agreements`)**
+  - 선택 항목(마케팅 등)만 변경 가능
+  - 필수 항목 철회 시: 회원 탈퇴 안내
+- **약관 문서 조회 (`GET /api/v1/terms/{type}`)**
+  - `type`: `terms-of-service`, `privacy-policy`, `marketing`
+  - 최신 약관 내용(HTML/Markdown) 및 버전 반환
+
+##### 약관 버전 관리
+- 약관 내용 변경 시 버전 업데이트
+- 중요 변경 시 기존 사용자에게 재동의 요청 (앱 내 팝업)
+- 재동의 거부 시 서비스 이용 제한 가능
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
@@ -158,9 +219,44 @@ Community (커뮤니티)
 
 > **Note:** 프론트엔드 호환성을 위해 enum 값이 `COMMENT/REPLY`에서 `GENERAL/ANONYMOUS`로 변경됨 (v2.2)
 
-### 3.6 Friends & Block
-- 친구 요청 → 대기/수락/거절/차단
-- 차단 시: 새 1:1 채팅방 생성 불가, 기존 채팅방은 유지되나 새 메시지 전송 403
+### 3.6 Friends, Block & User Report
+
+#### 3.6.1 친구 관리
+- 친구 요청 → 대기/수락/거절
+- 친구 목록 조회, 친구 삭제
+
+#### 3.6.2 사용자 차단
+사용자 차단은 친구 관계와 독립적으로 동작합니다.
+
+- **차단 (`POST /api/v1/users/{userId}/block`)**
+  - 어디서든 (프로필, 채팅, 게시글 작성자 등) 특정 사용자를 차단
+  - 차단 시 효과:
+    - 새 1:1 채팅방 생성 불가
+    - 기존 채팅방은 유지되나 새 메시지 전송 시 `403 Forbidden`
+    - 상대방의 게시글/댓글이 목록에서 숨김 처리 (선택적)
+    - 상대방이 나를 친구 추가 불가
+- **차단 해제 (`DELETE /api/v1/users/{userId}/block`)**
+- **차단 목록 조회 (`GET /api/v1/users/me/blocked`)**
+
+#### 3.6.3 사용자 신고
+콘텐츠(게시글/댓글) 신고와 별개로, 사용자 자체를 신고하는 기능입니다.
+
+- **사용자 신고 (`POST /api/v1/users/{userId}/report`)**
+  - 신고 사유: `SPAM`, `HARASSMENT`, `INAPPROPRIATE_PROFILE`, `IMPERSONATION`, `OTHER`
+  - 신고 시 상세 내용(description) 입력 가능
+  - 동일 사용자에 대한 중복 신고 방지 (일정 기간 내)
+- **신고 context**: 어디서 신고했는지 기록
+  - `PROFILE`: 프로필 페이지에서 신고
+  - `CHAT`: 채팅 중 신고
+  - `POST`: 게시글 작성자 신고
+  - `COMMENT`: 댓글 작성자 신고
+
+#### 3.6.4 채팅 메시지 신고 (선택적)
+특정 채팅 메시지를 신고하는 기능입니다.
+
+- **메시지 신고 (`POST /api/v1/chat/rooms/{roomId}/messages/{messageId}/report`)**
+  - 신고 사유: `SPAM`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`, `OTHER`
+  - 신고된 메시지 내용이 Admin에게 전달됨
 
 ### 3.7 Chat (1:1 + 그룹 실시간 채팅)
 
@@ -350,20 +446,40 @@ last_read_message_id + unread_count 자동 관리
   - Soft Delete 처리 (목록에서 숨김)
 
 #### 3.11.3 신고 관리
+신고 대상은 **콘텐츠**(게시글, 댓글, 채팅 메시지)와 **사용자**로 구분됩니다.
+
+##### 신고 대상 타입 (`targetType`)
+| 타입 | 설명 | 처리 액션 |
+|------|------|----------|
+| `POST` | 게시글 신고 | 게시글 BLIND/DELETE |
+| `COMMENT` | 댓글 신고 | 댓글 BLIND/DELETE |
+| `CHAT_MESSAGE` | 채팅 메시지 신고 | 메시지 BLIND/DELETE |
+| `USER` | 사용자 신고 | 사용자 경고/정지/차단 |
+
+##### API 명세
 - **신고 목록 조회 (`GET /api/v1/admin/reports`)**
-  - 필터: 대상(`POST`, `COMMENT`), 처리 상태(`PENDING`, `RESOLVED`), 페이징
+  - 필터: 대상(`POST`, `COMMENT`, `CHAT_MESSAGE`, `USER`), 처리 상태(`PENDING`, `RESOLVED`), 페이징
   - **응답 데이터 필수 항목 (네비게이션 지원)**:
     - `id`: 신고 ID
-    - `targetType`: `POST` 또는 `COMMENT`
-    - `targetId`: 신고된 게시글 또는 댓글의 ID
-    - `relatedPostId`: **이동할 게시글 ID**. (게시글 신고 시 `targetId`와 동일, 댓글 신고 시 해당 댓글이 달린 `postId`)
+    - `targetType`: 신고 대상 타입
+    - `targetId`: 신고된 대상의 ID (게시글/댓글/메시지/사용자 ID)
+    - `relatedPostId`: 이동할 게시글 ID (게시글/댓글 신고 시)
+    - `relatedRoomId`: 이동할 채팅방 ID (채팅 메시지 신고 시)
     - `content`: 신고된 내용 미리보기
-    - `reason`: 신고 사유
+    - `reason`: 신고 사유 (`SPAM`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`, `IMPERSONATION`, `OTHER`)
+    - `context`: 신고 발생 위치 (`PROFILE`, `CHAT`, `POST`, `COMMENT`)
     - `reporterName`: 신고자 닉네임 (운영 판단용)
     - `createdAt`: 신고 시각
 - **신고 처리 (`POST /api/v1/admin/reports/{id}/process`)**
-  - **콘텐츠 비활성화**: 신고된 게시글/댓글을 `BLIND` 또는 `DELETED` 처리
-  - **신고 반려**: 신고를 기각하고 콘텐츠 유지
+  - **콘텐츠 신고 처리**:
+    - `BLIND`: 신고된 게시글/댓글/메시지 숨김 처리
+    - `DELETE`: 신고된 콘텐츠 삭제
+    - `REJECT`: 신고 기각, 콘텐츠 유지
+  - **사용자 신고 처리**:
+    - `WARNING`: 경고 (누적 관리)
+    - `SUSPEND`: 일시 정지 (기간 설정)
+    - `BAN`: 영구 차단
+    - `REJECT`: 신고 기각
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
 ## 4. API Endpoint Summary – Golden Master v2.5.5 (완전 목록)
@@ -404,6 +520,9 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/devices/fcm-token                 | FCM 토큰 등록·갱신 (upsert)              |
 | GET    | /api/v1/users/me/verification-status      | 인증 상태 조회 (v2 신규)                 |
 | POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
+| GET    | /api/v1/users/me/agreements               | 약관 동의 내역 조회                      |
+| PATCH  | /api/v1/users/me/agreements               | 약관 동의 변경 (선택 항목)               |
+| GET    | /api/v1/terms/{type}                      | 약관 문서 조회 (최신 버전)               |
 
 ### University
 | Method | URI                                   | Description                              |
@@ -441,16 +560,19 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/comments/{commentId}/like            | 댓글 좋아요 토글      |
 | POST   | /api/v1/comments/{commentId}/report        | 댓글 신고             |
 
-### Friend & Block
-| Method | URI                                       | Description         |
-|--------|-------------------------------------------|---------------------|
-| GET    | /api/v1/friends                           | 친구 목록           |
-| GET    | /api/v1/friends/requests                  | 받은 친구 요청      |
-| POST   | /api/v1/friends/request                   | 친구 요청           |
-| POST   | /api/v1/friends/requests/{id}/accept      | 수락                |
-| POST   | /api/v1/friends/requests/{id}/reject      | 거절                |
-| DELETE | /api/v1/friends/requests/{id}             | 요청 취소           |
-| POST   | /api/v1/friends/block                     | 차단                |
+### Friend, Block & User Report
+| Method | URI                                       | Description                        |
+|--------|-------------------------------------------|------------------------------------|
+| GET    | /api/v1/friends                           | 친구 목록                          |
+| GET    | /api/v1/friends/requests                  | 받은 친구 요청                     |
+| POST   | /api/v1/friends/request                   | 친구 요청                          |
+| POST   | /api/v1/friends/requests/{id}/accept      | 수락                               |
+| POST   | /api/v1/friends/requests/{id}/reject      | 거절                               |
+| DELETE | /api/v1/friends/requests/{id}             | 요청 취소                          |
+| POST   | /api/v1/users/{userId}/block              | 사용자 차단                        |
+| DELETE | /api/v1/users/{userId}/block              | 차단 해제                          |
+| GET    | /api/v1/users/me/blocked                  | 차단 목록 조회                     |
+| POST   | /api/v1/users/{userId}/report             | 사용자 신고                        |
 
 ### Chat
 | Method | URI                                                | Description                                |
@@ -465,6 +587,7 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/chat/group-rooms/{roomId}/members          | 그룹 채팅방 참여자 목록 조회               |
 | POST   | /api/v1/chat/group-rooms/{roomId}/invite           | 그룹 채팅방에 사용자 초대                  |
 | DELETE | /api/v1/chat/group-rooms/{roomId}/members/{userId} | 그룹 채팅방에서 사용자 강퇴 (방장 권한)    |
+| POST   | /api/v1/chat/rooms/{roomId}/messages/{msgId}/report | 채팅 메시지 신고                          |
 | WS     | wss://api.nonstop.app/ws/v1/chat                   | 실시간 채팅 연결 (STOMP Handshake)         |
 | SUB    | /sub/chat/room/{roomId}                            | (STOMP) 채팅방 메시지 구독                 |
 | PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
@@ -562,6 +685,8 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.9 | 2026-01-20 | 회원가입 시 약관 동의 기능 명세 추가 (Terms & Consent) |
+| v2.5.8 | 2026-01-20 | 사용자 신고/차단, 채팅 메시지 신고 기능 명세 추가 |
 | v2.5.7 | 2026-01-19 | User API: `/api/v1/users/me` 응답에 `userRole` 필드 추가 |
 | v2.5.6 | 2026-01-18 | Backend Progress: Admin 모듈 (인증/신고/유저 관리) 구현 완료 |
 | v2.5.5 | 2026-01-17 | Backend Progress: Azure Blob Storage (SAS URL) 실제 연동 완료 |
