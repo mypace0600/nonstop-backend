@@ -16,8 +16,11 @@ import lombok.Setter;
 @Schema(description = "내 정보 조회 응답 DTO")
 public class UserResponseDto {
 
-    @Schema(description = "사용자 ID", example = "1")
+    @Schema(description = "사용자 ID (legacy)", example = "1")
     private Long id;
+
+    @Schema(description = "사용자 ID", example = "1")
+    private Long userId;
 
     @Schema(description = "이메일", example = "test@example.com")
     private String email;
@@ -47,6 +50,7 @@ public class UserResponseDto {
     public static UserResponseDto of(User user) {
         return UserResponseDto.builder()
                 .id(user.getId())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .universityId(user.getUniversityId())
