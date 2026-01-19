@@ -2,6 +2,7 @@ package com.app.nonstop.domain.friend.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,7 +37,10 @@ public class FriendDto {
     }
 
     @Getter
+    @Setter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Schema(description = "친구 목록 응답 DTO")
     public static class FriendResponseDto {
         @Schema(description = "친구 관계 ID (friend_requests 테이블의 ID)", example = "1")
@@ -51,7 +55,9 @@ public class FriendDto {
     
     @Getter
     @Setter
+    @Builder
     @NoArgsConstructor
+    @AllArgsConstructor
     @Schema(description = "공용 사용자 정보 DTO")
     public static class UserInfoDto {
         @Schema(description = "사용자 ID", example = "1")

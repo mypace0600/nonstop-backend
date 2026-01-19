@@ -28,6 +28,16 @@
         </association>
     </resultMap>
 
+    <resultMap id="friendResponseResultMap" type="com.app.nonstop.domain.friend.dto.FriendDto$FriendResponseDto">
+        <id property="friendshipId" column="friendship_id"/>
+        <result property="becameFriendAt" column="became_friend_at"/>
+        <association property="friend" javaType="com.app.nonstop.domain.friend.dto.FriendDto$UserInfoDto">
+            <id property="userId" column="friend_user_id"/>
+            <result property="nickname" column="friend_nickname"/>
+            <result property="profileImageUrl" column="friend_profile_image_url"/>
+        </association>
+    </resultMap>
+
     <!-- Friend -->
     <insert id="insertFriend" parameterType="com.app.nonstop.domain.friend.entity.Friend"
             useGeneratedKeys="true" keyProperty="id">
@@ -77,13 +87,13 @@
         ORDER BY f.created_at DESC
     </select>
 
-    <select id="findFriendsByUserId" resultType="com.app.nonstop.domain.friend.dto.FriendDto$FriendResponseDto">
+    <select id="findFriendsByUserId" resultMap="friendResponseResultMap">
         SELECT
-            f.id AS friendshipId,
-            f.updated_at AS becameFriendAt,
-            friend_user.id AS "friend.userId",
-            friend_user.nickname AS "friend.nickname",
-            friend_user.profile_image_url AS "friend.profileImageUrl"
+            f.id AS friendship_id,
+            f.updated_at AS became_friend_at,
+            friend_user.id AS friend_user_id,
+            friend_user.nickname AS friend_nickname,
+            friend_user.profile_image_url AS friend_profile_image_url
         FROM friends f
         JOIN users friend_user ON
             (CASE
@@ -93,7 +103,7 @@
         WHERE (f.sender_id = #{userId} OR f.receiver_id = #{userId})
           AND f.status = 'ACCEPTED'
           AND f.deleted_at IS NULL
-        ORDER BY becameFriendAt DESC
+        ORDER BY became_friend_at DESC
     </select>
 
     <!-- User Block -->
