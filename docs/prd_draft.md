@@ -574,3 +574,79 @@ last_read_message_id + unread_count 자동 관리
 | v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
 | v2.2 | 2026-01-15 | Board.description 필드 추가, 공통 로깅 설정 추가 |
 | v2.1 | 2025-12-20 | 초기 버전 |
+
+---
+
+## 6. Post-MVP Roadmap
+
+MVP 이후 단계에서 검토할 기능들입니다.
+
+### 6.1 학년/학기 정보 기반 시간표 추천 시스템
+
+#### 배경
+대학교 수업은 학년별 권장 이수 체계가 있습니다 (예: 1학년 교양필수, 2학년 전공기초, 3-4학년 전공심화).
+사용자의 학년 정보를 활용하면 시간표 구성 시 적합한 수업을 추천할 수 있습니다.
+
+#### 제안 기능
+| 기능 | 설명 | 우선순위 |
+|------|------|----------|
+| **학년별 수업 추천** | 사용자 학년에 맞는 권장 과목 추천 | P1 |
+| **수강 이력 기반 추천** | 이전 학기 수강 과목 기반 다음 과목 제안 | P2 |
+| **졸업요건 트래킹** | 필수 이수 학점/과목 충족 여부 시각화 | P3 |
+
+#### 데이터 모델 변경 (안)
+
+**users 테이블 확장**
+```sql
+ALTER TABLE users ADD COLUMN enrollment_year SMALLINT;      -- 입학년도 (예: 2023)
+ALTER TABLE users ADD COLUMN grade_override SMALLINT;       -- 학년 수동 보정 (휴학/편입 대응)
+ALTER TABLE users ADD COLUMN academic_status VARCHAR(20);   -- 학적 상태 (ENROLLED, ON_LEAVE, GRADUATED)
+```
+
+**학년 계산 로직**
+- 기본: `현재연도 - enrollment_year + 1`
+- `grade_override`가 있으면 해당 값 우선 사용
+- 최대 학년 제한: 대학별 설정 (보통 4년제 → 4, 전문대 → 2)
+
+**수업 메타데이터 테이블 (신규)**
+```sql
+CREATE TABLE course_metadata (
+  id BIGSERIAL PRIMARY KEY,
+  university_id BIGINT NOT NULL,
+  course_name VARCHAR(100) NOT NULL,
+  recommended_grade SMALLINT,           -- 권장 학년 (1, 2, 3, 4)
+  course_type VARCHAR(20),              -- REQUIRED, ELECTIVE, MAJOR_REQUIRED 등
+  credits SMALLINT,
+  created_at TIMESTAMP DEFAULT now()
+);
+```
+
+#### 구현 고려사항
+
+1. **학년 정보 수집 방식**
+   - 학생증 인증 시: 학번에서 입학년도 자동 추출 (예: `2023XXXXX` → 2023)
+   - 미인증 사용자: 프로필에서 직접 입력 (선택사항)
+
+2. **휴학/복학/편입 처리**
+   - `grade_override` 필드로 실제 학년과 계산 학년 차이 보정
+   - `academic_status`로 현재 재학 상태 관리
+
+3. **수업 데이터 확보**
+   - Phase 1: 사용자가 직접 입력한 시간표 데이터 집계 (크라우드소싱)
+   - Phase 2: 대학별 공식 커리큘럼 데이터 연동 (파트너십 필요)
+
+4. **추천 알고리즘**
+   - 초기: 단순 학년 매칭 + 같은 학과 사용자들의 수강 패턴 분석
+   - 고도화: 협업 필터링 기반 개인화 추천
+
+#### API 명세 (예정)
+| Method | URI | Description |
+|--------|-----|-------------|
+| PATCH | /api/v1/users/me/academic-info | 학년/학적 정보 설정 |
+| GET | /api/v1/courses/recommended | 학년 기반 수업 추천 목록 |
+| GET | /api/v1/users/me/graduation-status | 졸업요건 충족 현황 (P3) |
+
+#### 의존성 및 선행 조건
+- 시간표 기능 MVP 안정화 완료 후 진행
+- 수업 메타데이터 수집 전략 확정 필요
+- 대학별 커리큘럼 구조 차이 조사 필요
