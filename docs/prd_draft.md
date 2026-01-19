@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.6 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.7 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -76,6 +76,7 @@
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
+- **내 정보 조회 응답에 `userRole` 필드 포함** (`USER`, `ADMIN`, `MANAGER`)
 - 이메일 유저만 비밀번호 변경 가능
 - 회원 탈퇴 → soft delete (deleted_at)
 
@@ -561,6 +562,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.7 | 2026-01-19 | User API: `/api/v1/users/me` 응답에 `userRole` 필드 추가 |
 | v2.5.6 | 2026-01-18 | Backend Progress: Admin 모듈 (인증/신고/유저 관리) 구현 완료 |
 | v2.5.5 | 2026-01-17 | Backend Progress: Azure Blob Storage (SAS URL) 실제 연동 완료 |
 | v2.5.4 | 2026-01-17 | Backend Progress: Notification (FCM Push) 구현 완료 반영 |

@@ -1,8 +1,8 @@
 # 🚀 Nonstop Backend
 
-**버전:** v2.5.5 (Golden Master)
+**버전:** v2.5.7 (Golden Master)
 **진척도:** Backend Status 85% Completed
-**최종 업데이트:** 2026-01-17
+**최종 업데이트:** 2026-01-19
 
 대학생 전용 **실명 기반 커뮤니티 모바일 앱 _Nonstop_**의 백엔드 REST API 서버입니다.
 본 문서는 프로젝트 구조, 핵심 기능, 실행 방법, 아키텍처를 한눈에 이해할 수 있도록 구성된 종합 가이드입니다.
@@ -60,9 +60,10 @@
 - **Azure Blob Storage**: SAS URL(Shared Access Signature) 발급을 통한 클라이언트 직접 업로드 방식
 - **보안**: 용도(`purpose`)별 경로 분리 및 권한 제어
 
-### 🛠 Admin Features (🚧 Partially Implemented)
-- **현재**: 기본적인 데이터 구조 및 로직 준비됨
-- **미구현**: 관리자 전용 API (인증 요청 승인/반려, 게시판 관리, 신고 처리 등)
+### 🛠 Admin Features (✅ Fully Implemented)
+- **인증 관리**: 학생증 인증 요청 목록 조회, 승인/반려 처리
+- **신고 관리**: 신고 목록 조회, 콘텐츠 블라인드/반려 처리
+- **사용자 관리**: 사용자 목록 조회, 권한/상태 변경
 
 ---
 
