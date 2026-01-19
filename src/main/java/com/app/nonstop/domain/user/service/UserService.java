@@ -3,6 +3,8 @@ package com.app.nonstop.domain.user.service;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
 import com.app.nonstop.domain.user.dto.VerificationStatusResponseDto;
 
+import java.util.List;
+
 public interface UserService {
 
     /**
@@ -52,4 +54,12 @@ public interface UserService {
      * @param majorId      전공 ID (선택)
      */
     void updateUniversity(Long userId, Long universityId, Long majorId);
+
+    /**
+     * 닉네임으로 사용자를 검색합니다.
+     *
+     * @param query 검색어
+     * @return 검색된 사용자 목록
+     */
+    List<UserResponseDto> searchUsers(String query);
 }

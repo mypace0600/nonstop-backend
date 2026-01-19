@@ -151,5 +151,18 @@ public class FriendServiceImpl implements FriendService {
 
         friendMapper.insertUserBlock(userBlock);
     }
+
+    @Override
+    @Transactional
+    public void removeFriend(Long userId, Long friendId) {
+        Friend friendship = friendMapper.findFriendByUsers(userId, friendId)
+                .orElseThrow(FriendRequestNotFoundException::new);
+
+        if (friendship.getStatus() != FriendStatus.ACCEPTED) {
+            throw new CannotSendFriendRequestException("친구 관계가 아닙니다.");
+        }
+
+        friendMapper.softDeleteFriend(friendship.getId());
+    }
 }
 

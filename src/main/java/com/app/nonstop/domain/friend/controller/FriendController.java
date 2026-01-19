@@ -92,4 +92,14 @@ public class FriendController {
         friendService.blockUser(userDetails.getUserId(), requestDto);
         return ResponseEntity.ok(ApiResponse.success());
     }
+
+    @Operation(summary = "친구 삭제", description = "친구 관계를 해제합니다.")
+    @DeleteMapping("/{friendId}")
+    public ResponseEntity<ApiResponse<?>> removeFriend(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long friendId
+    ) {
+        friendService.removeFriend(userDetails.getUserId(), friendId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
 }

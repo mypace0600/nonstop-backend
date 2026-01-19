@@ -4,6 +4,7 @@ import com.app.nonstop.domain.user.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 @Mapper
@@ -29,4 +30,6 @@ public interface UserMapper {
     void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
 
     void updateVerificationStatus(@Param("userId") Long userId, @Param("isVerified") boolean isVerified, @Param("verificationMethod") com.app.nonstop.domain.user.entity.VerificationMethod verificationMethod);
+
+    List<com.app.nonstop.domain.user.dto.UserResponseDto> searchByNickname(@Param("query") String query);
 }

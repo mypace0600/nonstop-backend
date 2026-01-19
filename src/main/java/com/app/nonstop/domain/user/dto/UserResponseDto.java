@@ -2,11 +2,17 @@ package com.app.nonstop.domain.user.dto;
 
 import com.app.nonstop.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
+@Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(description = "내 정보 조회 응답 DTO")
 public class UserResponseDto {
 

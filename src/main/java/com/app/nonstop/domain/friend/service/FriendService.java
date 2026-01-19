@@ -22,4 +22,6 @@ public interface FriendService {
 
     // Block User
     void blockUser(Long blockerId, FriendDto.UserBlockRequestDto requestDto);
+
+    void removeFriend(Long userId, Long friendId);
 }
