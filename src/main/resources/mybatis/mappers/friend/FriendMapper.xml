@@ -18,6 +18,16 @@
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
+    <resultMap id="friendRequestResponseResultMap" type="com.app.nonstop.domain.friend.dto.FriendDto$FriendRequestResponseDto">
+        <id property="requestId" column="request_id"/>
+        <result property="requestedAt" column="requested_at"/>
+        <association property="requester" javaType="com.app.nonstop.domain.friend.dto.FriendDto$UserInfoDto">
+            <id property="userId" column="requester_user_id"/>
+            <result property="nickname" column="requester_nickname"/>
+            <result property="profileImageUrl" column="requester_profile_image_url"/>
+        </association>
+    </resultMap>
+
     <!-- Friend -->
     <insert id="insertFriend" parameterType="com.app.nonstop.domain.friend.entity.Friend"
             useGeneratedKeys="true" keyProperty="id">
@@ -52,13 +62,13 @@
           AND deleted_at IS NULL
     </select>
 
-    <select id="findReceivedFriendRequestsByUserId" resultType="com.app.nonstop.domain.friend.dto.FriendDto$FriendRequestResponseDto">
+    <select id="findReceivedFriendRequestsByUserId" resultMap="friendRequestResponseResultMap">
         SELECT
-            f.id AS requestId,
-            f.created_at AS requestedAt,
-            u.id AS "requester.userId",
-            u.nickname AS "requester.nickname",
-            u.profile_image_url AS "requester.profileImageUrl"
+            f.id AS request_id,
+            f.created_at AS requested_at,
+            u.id AS requester_user_id,
+            u.nickname AS requester_nickname,
+            u.profile_image_url AS requester_profile_image_url
         FROM friends f
         JOIN users u ON f.sender_id = u.id
         WHERE f.receiver_id = #{userId}
