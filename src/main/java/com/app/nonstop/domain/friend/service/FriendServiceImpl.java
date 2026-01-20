@@ -52,14 +52,22 @@ public class FriendServiceImpl implements FriendService {
             throw new CannotSendFriendRequestException("당신이 상대방을 차단하여 친구 요청을 보낼 수 없습니다. 차단을 먼저 해제해주세요.");
         }
 
-        friendMapper.findFriendByUsers(senderId, receiverId).ifPresent(friendship -> {
+        var existingFriendship = friendMapper.findFriendByUsers(senderId, receiverId);
+        if (existingFriendship.isPresent()) {
+            Friend friendship = existingFriendship.get();
+
             if (friendship.getStatus() == FriendStatus.WAITING) {
+                // Idempotency: if I already sent the same request, treat as success.
+                if (Objects.equals(friendship.getSenderId(), senderId)) {
+                    return;
+                }
                 throw new CannotSendFriendRequestException("이미 친구 요청을 보냈거나 받은 상태입니다.");
             }
+
             if (friendship.getStatus() == FriendStatus.ACCEPTED) {
                 throw new CannotSendFriendRequestException("이미 친구 관계입니다.");
             }
-        });
+        }
 
         Friend friend = Friend.builder()
                 .senderId(senderId)
@@ -165,4 +173,3 @@ public class FriendServiceImpl implements FriendService {
         friendMapper.softDeleteFriend(friendship.getId());
     }
 }
-
