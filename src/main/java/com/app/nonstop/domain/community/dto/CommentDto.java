@@ -49,6 +49,7 @@ public class CommentDto {
         private Long id;
         private Long postId;
         private Long upperCommentId;
+        private Long writerId;
         private String writerNickname;
         private Boolean isWriterAnonymous;
         private String content;

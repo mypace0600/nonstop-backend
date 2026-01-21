@@ -1,9 +1,14 @@
 package com.app.nonstop.domain.auth.service;
 
 import com.app.nonstop.domain.auth.dto.*;
+import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
+import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
+import com.app.nonstop.domain.auth.exception.InvalidTokenException;
+import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import com.app.nonstop.mapper.AuthMapper;
 import com.app.nonstop.mapper.RefreshTokenMapper;
+import com.app.nonstop.mapper.UserMapper;
 import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
@@ -33,14 +38,16 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthMapper authMapper;
     private final RefreshTokenMapper refreshTokenMapper;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final Optional<FirebaseAuth> firebaseAuth;
 
     @Autowired
-    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
         this.authMapper = authMapper;
         this.refreshTokenMapper = refreshTokenMapper;
+        this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.firebaseAuth = firebaseAuth;
@@ -75,12 +82,22 @@ public class AuthServiceImpl implements AuthService {
         try {
             firebaseToken = auth.verifyIdToken(googleLoginRequest.getIdToken());
         } catch (Exception e) {
-            throw new RuntimeException("Invalid Google ID token.");
+            throw new InvalidTokenException("유효하지 않은 Google ID 토큰입니다.");
         }
 
         String email = firebaseToken.getEmail();
+        String googleProfileImage = firebaseToken.getPicture();
+
         User user = authMapper.findByEmail(email)
+                .map(existingUser -> {
+                    // 기존 사용자: Google 프로필 이미지가 변경되었으면 업데이트
+                    if (googleProfileImage != null && !googleProfileImage.equals(existingUser.getProfileImageUrl())) {
+                        userMapper.updateProfileImage(existingUser.getId(), googleProfileImage);
+                    }
+                    return existingUser;
+                })
                 .orElseGet(() -> {
+                    // 신규 사용자: 회원가입 처리
                     String nickname = firebaseToken.getName();
                     if (authMapper.existsByNickname(nickname)) {
                         nickname = nickname + UUID.randomUUID().toString().substring(0, 4);
@@ -89,7 +106,7 @@ public class AuthServiceImpl implements AuthService {
                             .email(email)
                             .nickname(nickname)
                             .authProvider(AuthProvider.GOOGLE)
-                            .profileImageUrl(firebaseToken.getPicture())
+                            .profileImageUrl(googleProfileImage)
                             .build();
                     authMapper.save(newUser);
                     return newUser;
@@ -112,7 +129,8 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(authentication);
         String refreshToken = jwtTokenProvider.createRefreshToken(authentication);
 
-        refreshTokenMapper.deleteByUserId(user.getId());
+        // 기존 Refresh Token soft-delete (revoke)
+        refreshTokenMapper.revokeByUserId(user.getId());
 
         RefreshToken newRefreshToken = RefreshToken.builder()
                 .userId(user.getId())
@@ -122,6 +140,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenMapper.save(newRefreshToken);
 
         return TokenResponseDto.builder()
+                .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -133,25 +152,26 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken token = refreshTokenMapper.findByToken(refreshToken)
                 .orElse(null);
         if (token != null) {
-            refreshTokenMapper.deleteByUserId(token.getUserId());
+            // Refresh Token soft-delete (revoke) - 토큰 사용 기록 추적 가능
+            refreshTokenMapper.revokeByUserId(token.getUserId());
         }
     }
 
     @Override
     public TokenResponseDto refresh(String refreshTokenValue) {
         if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
-            throw new RuntimeException("Invalid Refresh Token");
+            throw new InvalidTokenException("유효하지 않은 Refresh Token입니다.");
         }
 
         RefreshToken refreshToken = refreshTokenMapper.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("Refresh Token not found in DB"));
+                .orElseThrow(TokenNotFoundException::new);
 
         if (refreshToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new RuntimeException("Refresh Token expired");
+            throw new ExpiredTokenException("만료된 Refresh Token입니다.");
         }
 
-        String email = jwtTokenProvider.getEmailFromToken(refreshToken.getToken());
-        User user = authMapper.findByEmail(email)
+        Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken.getToken());
+        User user = userMapper.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
 
         return issueTokens(user);
@@ -160,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void checkEmailDuplicate(String email) {
         if (authMapper.existsByEmail(email)) {
-            throw new RuntimeException("이미 사용중인 이메일입니다.");
+            throw new DuplicateEmailException();
         }
     }
 

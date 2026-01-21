@@ -9,6 +9,9 @@ import lombok.Getter;
 @Schema(description = "인증 토큰 응답 DTO")
 public class TokenResponseDto {
 
+    @Schema(description = "사용자 ID", example = "1")
+    private Long userId;
+
     @Schema(description = "Access Token")
     private String accessToken;
 

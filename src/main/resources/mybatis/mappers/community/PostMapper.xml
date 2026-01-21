@@ -23,6 +23,7 @@
     <resultMap id="postResponseMap" type="com.app.nonstop.domain.community.dto.PostDto$Response">
         <id property="id" column="id"/>
         <result property="boardId" column="board_id"/>
+        <result property="writerId" column="writer_id"/>
         <result property="writerNickname" column="writer_nickname"/>
         <result property="isWriterAnonymous" column="is_writer_anonymous"/>
         <result property="title" column="title"/>
@@ -97,9 +98,10 @@
 
     <!-- Complex Selects -->
     <select id="findByIdWithDetail" resultMap="postResponseMap">
-        SELECT 
+        SELECT
             p.id,
             p.board_id,
+            p.user_id AS writer_id,
             p.title,
             p.content,
             p.view_count,
@@ -121,9 +123,10 @@
     </select>
 
     <select id="findAllByBoardIdWithDetail" resultMap="postResponseMap">
-        SELECT 
+        SELECT
             p.id,
             p.board_id,
+            p.user_id AS writer_id,
             p.title,
             p.content,
             p.view_count,

@@ -46,6 +46,7 @@ public class PostDto {
     public static class Response {
         private Long id;
         private Long boardId;
+        private Long writerId;
         private String writerNickname;
         private Boolean isWriterAnonymous;
         private String title;

@@ -95,9 +95,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:28080",
-                "http://localhost:3000",
-                "https://your-domain.com"
+                "http://localhost:28080"
+                ,"http://localhost:3000"
+                //,"https://your-domain.com"
         ));
 
         configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));

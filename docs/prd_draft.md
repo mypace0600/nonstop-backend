@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.6 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.12 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -26,8 +26,9 @@
 
 **Refresh Token Rotation (RTR):**
 - Access Token 재발급 시 Refresh Token도 함께 재발급(교체)
-- 한 번 사용된 Refresh Token은 즉시 폐기
+- 한 번 사용된 Refresh Token은 즉시 폐기 (soft-delete via `revoked_at`)
 - 탈취된 Refresh Token의 재사용 방지
+- 토큰 사용 기록 추적 가능 (보안 감사용, v2.5.11)
 
 #### 3.1.2 자동 로그인 (Auto Login)
 자동 로그인은 별도 API가 아닌, 클라이언트가 저장된 토큰으로 세션을 복구하는 과정입니다.
@@ -47,12 +48,23 @@
 **Refresh API 명세:**
 - `POST /api/v1/auth/refresh`
 - Request: `{ "refreshToken": "..." }`
-- Response (성공): `{ "accessToken": "...", "refreshToken": "..." }` (새 토큰 쌍)
+- Response (성공): `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }` (userId + 새 토큰 쌍)
 - Response (실패): `401 Unauthorized` 또는 `403 Forbidden`
+
+**로그인 응답 공통 형식 (v2.5.10):**
+모든 로그인/토큰 재발급 API 응답에는 `userId`가 포함됩니다:
+```json
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
+}
+```
 
 #### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
 - Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
+  - **프로필 동기화 (v2.5.11)**: 기존 사용자 재로그인 시 Google 프로필 이미지 변경 감지 및 자동 업데이트
 
 #### 3.1.4 Access Token Payload (표준)
 ```
@@ -68,14 +80,148 @@
 ```
 
 #### 3.1.5 universityId = null 허용 정책 (Graceful Degradation)
-가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**  
+가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**
 제한 기능 (universityRequired = true 반환):
 - **학교별** 커뮤니티/게시판 이용
 - 공개 시간표 조회/공개
 - 일부 익명 게시판 (운영 정책에 따라)
 
+#### 3.1.6 회원가입 시 약관 동의 (Terms & Consent)
+회원가입 시 법적 요구사항을 충족하기 위한 약관 동의 절차입니다.
+
+##### 동의 항목
+| 항목 | 필수 여부 | 설명 |
+|------|----------|------|
+| **서비스 이용약관** | 필수 | 서비스 이용에 관한 기본 약관 |
+| **개인정보 수집 및 이용** | 필수 | 개인정보 처리방침 동의 |
+| **마케팅 정보 수신** | 선택 | 푸시 알림, 이메일 마케팅 수신 동의 |
+
+##### 회원가입 API 변경
+**이메일 회원가입 (`POST /api/v1/auth/signup`)**
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123!",
+  "nickname": "논스톱",
+  "agreements": {
+    "termsOfService": true,       // 필수
+    "privacyPolicy": true,        // 필수
+    "marketingConsent": false     // 선택
+  }
+}
+```
+- 필수 항목 미동의 시: `400 Bad Request` ("필수 약관에 동의해야 합니다.")
+
+**Google OAuth 회원가입 (`POST /api/v1/auth/google`)**
+- 최초 가입 시 약관 동의 필요
+- 기존 회원 로그인 시 동의 불필요 (기존 동의 내역 유지)
+- Response에 `isNewUser: true` 포함 시, 클라이언트에서 약관 동의 화면 표시 후 동의 정보 전송
+
+##### 데이터 모델
+```sql
+CREATE TABLE user_agreements (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  agreement_type VARCHAR(30) NOT NULL,  -- TERMS_OF_SERVICE, PRIVACY_POLICY, MARKETING
+  agreed BOOLEAN NOT NULL DEFAULT FALSE,
+  agreed_at TIMESTAMP,
+  ip_address VARCHAR(45),               -- 동의 시점 IP (법적 증빙용)
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+  UNIQUE(user_id, agreement_type)
+);
+```
+
+##### 동의 내역 관리
+- **동의 내역 조회 (`GET /api/v1/users/me/agreements`)**
+  - 현재 동의 상태 및 동의 일시 반환
+- **동의 변경 (`PATCH /api/v1/users/me/agreements`)**
+  - 선택 항목(마케팅 등)만 변경 가능
+  - 필수 항목 철회 시: 회원 탈퇴 안내
+- **약관 문서 조회 (`GET /api/v1/terms/{type}`)**
+  - `type`: `terms-of-service`, `privacy-policy`, `marketing`
+  - 최신 약관 내용(HTML/Markdown) 및 버전 반환
+
+##### 약관 버전 관리
+- 약관 내용 변경 시 버전 업데이트
+- 중요 변경 시 기존 사용자에게 재동의 요청 (앱 내 팝업)
+- 재동의 거부 시 서비스 이용 제한 가능
+
+#### 3.1.7 회원가입 이메일 인증 (Signup Email Verification)
+회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
+
+##### 인증 플로우
+1. **회원가입 요청 (`POST /api/v1/auth/signup`)**
+   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보를 입력
+   - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
+   - 서버: 사용자 정보를 **인증 대기 상태(`email_verified=false`)**로 저장
+   - 서버: 6자리 난수 인증 코드 생성 후 Redis에 저장 (TTL 5분)
+   - 서버: 해당 이메일로 인증 코드 발송
+   - Response: `201 Created` + `{ "message": "인증 메일이 발송되었습니다." }`
+
+2. **인증 코드 확인 (`POST /api/v1/auth/signup/verify`)**
+   - 사용자가 수신한 6자리 인증 코드 입력
+   - Request: `{ "email": "user@example.com", "code": "123456" }`
+   - 서버: Redis에서 코드 조회 및 검증
+     - 코드 불일치: `400 Bad Request` ("인증 코드가 일치하지 않습니다.")
+     - 코드 만료: `400 Bad Request` ("인증 코드가 만료되었습니다.")
+   - 검증 성공 시:
+     - `users.email_verified = true` 업데이트
+     - Redis 키 삭제 (일회용)
+     - JWT 토큰 발급 (로그인 처리)
+   - Response: `200 OK` + `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }`
+
+3. **인증 코드 재발송 (`POST /api/v1/auth/signup/resend`)**
+   - 인증 대기 상태(`email_verified=false`)인 사용자만 요청 가능
+   - Request: `{ "email": "user@example.com" }`
+   - 기존 인증 코드 삭제 후 새 코드 생성 및 발송
+   - **Rate Limit**: 1분당 1회 제한 (스팸 방지)
+   - Response: `200 OK` + `{ "message": "인증 메일이 재발송되었습니다." }`
+
+##### 인증 대기 상태 관리
+- `email_verified=false`인 사용자도 **로그인 가능**
+  - 로그인 응답에 `emailVerified: false` 포함
+  - 클라이언트에서 인증 화면으로 유도 (선택적)
+- 인증 대기 상태로 **24시간 경과** 시 자동 삭제 (스케줄러)
+- 동일 이메일로 재가입 시도 시:
+  - 인증 대기 상태 사용자 존재 → 기존 데이터 삭제 후 새로 가입 진행
+
+##### 로그인 응답 변경
+모든 로그인/토큰 재발급 API 응답에 `emailVerified` 필드 추가:
+```json
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG...",
+  "emailVerified": false
+}
+```
+
+##### 데이터 모델 변경
+```sql
+-- users 테이블에 컬럼 추가
+ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP;
+```
+
+##### Redis 키 구조
+- **Key**: `signup:verification:{email}`
+- **Value**: `{ "code": "123456", "userId": 123 }`
+- **TTL**: 5분 (300초)
+
+##### 정책 요약
+| 항목 | 값 |
+|------|-----|
+| 인증 코드 길이 | 6자리 숫자 |
+| 인증 코드 유효 시간 | 5분 |
+| 인증 코드 재발송 제한 | 1분당 1회 |
+| 인증 대기 상태 유지 기간 | 24시간 |
+| 미인증 사용자 로그인 | 허용 (응답에 `emailVerified: false` 포함) |
+
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
+- **내 정보 조회 응답에 `userId` 필드 포함** (User.id 값, v2.5.10)
+- **내 정보 조회 응답에 `userRole` 필드 포함** (`USER`, `ADMIN`, `MANAGER`)
 - 이메일 유저만 비밀번호 변경 가능
 - 회원 탈퇴 → soft delete (deleted_at)
 
@@ -147,6 +293,7 @@ Community (커뮤니티)
 - **댓글 수정:** 내용 및 익명 여부 수정 가능 (작성자 본인만)
 - 댓글에도 이미지 첨부 가능
 - 신고·조회수·삭제(soft delete)
+- **writerId 필드**: 게시글/댓글 응답에 작성자 ID(`writerId`) 포함 (v2.5.10)
 - **isMine 필드**: 게시글/댓글 조회 시 현재 로그인한 유저가 작성자인지 여부를 `isMine` 필드로 반환 (수정/삭제 버튼 표시 판단용)
 
 #### 3.5.1 댓글 타입 (`comment_type`)
@@ -157,9 +304,44 @@ Community (커뮤니티)
 
 > **Note:** 프론트엔드 호환성을 위해 enum 값이 `COMMENT/REPLY`에서 `GENERAL/ANONYMOUS`로 변경됨 (v2.2)
 
-### 3.6 Friends & Block
-- 친구 요청 → 대기/수락/거절/차단
-- 차단 시: 새 1:1 채팅방 생성 불가, 기존 채팅방은 유지되나 새 메시지 전송 403
+### 3.6 Friends, Block & User Report
+
+#### 3.6.1 친구 관리
+- 친구 요청 → 대기/수락/거절
+- 친구 목록 조회, 친구 삭제
+
+#### 3.6.2 사용자 차단
+사용자 차단은 친구 관계와 독립적으로 동작합니다.
+
+- **차단 (`POST /api/v1/users/{userId}/block`)**
+  - 어디서든 (프로필, 채팅, 게시글 작성자 등) 특정 사용자를 차단
+  - 차단 시 효과:
+    - 새 1:1 채팅방 생성 불가
+    - 기존 채팅방은 유지되나 새 메시지 전송 시 `403 Forbidden`
+    - 상대방의 게시글/댓글이 목록에서 숨김 처리 (선택적)
+    - 상대방이 나를 친구 추가 불가
+- **차단 해제 (`DELETE /api/v1/users/{userId}/block`)**
+- **차단 목록 조회 (`GET /api/v1/users/me/blocked`)**
+
+#### 3.6.3 사용자 신고
+콘텐츠(게시글/댓글) 신고와 별개로, 사용자 자체를 신고하는 기능입니다.
+
+- **사용자 신고 (`POST /api/v1/users/{userId}/report`)**
+  - 신고 사유: `SPAM`, `HARASSMENT`, `INAPPROPRIATE_PROFILE`, `IMPERSONATION`, `OTHER`
+  - 신고 시 상세 내용(description) 입력 가능
+  - 동일 사용자에 대한 중복 신고 방지 (일정 기간 내)
+- **신고 context**: 어디서 신고했는지 기록
+  - `PROFILE`: 프로필 페이지에서 신고
+  - `CHAT`: 채팅 중 신고
+  - `POST`: 게시글 작성자 신고
+  - `COMMENT`: 댓글 작성자 신고
+
+#### 3.6.4 채팅 메시지 신고 (선택적)
+특정 채팅 메시지를 신고하는 기능입니다.
+
+- **메시지 신고 (`POST /api/v1/chat/rooms/{roomId}/messages/{messageId}/report`)**
+  - 신고 사유: `SPAM`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`, `OTHER`
+  - 신고된 메시지 내용이 Admin에게 전달됨
 
 ### 3.7 Chat (1:1 + 그룹 실시간 채팅)
 
@@ -349,20 +531,40 @@ last_read_message_id + unread_count 자동 관리
   - Soft Delete 처리 (목록에서 숨김)
 
 #### 3.11.3 신고 관리
+신고 대상은 **콘텐츠**(게시글, 댓글, 채팅 메시지)와 **사용자**로 구분됩니다.
+
+##### 신고 대상 타입 (`targetType`)
+| 타입 | 설명 | 처리 액션 |
+|------|------|----------|
+| `POST` | 게시글 신고 | 게시글 BLIND/DELETE |
+| `COMMENT` | 댓글 신고 | 댓글 BLIND/DELETE |
+| `CHAT_MESSAGE` | 채팅 메시지 신고 | 메시지 BLIND/DELETE |
+| `USER` | 사용자 신고 | 사용자 경고/정지/차단 |
+
+##### API 명세
 - **신고 목록 조회 (`GET /api/v1/admin/reports`)**
-  - 필터: 대상(`POST`, `COMMENT`), 처리 상태(`PENDING`, `RESOLVED`), 페이징
+  - 필터: 대상(`POST`, `COMMENT`, `CHAT_MESSAGE`, `USER`), 처리 상태(`PENDING`, `RESOLVED`), 페이징
   - **응답 데이터 필수 항목 (네비게이션 지원)**:
     - `id`: 신고 ID
-    - `targetType`: `POST` 또는 `COMMENT`
-    - `targetId`: 신고된 게시글 또는 댓글의 ID
-    - `relatedPostId`: **이동할 게시글 ID**. (게시글 신고 시 `targetId`와 동일, 댓글 신고 시 해당 댓글이 달린 `postId`)
+    - `targetType`: 신고 대상 타입
+    - `targetId`: 신고된 대상의 ID (게시글/댓글/메시지/사용자 ID)
+    - `relatedPostId`: 이동할 게시글 ID (게시글/댓글 신고 시)
+    - `relatedRoomId`: 이동할 채팅방 ID (채팅 메시지 신고 시)
     - `content`: 신고된 내용 미리보기
-    - `reason`: 신고 사유
+    - `reason`: 신고 사유 (`SPAM`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`, `IMPERSONATION`, `OTHER`)
+    - `context`: 신고 발생 위치 (`PROFILE`, `CHAT`, `POST`, `COMMENT`)
     - `reporterName`: 신고자 닉네임 (운영 판단용)
     - `createdAt`: 신고 시각
 - **신고 처리 (`POST /api/v1/admin/reports/{id}/process`)**
-  - **콘텐츠 비활성화**: 신고된 게시글/댓글을 `BLIND` 또는 `DELETED` 처리
-  - **신고 반려**: 신고를 기각하고 콘텐츠 유지
+  - **콘텐츠 신고 처리**:
+    - `BLIND`: 신고된 게시글/댓글/메시지 숨김 처리
+    - `DELETE`: 신고된 콘텐츠 삭제
+    - `REJECT`: 신고 기각, 콘텐츠 유지
+  - **사용자 신고 처리**:
+    - `WARNING`: 경고 (누적 관리)
+    - `SUSPEND`: 일시 정지 (기간 설정)
+    - `BAN`: 영구 차단
+    - `REJECT`: 신고 기각
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
 ## 4. API Endpoint Summary – Golden Master v2.5.5 (완전 목록)
@@ -370,7 +572,9 @@ last_read_message_id + unread_count 자동 관리
 ### Authentication
 | Method | URI                                    | Description                     |
 |--------|----------------------------------------|---------------------------------|
-| POST   | /api/v1/auth/signup                    | 이메일 회원가입                  |
+| POST   | /api/v1/auth/signup                    | 이메일 회원가입 (인증 대기 상태) |
+| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   |
+| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   |
 | POST   | /api/v1/auth/google                    | Google 로그인                   |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             |
@@ -403,6 +607,9 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/devices/fcm-token                 | FCM 토큰 등록·갱신 (upsert)              |
 | GET    | /api/v1/users/me/verification-status      | 인증 상태 조회 (v2 신규)                 |
 | POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
+| GET    | /api/v1/users/me/agreements               | 약관 동의 내역 조회                      |
+| PATCH  | /api/v1/users/me/agreements               | 약관 동의 변경 (선택 항목)               |
+| GET    | /api/v1/terms/{type}                      | 약관 문서 조회 (최신 버전)               |
 
 ### University
 | Method | URI                                   | Description                              |
@@ -440,16 +647,19 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/comments/{commentId}/like            | 댓글 좋아요 토글      |
 | POST   | /api/v1/comments/{commentId}/report        | 댓글 신고             |
 
-### Friend & Block
-| Method | URI                                       | Description         |
-|--------|-------------------------------------------|---------------------|
-| GET    | /api/v1/friends                           | 친구 목록           |
-| GET    | /api/v1/friends/requests                  | 받은 친구 요청      |
-| POST   | /api/v1/friends/request                   | 친구 요청           |
-| POST   | /api/v1/friends/requests/{id}/accept      | 수락                |
-| POST   | /api/v1/friends/requests/{id}/reject      | 거절                |
-| DELETE | /api/v1/friends/requests/{id}             | 요청 취소           |
-| POST   | /api/v1/friends/block                     | 차단                |
+### Friend, Block & User Report
+| Method | URI                                       | Description                        |
+|--------|-------------------------------------------|------------------------------------|
+| GET    | /api/v1/friends                           | 친구 목록                          |
+| GET    | /api/v1/friends/requests                  | 받은 친구 요청                     |
+| POST   | /api/v1/friends/request                   | 친구 요청                          |
+| POST   | /api/v1/friends/requests/{id}/accept      | 수락                               |
+| POST   | /api/v1/friends/requests/{id}/reject      | 거절                               |
+| DELETE | /api/v1/friends/requests/{id}             | 요청 취소                          |
+| POST   | /api/v1/users/{userId}/block              | 사용자 차단                        |
+| DELETE | /api/v1/users/{userId}/block              | 차단 해제                          |
+| GET    | /api/v1/users/me/blocked                  | 차단 목록 조회                     |
+| POST   | /api/v1/users/{userId}/report             | 사용자 신고                        |
 
 ### Chat
 | Method | URI                                                | Description                                |
@@ -464,6 +674,7 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/chat/group-rooms/{roomId}/members          | 그룹 채팅방 참여자 목록 조회               |
 | POST   | /api/v1/chat/group-rooms/{roomId}/invite           | 그룹 채팅방에 사용자 초대                  |
 | DELETE | /api/v1/chat/group-rooms/{roomId}/members/{userId} | 그룹 채팅방에서 사용자 강퇴 (방장 권한)    |
+| POST   | /api/v1/chat/rooms/{roomId}/messages/{msgId}/report | 채팅 메시지 신고                          |
 | WS     | wss://api.nonstop.app/ws/v1/chat                   | 실시간 채팅 연결 (STOMP Handshake)         |
 | SUB    | /sub/chat/room/{roomId}                            | (STOMP) 채팅방 메시지 구독                 |
 | PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
@@ -561,6 +772,12 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.12 | 2026-01-21 | 회원가입 이메일 인증 기능 명세 추가 (signup/verify, signup/resend API) |
+| v2.5.11 | 2026-01-21 | Auth 커스텀 예외 추가 (401/409 응답), Google 로그인 프로필 동기화, RefreshToken soft-revoke 구현 |
+| v2.5.10 | 2026-01-21 | 로그인 응답에 `userId` 추가, UserResponseDto에 `userId` 추가, Post/Comment 응답에 `writerId` 추가 |
+| v2.5.9 | 2026-01-20 | 회원가입 시 약관 동의 기능 명세 추가 (Terms & Consent) |
+| v2.5.8 | 2026-01-20 | 사용자 신고/차단, 채팅 메시지 신고 기능 명세 추가 |
+| v2.5.7 | 2026-01-19 | User API: `/api/v1/users/me` 응답에 `userRole` 필드 추가 |
 | v2.5.6 | 2026-01-18 | Backend Progress: Admin 모듈 (인증/신고/유저 관리) 구현 완료 |
 | v2.5.5 | 2026-01-17 | Backend Progress: Azure Blob Storage (SAS URL) 실제 연동 완료 |
 | v2.5.4 | 2026-01-17 | Backend Progress: Notification (FCM Push) 구현 완료 반영 |
@@ -572,3 +789,79 @@ last_read_message_id + unread_count 자동 관리
 | v2.2 | 2026-01-16 | CommentType enum 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS) |
 | v2.2 | 2026-01-15 | Board.description 필드 추가, 공통 로깅 설정 추가 |
 | v2.1 | 2025-12-20 | 초기 버전 |
+
+---
+
+## 6. Post-MVP Roadmap
+
+MVP 이후 단계에서 검토할 기능들입니다.
+
+### 6.1 학년/학기 정보 기반 시간표 추천 시스템
+
+#### 배경
+대학교 수업은 학년별 권장 이수 체계가 있습니다 (예: 1학년 교양필수, 2학년 전공기초, 3-4학년 전공심화).
+사용자의 학년 정보를 활용하면 시간표 구성 시 적합한 수업을 추천할 수 있습니다.
+
+#### 제안 기능
+| 기능 | 설명 | 우선순위 |
+|------|------|----------|
+| **학년별 수업 추천** | 사용자 학년에 맞는 권장 과목 추천 | P1 |
+| **수강 이력 기반 추천** | 이전 학기 수강 과목 기반 다음 과목 제안 | P2 |
+| **졸업요건 트래킹** | 필수 이수 학점/과목 충족 여부 시각화 | P3 |
+
+#### 데이터 모델 변경 (안)
+
+**users 테이블 확장**
+```sql
+ALTER TABLE users ADD COLUMN enrollment_year SMALLINT;      -- 입학년도 (예: 2023)
+ALTER TABLE users ADD COLUMN grade_override SMALLINT;       -- 학년 수동 보정 (휴학/편입 대응)
+ALTER TABLE users ADD COLUMN academic_status VARCHAR(20);   -- 학적 상태 (ENROLLED, ON_LEAVE, GRADUATED)
+```
+
+**학년 계산 로직**
+- 기본: `현재연도 - enrollment_year + 1`
+- `grade_override`가 있으면 해당 값 우선 사용
+- 최대 학년 제한: 대학별 설정 (보통 4년제 → 4, 전문대 → 2)
+
+**수업 메타데이터 테이블 (신규)**
+```sql
+CREATE TABLE course_metadata (
+  id BIGSERIAL PRIMARY KEY,
+  university_id BIGINT NOT NULL,
+  course_name VARCHAR(100) NOT NULL,
+  recommended_grade SMALLINT,           -- 권장 학년 (1, 2, 3, 4)
+  course_type VARCHAR(20),              -- REQUIRED, ELECTIVE, MAJOR_REQUIRED 등
+  credits SMALLINT,
+  created_at TIMESTAMP DEFAULT now()
+);
+```
+
+#### 구현 고려사항
+
+1. **학년 정보 수집 방식**
+   - 학생증 인증 시: 학번에서 입학년도 자동 추출 (예: `2023XXXXX` → 2023)
+   - 미인증 사용자: 프로필에서 직접 입력 (선택사항)
+
+2. **휴학/복학/편입 처리**
+   - `grade_override` 필드로 실제 학년과 계산 학년 차이 보정
+   - `academic_status`로 현재 재학 상태 관리
+
+3. **수업 데이터 확보**
+   - Phase 1: 사용자가 직접 입력한 시간표 데이터 집계 (크라우드소싱)
+   - Phase 2: 대학별 공식 커리큘럼 데이터 연동 (파트너십 필요)
+
+4. **추천 알고리즘**
+   - 초기: 단순 학년 매칭 + 같은 학과 사용자들의 수강 패턴 분석
+   - 고도화: 협업 필터링 기반 개인화 추천
+
+#### API 명세 (예정)
+| Method | URI | Description |
+|--------|-----|-------------|
+| PATCH | /api/v1/users/me/academic-info | 학년/학적 정보 설정 |
+| GET | /api/v1/courses/recommended | 학년 기반 수업 추천 목록 |
+| GET | /api/v1/users/me/graduation-status | 졸업요건 충족 현황 (P3) |
+
+#### 의존성 및 선행 조건
+- 시간표 기능 MVP 안정화 완료 후 진행
+- 수업 메타데이터 수집 전략 확정 필요
+- 대학별 커리큘럼 구조 차이 조사 필요

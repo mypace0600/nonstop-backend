@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.user.dto;
 
 import com.app.nonstop.domain.user.entity.User;
+import com.app.nonstop.domain.user.entity.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,8 +48,12 @@ public class UserResponseDto {
     @Schema(description = "대학생 인증 여부", example = "true")
     private Boolean isVerified;
 
+    @Schema(description = "사용자 권한", example = "USER")
+    private UserRole userRole;
+
     public static UserResponseDto of(User user) {
         return UserResponseDto.builder()
+                .userId(user.getId())
                 .id(user.getId())
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -59,6 +64,7 @@ public class UserResponseDto {
                 .introduction(user.getIntroduction())
                 .preferredLanguage(user.getPreferredLanguage())
                 .isVerified(user.getIsVerified())
+                .userRole(user.getUserRole())
                 .build();
     }
 }

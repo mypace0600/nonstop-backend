@@ -22,6 +22,7 @@
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="upperCommentId" column="upper_comment_id"/>
+        <result property="writerId" column="writer_id"/>
         <result property="writerNickname" column="writer_nickname"/>
         <result property="isWriterAnonymous" column="is_writer_anonymous"/>
         <result property="content" column="content"/>
@@ -93,6 +94,7 @@
             c.id,
             c.post_id,
             c.upper_comment_id,
+            c.user_id AS writer_id,
             c.content,
             c.type,
             c.depth,
