@@ -1,6 +1,8 @@
 package com.app.nonstop.domain.friend.exception;
 
-public class CannotSendFriendRequestException extends RuntimeException {
+import com.app.nonstop.global.common.exception.BusinessException;
+
+public class CannotSendFriendRequestException extends BusinessException {
     public CannotSendFriendRequestException(String message) {
         super(message);
     }

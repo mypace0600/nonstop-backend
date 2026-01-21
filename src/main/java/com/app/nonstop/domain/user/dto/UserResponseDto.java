@@ -3,19 +3,25 @@ package com.app.nonstop.domain.user.dto;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.entity.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
+@Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(description = "내 정보 조회 응답 DTO")
 public class UserResponseDto {
 
+    @Schema(description = "사용자 ID (legacy)", example = "1")
+    private Long id;
+
     @Schema(description = "사용자 ID", example = "1")
     private Long userId;
-
-    @Schema(description = "사용자 ID (deprecated, userId 사용 권장)", example = "1")
-    private Long id;
 
     @Schema(description = "이메일", example = "test@example.com")
     private String email;
@@ -49,6 +55,7 @@ public class UserResponseDto {
         return UserResponseDto.builder()
                 .userId(user.getId())
                 .id(user.getId())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .universityId(user.getUniversityId())

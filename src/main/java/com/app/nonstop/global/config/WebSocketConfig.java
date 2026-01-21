@@ -40,6 +40,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/v1/chat")
                 .addInterceptors(webSocketAuthInterceptor)
+                .setAllowedOriginPatterns("*");
+        
+        registry.addEndpoint("/ws/v1/chat")
+                .addInterceptors(webSocketAuthInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS()
                 .setStreamBytesLimit(properties.getMessage().getMaxSizeKb() * 1024)

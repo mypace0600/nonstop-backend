@@ -22,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -220,5 +222,10 @@ public class UserServiceImpl implements UserService {
 
         // 4. 사용자 대학교/전공 정보 업데이트
         userMapper.updateUniversity(userId, universityId, majorId);
+    }
+
+    @Override
+    public List<UserResponseDto> searchUsers(String query) {
+        return userMapper.searchByNickname(query);
     }
 }

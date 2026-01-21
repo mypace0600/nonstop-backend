@@ -26,4 +26,12 @@
           AND deleted_at IS NULL
     </update>
 
+    <select id="searchByNickname" resultType="com.app.nonstop.domain.user.dto.UserResponseDto">
+        SELECT u.id, u.id AS user_id, u.email, u.nickname, u.university_id, u.major_id, u.profile_image_url, u.introduction, u.preferred_language, u.is_verified
+        FROM users u
+        WHERE u.nickname LIKE CONCAT('%', #{query}, '%')
+          AND u.deleted_at IS NULL
+        LIMIT 20
+    </select>
+
 </mapper>

@@ -21,7 +21,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 사용자 관련 API 요청을 처리하는 컨트롤러입니다.
@@ -146,5 +149,20 @@ public class UserController {
                 requestDto.getMajorId()
         );
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /**
+     * 사용자를 검색합니다. (친구 추가용)
+     *
+     * @param query 검색어 (닉네임)
+     * @return 검색된 사용자 목록
+     */
+    @Operation(summary = "사용자 검색", description = "닉네임으로 사용자를 검색합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<UserResponseDto>>> searchUsers(
+            @RequestParam String query
+    ) {
+        List<UserResponseDto> searchResults = userService.searchUsers(query);
+        return ResponseEntity.ok(ApiResponse.success(searchResults));
     }
 }

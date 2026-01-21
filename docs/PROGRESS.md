@@ -2,6 +2,53 @@
 
 This document records the recent changes and architectural updates in the **Nonstop** backend.
 
+## 📅 Summary of Changes (2026-01-19)
+The recent updates focused on stabilizing the Friends module and expanding User discovery:
+1.  **Friends Module Mapping**: Fixed critical MyBatis mapping errors in friends list and requests.
+2.  **User Discovery**: Implemented user search and unfriend capabilities.
+3.  **WebSocket Handshake**: Enhanced WebSocket configuration for better protocol upgrade support.
+
+---
+
+## 🚀 Commit Details (2026-01-19)
+
+### 1. Fix: Friends Module MyBatis Mapping & DTOs
+- **Commit Hash**: `297037f86801bd4af0ec5be3...`
+- **Affected Files**:
+    - `src/main/resources/mybatis/mappers/friend/FriendMapper.xml`
+    - `src/main/java/com/app/nonstop/domain/friend/dto/FriendDto.java`
+
+#### Detailed Changes:
+- **ResultMap Association**: Implemented `<resultMap>` with `<association>` for `FriendRequestResponseDto` and `FriendResponseDto`. This fixes the `BadSqlGrammarException` where MyBatis attempted to map `userId` (INT8) into `LocalDateTime` fields.
+- **DTO Mutability**: Added `@Setter`, `@NoArgsConstructor`, and `@AllArgsConstructor` to `FriendDto` sub-classes to ensure MyBatis can instantiate and populate nested objects correctly.
+
+---
+
+### 2. Feat: User Search & Unfriend Capability
+- **Commit Hash**: `7d6736189578ab...`
+- **Affected Files**:
+    - `src/main/java/com/app/nonstop/domain/user/controller/UserController.java`
+    - `src/main/java/com/app/nonstop/domain/friend/controller/FriendController.java`
+    - `src/main/java/com/app/nonstop/domain/user/service/UserService.java`
+
+#### Detailed Changes:
+- **Search API**: Added `GET /api/v1/users/search?query=...` to allow users to find others by nickname for friend requests.
+- **Unfriend API**: Added `DELETE /api/v1/friends/{friendId}` to allow users to terminate existing friend relationships.
+- **Service Layer logic**: Implemented necessary business logic and Mapper methods (`searchByNickname`) to support these features.
+
+---
+
+### 3. Fix: WebSocket Protocol Upgrade (HTTP 400)
+- **Commit Hash**: `c76f2a9...`
+- **Affected Files**:
+    - `src/main/java/com/app/nonstop/global/config/WebSocketConfig.java`
+
+#### Detailed Changes:
+- **Pure WebSocket Support**: Enabled a direct WebSocket endpoint at `/ws/v1/chat` alongside the existing SockJS endpoint. This resolves the HTTP 400 "was not upgraded to websocket" error seen by pure STOMP clients.
+- **Auth Interceptor Alignment**: Ensured the handshake interceptor correctly processes the `token` parameter from the URL query string.
+
+---
+
 ## 📅 Summary of Changes (2026-01-18)
 The recent updates focused on two main areas:
 1.  **Academic Calendar Logic**: Implementation of the Uzbekistan-specific semester system.
