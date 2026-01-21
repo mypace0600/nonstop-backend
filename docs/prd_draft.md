@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.10 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.11 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -26,8 +26,9 @@
 
 **Refresh Token Rotation (RTR):**
 - Access Token 재발급 시 Refresh Token도 함께 재발급(교체)
-- 한 번 사용된 Refresh Token은 즉시 폐기
+- 한 번 사용된 Refresh Token은 즉시 폐기 (soft-delete via `revoked_at`)
 - 탈취된 Refresh Token의 재사용 방지
+- 토큰 사용 기록 추적 가능 (보안 감사용, v2.5.11)
 
 #### 3.1.2 자동 로그인 (Auto Login)
 자동 로그인은 별도 API가 아닌, 클라이언트가 저장된 토큰으로 세션을 복구하는 과정입니다.
@@ -63,6 +64,7 @@
 #### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
 - Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
+  - **프로필 동기화 (v2.5.11)**: 기존 사용자 재로그인 시 Google 프로필 이미지 변경 감지 및 자동 업데이트
 
 #### 3.1.4 Access Token Payload (표준)
 ```
@@ -697,6 +699,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.11 | 2026-01-21 | Auth 커스텀 예외 추가 (401/409 응답), Google 로그인 프로필 동기화, RefreshToken soft-revoke 구현 |
 | v2.5.10 | 2026-01-21 | 로그인 응답에 `userId` 추가, UserResponseDto에 `userId` 추가, Post/Comment 응답에 `writerId` 추가 |
 | v2.5.9 | 2026-01-20 | 회원가입 시 약관 동의 기능 명세 추가 (Terms & Consent) |
 | v2.5.8 | 2026-01-20 | 사용자 신고/차단, 채팅 메시지 신고 기능 명세 추가 |
