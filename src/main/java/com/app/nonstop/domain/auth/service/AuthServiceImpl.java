@@ -86,8 +86,18 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String email = firebaseToken.getEmail();
+        String googleProfileImage = firebaseToken.getPicture();
+
         User user = authMapper.findByEmail(email)
+                .map(existingUser -> {
+                    // 기존 사용자: Google 프로필 이미지가 변경되었으면 업데이트
+                    if (googleProfileImage != null && !googleProfileImage.equals(existingUser.getProfileImageUrl())) {
+                        userMapper.updateProfileImage(existingUser.getId(), googleProfileImage);
+                    }
+                    return existingUser;
+                })
                 .orElseGet(() -> {
+                    // 신규 사용자: 회원가입 처리
                     String nickname = firebaseToken.getName();
                     if (authMapper.existsByNickname(nickname)) {
                         nickname = nickname + UUID.randomUUID().toString().substring(0, 4);
@@ -96,7 +106,7 @@ public class AuthServiceImpl implements AuthService {
                             .email(email)
                             .nickname(nickname)
                             .authProvider(AuthProvider.GOOGLE)
-                            .profileImageUrl(firebaseToken.getPicture())
+                            .profileImageUrl(googleProfileImage)
                             .build();
                     authMapper.save(newUser);
                     return newUser;
@@ -119,7 +129,8 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(authentication);
         String refreshToken = jwtTokenProvider.createRefreshToken(authentication);
 
-        refreshTokenMapper.deleteByUserId(user.getId());
+        // 기존 Refresh Token soft-delete (revoke)
+        refreshTokenMapper.revokeByUserId(user.getId());
 
         RefreshToken newRefreshToken = RefreshToken.builder()
                 .userId(user.getId())
@@ -141,7 +152,8 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken token = refreshTokenMapper.findByToken(refreshToken)
                 .orElse(null);
         if (token != null) {
-            refreshTokenMapper.deleteByUserId(token.getUserId());
+            // Refresh Token soft-delete (revoke) - 토큰 사용 기록 추적 가능
+            refreshTokenMapper.revokeByUserId(token.getUserId());
         }
     }
 

@@ -14,4 +14,6 @@ public interface RefreshTokenMapper {
     Optional<RefreshToken> findByToken(@Param("token") String token);
 
     void deleteByUserId(@Param("userId") Long userId);
+
+    void revokeByUserId(@Param("userId") Long userId);
 }
