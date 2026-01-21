@@ -1,5 +1,11 @@
 package com.app.nonstop.global.common.exception;
 
+import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
+import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
+import com.app.nonstop.domain.auth.exception.InvalidTokenException;
+import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
+import com.app.nonstop.domain.user.exception.InvalidPasswordException;
+import com.app.nonstop.domain.user.exception.UserNotFoundException;
 import com.app.nonstop.global.common.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,6 +31,44 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<?> handleBusinessException(BusinessException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    // Auth 관련 예외 (401 Unauthorized)
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleUserNotFoundException(UserNotFoundException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleInvalidPasswordException(InvalidPasswordException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleInvalidTokenException(InvalidTokenException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(TokenNotFoundException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleTokenNotFoundException(TokenNotFoundException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    @ExceptionHandler(ExpiredTokenException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<?> handleExpiredTokenException(ExpiredTokenException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
+    // 이메일 중복 (409 Conflict)
+    @ExceptionHandler(DuplicateEmailException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<?> handleDuplicateEmailException(DuplicateEmailException e) {
         return ApiResponse.error(e.getMessage());
     }
 

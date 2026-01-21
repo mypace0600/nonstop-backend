@@ -1,6 +1,10 @@
 package com.app.nonstop.domain.auth.service;
 
 import com.app.nonstop.domain.auth.dto.*;
+import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
+import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
+import com.app.nonstop.domain.auth.exception.InvalidTokenException;
+import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import com.app.nonstop.mapper.AuthMapper;
 import com.app.nonstop.mapper.RefreshTokenMapper;
@@ -78,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             firebaseToken = auth.verifyIdToken(googleLoginRequest.getIdToken());
         } catch (Exception e) {
-            throw new RuntimeException("Invalid Google ID token.");
+            throw new InvalidTokenException("유효하지 않은 Google ID 토큰입니다.");
         }
 
         String email = firebaseToken.getEmail();
@@ -144,14 +148,14 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public TokenResponseDto refresh(String refreshTokenValue) {
         if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
-            throw new RuntimeException("Invalid Refresh Token");
+            throw new InvalidTokenException("유효하지 않은 Refresh Token입니다.");
         }
 
         RefreshToken refreshToken = refreshTokenMapper.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("Refresh Token not found in DB"));
+                .orElseThrow(TokenNotFoundException::new);
 
         if (refreshToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new RuntimeException("Refresh Token expired");
+            throw new ExpiredTokenException("만료된 Refresh Token입니다.");
         }
 
         Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken.getToken());
@@ -164,7 +168,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void checkEmailDuplicate(String email) {
         if (authMapper.existsByEmail(email)) {
-            throw new RuntimeException("이미 사용중인 이메일입니다.");
+            throw new DuplicateEmailException();
         }
     }
 
