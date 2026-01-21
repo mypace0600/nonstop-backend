@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.9 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.10 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -47,8 +47,18 @@
 **Refresh API 명세:**
 - `POST /api/v1/auth/refresh`
 - Request: `{ "refreshToken": "..." }`
-- Response (성공): `{ "accessToken": "...", "refreshToken": "..." }` (새 토큰 쌍)
+- Response (성공): `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }` (userId + 새 토큰 쌍)
 - Response (실패): `401 Unauthorized` 또는 `403 Forbidden`
+
+**로그인 응답 공통 형식 (v2.5.10):**
+모든 로그인/토큰 재발급 API 응답에는 `userId`가 포함됩니다:
+```json
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
+}
+```
 
 #### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
@@ -137,6 +147,7 @@ CREATE TABLE user_agreements (
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
+- **내 정보 조회 응답에 `userId` 필드 포함** (User.id 값, v2.5.10)
 - **내 정보 조회 응답에 `userRole` 필드 포함** (`USER`, `ADMIN`, `MANAGER`)
 - 이메일 유저만 비밀번호 변경 가능
 - 회원 탈퇴 → soft delete (deleted_at)
@@ -209,6 +220,7 @@ Community (커뮤니티)
 - **댓글 수정:** 내용 및 익명 여부 수정 가능 (작성자 본인만)
 - 댓글에도 이미지 첨부 가능
 - 신고·조회수·삭제(soft delete)
+- **writerId 필드**: 게시글/댓글 응답에 작성자 ID(`writerId`) 포함 (v2.5.10)
 - **isMine 필드**: 게시글/댓글 조회 시 현재 로그인한 유저가 작성자인지 여부를 `isMine` 필드로 반환 (수정/삭제 버튼 표시 판단용)
 
 #### 3.5.1 댓글 타입 (`comment_type`)
@@ -685,6 +697,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.10 | 2026-01-21 | 로그인 응답에 `userId` 추가, UserResponseDto에 `userId` 추가, Post/Comment 응답에 `writerId` 추가 |
 | v2.5.9 | 2026-01-20 | 회원가입 시 약관 동의 기능 명세 추가 (Terms & Consent) |
 | v2.5.8 | 2026-01-20 | 사용자 신고/차단, 채팅 메시지 신고 기능 명세 추가 |
 | v2.5.7 | 2026-01-19 | User API: `/api/v1/users/me` 응답에 `userRole` 필드 추가 |

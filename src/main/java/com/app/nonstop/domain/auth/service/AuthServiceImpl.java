@@ -4,6 +4,7 @@ import com.app.nonstop.domain.auth.dto.*;
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import com.app.nonstop.mapper.AuthMapper;
 import com.app.nonstop.mapper.RefreshTokenMapper;
+import com.app.nonstop.mapper.UserMapper;
 import com.app.nonstop.domain.user.entity.AuthProvider;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.domain.user.exception.DuplicateNicknameException;
@@ -33,14 +34,16 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthMapper authMapper;
     private final RefreshTokenMapper refreshTokenMapper;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final Optional<FirebaseAuth> firebaseAuth;
 
     @Autowired
-    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
         this.authMapper = authMapper;
         this.refreshTokenMapper = refreshTokenMapper;
+        this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.firebaseAuth = firebaseAuth;
@@ -122,6 +125,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenMapper.save(newRefreshToken);
 
         return TokenResponseDto.builder()
+                .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -150,8 +154,8 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Refresh Token expired");
         }
 
-        String email = jwtTokenProvider.getEmailFromToken(refreshToken.getToken());
-        User user = authMapper.findByEmail(email)
+        Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken.getToken());
+        User user = userMapper.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
 
         return issueTokens(user);
