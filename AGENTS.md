@@ -119,3 +119,4 @@ Organized by **domain**. Each domain folder should contain:
 5. **Clean up** - Clear stashes
 6. **Hand off** - Provide context for next session
 
+Use 'bd' for task tracking

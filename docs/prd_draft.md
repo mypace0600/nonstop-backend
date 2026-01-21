@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.11 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.12 (2026.01 Backend Status: 85% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -146,6 +146,77 @@ CREATE TABLE user_agreements (
 - 약관 내용 변경 시 버전 업데이트
 - 중요 변경 시 기존 사용자에게 재동의 요청 (앱 내 팝업)
 - 재동의 거부 시 서비스 이용 제한 가능
+
+#### 3.1.7 회원가입 이메일 인증 (Signup Email Verification)
+회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
+
+##### 인증 플로우
+1. **회원가입 요청 (`POST /api/v1/auth/signup`)**
+   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보를 입력
+   - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
+   - 서버: 사용자 정보를 **인증 대기 상태(`email_verified=false`)**로 저장
+   - 서버: 6자리 난수 인증 코드 생성 후 Redis에 저장 (TTL 5분)
+   - 서버: 해당 이메일로 인증 코드 발송
+   - Response: `201 Created` + `{ "message": "인증 메일이 발송되었습니다." }`
+
+2. **인증 코드 확인 (`POST /api/v1/auth/signup/verify`)**
+   - 사용자가 수신한 6자리 인증 코드 입력
+   - Request: `{ "email": "user@example.com", "code": "123456" }`
+   - 서버: Redis에서 코드 조회 및 검증
+     - 코드 불일치: `400 Bad Request` ("인증 코드가 일치하지 않습니다.")
+     - 코드 만료: `400 Bad Request` ("인증 코드가 만료되었습니다.")
+   - 검증 성공 시:
+     - `users.email_verified = true` 업데이트
+     - Redis 키 삭제 (일회용)
+     - JWT 토큰 발급 (로그인 처리)
+   - Response: `200 OK` + `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }`
+
+3. **인증 코드 재발송 (`POST /api/v1/auth/signup/resend`)**
+   - 인증 대기 상태(`email_verified=false`)인 사용자만 요청 가능
+   - Request: `{ "email": "user@example.com" }`
+   - 기존 인증 코드 삭제 후 새 코드 생성 및 발송
+   - **Rate Limit**: 1분당 1회 제한 (스팸 방지)
+   - Response: `200 OK` + `{ "message": "인증 메일이 재발송되었습니다." }`
+
+##### 인증 대기 상태 관리
+- `email_verified=false`인 사용자도 **로그인 가능**
+  - 로그인 응답에 `emailVerified: false` 포함
+  - 클라이언트에서 인증 화면으로 유도 (선택적)
+- 인증 대기 상태로 **24시간 경과** 시 자동 삭제 (스케줄러)
+- 동일 이메일로 재가입 시도 시:
+  - 인증 대기 상태 사용자 존재 → 기존 데이터 삭제 후 새로 가입 진행
+
+##### 로그인 응답 변경
+모든 로그인/토큰 재발급 API 응답에 `emailVerified` 필드 추가:
+```json
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG...",
+  "emailVerified": false
+}
+```
+
+##### 데이터 모델 변경
+```sql
+-- users 테이블에 컬럼 추가
+ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP;
+```
+
+##### Redis 키 구조
+- **Key**: `signup:verification:{email}`
+- **Value**: `{ "code": "123456", "userId": 123 }`
+- **TTL**: 5분 (300초)
+
+##### 정책 요약
+| 항목 | 값 |
+|------|-----|
+| 인증 코드 길이 | 6자리 숫자 |
+| 인증 코드 유효 시간 | 5분 |
+| 인증 코드 재발송 제한 | 1분당 1회 |
+| 인증 대기 상태 유지 기간 | 24시간 |
+| 미인증 사용자 로그인 | 허용 (응답에 `emailVerified: false` 포함) |
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
@@ -501,7 +572,9 @@ last_read_message_id + unread_count 자동 관리
 ### Authentication
 | Method | URI                                    | Description                     |
 |--------|----------------------------------------|---------------------------------|
-| POST   | /api/v1/auth/signup                    | 이메일 회원가입                  |
+| POST   | /api/v1/auth/signup                    | 이메일 회원가입 (인증 대기 상태) |
+| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   |
+| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   |
 | POST   | /api/v1/auth/google                    | Google 로그인                   |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             |
@@ -699,6 +772,7 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.12 | 2026-01-21 | 회원가입 이메일 인증 기능 명세 추가 (signup/verify, signup/resend API) |
 | v2.5.11 | 2026-01-21 | Auth 커스텀 예외 추가 (401/409 응답), Google 로그인 프로필 동기화, RefreshToken soft-revoke 구현 |
 | v2.5.10 | 2026-01-21 | 로그인 응답에 `userId` 추가, UserResponseDto에 `userId` 추가, Post/Comment 응답에 `writerId` 추가 |
 | v2.5.9 | 2026-01-20 | 회원가입 시 약관 동의 기능 명세 추가 (Terms & Consent) |
