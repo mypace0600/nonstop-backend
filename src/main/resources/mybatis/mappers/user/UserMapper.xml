@@ -34,4 +34,12 @@
         LIMIT 20
     </select>
 
+    <update id="updateProfileImage">
+        UPDATE users
+        SET profile_image_url = #{profileImageUrl},
+            updated_at = now()
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
 </mapper>
