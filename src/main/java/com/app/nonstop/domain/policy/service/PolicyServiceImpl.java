@@ -37,26 +37,10 @@ public class PolicyServiceImpl implements PolicyService {
     @Override
     @Transactional
     public void agreePolicies(Long userId, List<Long> policyIds) {
-        // 1. 모든 필수 정책 조회
-        List<Policy> mandatoryPolicies = policyMapper.findMandatoryActivePolicies();
-
-        // 2. 필수 정책 동의 여부 검증
-        Set<Long> agreedIds = new HashSet<>(policyIds != null ? policyIds : List.of());
-
-        List<String> missingPolicies = mandatoryPolicies.stream()
-                .filter(policy -> !agreedIds.contains(policy.getId()))
-                .map(Policy::getTitle)
-                .collect(Collectors.toList());
-
-        if (!missingPolicies.isEmpty()) {
-            throw new BusinessException("필수 약관에 동의해야 합니다: " + String.join(", ", missingPolicies));
-        }
-
-        // 3. 동의 저장
         if (policyIds == null || policyIds.isEmpty()) {
             return;
         }
-
+        
         List<UserPolicyAgreement> agreements = policyIds.stream()
                 .map(policyId -> UserPolicyAgreement.builder()
                         .userId(userId)
@@ -65,5 +49,24 @@ public class PolicyServiceImpl implements PolicyService {
                 .collect(Collectors.toList());
 
         policyMapper.saveAgreements(agreements);
+    }
+
+    @Override
+    public List<PolicyResponseDto> getMissingMandatoryPolicies(Long userId) {
+        // 1. 활성화된 필수 정책 목록 조회
+        List<Policy> mandatoryPolicies = policyMapper.findAllActive().stream()
+                .filter(Policy::getIsMandatory)
+                .collect(Collectors.toList());
+
+        // 2. 사용자가 동의한 정책 ID 목록 조회
+        List<Long> agreedPolicyIds = policyMapper.findAgreementsByUserId(userId).stream()
+                .map(UserPolicyAgreementDto::getPolicyId)
+                .collect(Collectors.toList());
+
+        // 3. 동의하지 않은 필수 정책 필터링
+        return mandatoryPolicies.stream()
+                .filter(p -> !agreedPolicyIds.contains(p.getId()))
+                .map(PolicyResponseDto::from)
+                .collect(Collectors.toList());
     }
 }

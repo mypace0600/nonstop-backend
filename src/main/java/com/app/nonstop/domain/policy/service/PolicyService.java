@@ -9,4 +9,5 @@ public interface PolicyService {
     List<PolicyResponseDto> getAllActivePolicies();
     List<UserPolicyAgreementDto> getUserAgreements(Long userId);
     void agreePolicies(Long userId, List<Long> policyIds);
+    List<PolicyResponseDto> getMissingMandatoryPolicies(Long userId);
 }

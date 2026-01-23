@@ -1,10 +1,8 @@
 package com.app.nonstop.domain.auth.service;
 
 import com.app.nonstop.domain.auth.dto.*;
-import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
-import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
-import com.app.nonstop.domain.auth.exception.InvalidTokenException;
-import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
+import com.app.nonstop.domain.auth.exception.*;
+import com.app.nonstop.domain.policy.dto.PolicyResponseDto;
 import com.app.nonstop.domain.policy.service.PolicyService;
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import com.app.nonstop.mapper.AuthMapper;
@@ -29,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,6 +77,11 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidPasswordException();
         }
 
+        // 로그인 요청에 정책 동의가 포함된 경우 처리
+        if (loginRequest.getAgreedPolicyIds() != null && !loginRequest.getAgreedPolicyIds().isEmpty()) {
+            policyService.agreePolicies(user.getId(), loginRequest.getAgreedPolicyIds());
+        }
+
         return issueTokens(user);
     }
 
@@ -118,11 +122,22 @@ public class AuthServiceImpl implements AuthService {
                     return newUser;
                 });
 
+        // 로그인 요청에 정책 동의가 포함된 경우 처리
+        if (googleLoginRequest.getAgreedPolicyIds() != null && !googleLoginRequest.getAgreedPolicyIds().isEmpty()) {
+            policyService.agreePolicies(user.getId(), googleLoginRequest.getAgreedPolicyIds());
+        }
+
         return issueTokens(user);
     }
 
 
     private TokenResponseDto issueTokens(User user) {
+        // 필수 정책 동의 여부 확인
+        List<PolicyResponseDto> missingPolicies = policyService.getMissingMandatoryPolicies(user.getId());
+        if (!missingPolicies.isEmpty()) {
+            throw new PolicyAgreementRequiredException(missingPolicies);
+        }
+
         CustomUserDetails userDetails = new CustomUserDetails(
                 user.getId(),
                 user.getEmail(),

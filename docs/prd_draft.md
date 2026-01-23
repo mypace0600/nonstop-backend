@@ -87,133 +87,34 @@
 - 일부 익명 게시판 (운영 정책에 따라)
 
 #### 3.1.6 정책 및 약관 동의 (Policies & Consent)
-회원가입 시 법적 요구사항을 충족하기 위한 정책 및 약관 동의 절차입니다. (v2.5.13 구현 완료)
+회원가입 및 서비스 이용을 위한 정책 동의 절차입니다. (v2.5.13 구현 완료)
 
 ##### 정책 종류 (`policy_type`)
 | 타입 | 설명 |
 |------|------|
-| `TERMS_OF_SERVICE` | 서비스 이용약관 |
-| `PRIVACY_POLICY` | 개인정보 처리방침 |
+| `TERMS_OF_SERVICE` | 서비스 이용약관 (필수) |
+| `PRIVACY_POLICY` | 개인정보 처리방침 (필수) |
 | `MARKETING` | 마케팅 정보 수신 동의 (선택 가능) |
-| `THIRD_PARTY` | 제3자 정보 제공 동의 |
+| `THIRD_PARTY` | 제3자 정보 제공 동의 (선택 가능) |
 
 ##### 정책 목록 조회 (`GET /api/v1/policies`)
-- 현재 활성화된 모든 정책 목록을 반환합니다.
-- Response:
-```json
-[
-  {
-    "id": 1,
-    "type": "TERMS_OF_SERVICE",
-    "title": "서비스 이용약관",
-    "url": "https://example.com/terms",
-    "isMandatory": true
-  }
-]
-```
+- 현재 활성화된 모든 정책 목록(ID, 제목, URL, 필수 여부 등)을 반환합니다.
 
-##### 이메일 회원가입 시 동의 정보 전송
-**이메일 회원가입 (`POST /api/v1/auth/signup`)**
-```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123!",
-  "nickname": "논스톱",
-  "agreedPolicyIds": [1, 2, 3]  // 동의한 정책 ID 목록
-}
-```
-- 필수 정책 미동의 시: `400 Bad Request` ("필수 약관에 동의해야 합니다: 서비스 이용약관, 개인정보 처리방침")
+##### 정책 동의 및 검증 프로세스 (v2.5.15 업데이트)
+서비스 운영 중 새로운 필수 정책이 추가되거나, 기존 사용자가 동의하지 않은 필수 정책이 있는 경우 로그인이 제한됩니다.
 
-##### Google OAuth 로그인 시 정책 동의 (v2.5.15)
-Google OAuth 사용자도 필수 정책에 동의해야 서비스를 이용할 수 있습니다.
+**1. 회원가입 시 동의**
+- `POST /api/v1/auth/signup` 요청 시 `agreedPolicyIds` (동의한 정책 ID 목록)를 포함하여 전송합니다.
 
-**1단계: Google 로그인 요청 (`POST /api/v1/auth/google`)**
-```json
-// Request
-{
-  "idToken": "firebase-id-token..."
-}
+**2. 로그인 시 필수 정책 검증 (Block & Retry)**
+- **검증**: `POST /api/v1/auth/login` 또는 `POST /api/v1/auth/google` 호출 시, 활성화된 모든 **필수(Mandatory)** 정책에 대한 사용자의 동의 레코드가 있는지 확인합니다.
+- **차단**: 미동의 필수 정책이 하나라도 있을 경우 `403 Forbidden` 에러를 반환합니다.
+- **응답 데이터**: 에러 응답의 `data` 필드에 동의가 필요한 **미동의 필수 정책 상세 목록**을 포함하여 전달합니다.
+- **해결 (Retry)**: 클라이언트는 응답받은 목록으로 동의 화면을 구성하여 사용자 동의를 받은 후, **로그인 API 요청 Body에 `agreedPolicyIds`를 추가**하여 재요청합니다.
+- **서버 처리**: 로그인 요청에 `agreedPolicyIds`가 포함된 경우, 서버는 먼저 해당 정책들에 대한 동의 레코드를 생성(저장)한 후 로그인을 완료하고 토큰을 발급합니다.
 
-// Response - 케이스 1: 정책 동의 필요 (신규 사용자 또는 미동의 필수 정책 존재)
-{
-  "requiresPolicyAgreement": true,
-  "isNewUser": true,
-  "pendingUserId": 123,
-  "pendingPolicies": [
-    { "id": 1, "type": "TERMS_OF_SERVICE", "title": "서비스 이용약관", "url": "https://...", "isMandatory": true },
-    { "id": 2, "type": "PRIVACY_POLICY", "title": "개인정보 처리방침", "url": "https://...", "isMandatory": true }
-  ]
-}
-
-// Response - 케이스 2: 정책 동의 완료 (기존 사용자, 모든 필수 정책 동의됨)
-{
-  "requiresPolicyAgreement": false,
-  "userId": 123,
-  "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG..."
-}
-```
-
-**2단계: 정책 동의 후 토큰 발급 (`POST /api/v1/auth/google/agree`)**
-```json
-// Request
-{
-  "pendingUserId": 123,
-  "agreedPolicyIds": [1, 2, 3]
-}
-
-// Response - 성공
-{
-  "userId": 123,
-  "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG..."
-}
-
-// Response - 실패 (필수 정책 미동의)
-// 400 Bad Request: "필수 약관에 동의해야 합니다: 서비스 이용약관"
-```
-
-**Google OAuth 정책 동의 플로우:**
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Google OAuth 로그인 플로우                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  [클라이언트]                         [서버]                      │
-│      │                                  │                       │
-│      │─── POST /auth/google ───────────>│                       │
-│      │    (Firebase ID Token)           │                       │
-│      │                                  │                       │
-│      │                          ┌───────┴───────┐               │
-│      │                          │ 사용자 확인    │               │
-│      │                          │ 필수 정책 체크 │               │
-│      │                          └───────┬───────┘               │
-│      │                                  │                       │
-│      │                    ┌─────────────┴─────────────┐         │
-│      │                    │                           │         │
-│      │            [미동의 정책 있음]           [모두 동의됨]       │
-│      │                    │                           │         │
-│      │<── requiresPolicyAgreement: true ──┤           │         │
-│      │    pendingUserId, pendingPolicies  │           │         │
-│      │                                    │           │         │
-│      │                                    │   ┌───────┴───────┐ │
-│  [정책 동의 화면 표시]                      │   │ 토큰 발급     │ │
-│  [사용자가 동의 체크]                       │   │ 로그인 완료   │ │
-│      │                                    │   └───────────────┘ │
-│      │─── POST /auth/google/agree ───────>│                     │
-│      │    (pendingUserId, agreedPolicyIds)│                     │
-│      │                                    │                     │
-│      │<── accessToken, refreshToken ──────┤                     │
-│      │                                    │                     │
-│  [로그인 완료]                              │                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**기존 사용자 재동의 시나리오:**
-- 새로운 필수 정책이 추가된 경우, 기존 사용자도 해당 정책에 동의해야 함
-- 로그인 시 `pendingPolicies`에 미동의 필수 정책만 포함
-- `isNewUser: false`로 구분 가능
+**3. 로그인 후 추가 동의**
+- 로그인된 상태에서 선택적 정책(마케팅 등)에 동의하거나, 신규 정책에 동의할 경우 `POST /api/v1/policies/agree` API를 사용합니다.
 
 ##### 데이터 모델
 ```sql
@@ -755,6 +656,7 @@ CREATE TABLE policies (
 |--------|----------------------------------------|---------------------------------|
 | GET    | /api/v1/policies                       | 정책 목록 조회 (활성화된 항목)  |
 | GET    | /api/v1/policies/me                    | 내 정책 동의 내역 조회          |
+| POST   | /api/v1/policies/agree                 | 정책 추가 동의 처리 (v2.5.15)   |
 
 ### Admin (Backend Implemented, Frontend Pending)
 | Method | URI                                             | Description                                      |
@@ -937,8 +839,10 @@ CREATE TABLE policies (
 - **Missing:** Admin capabilities to view and act on these reports.
 
 #### Policy (New)
-- **Verified:** `PolicyController` provides active policy list and user agreement lookup.
-- **Verified:** `AuthServiceImpl` integrates with `PolicyService` to save agreements during signup.
+- **Verified:** `PolicyController`는 활성 정책 목록 조회 및 사용자 동의 내역 조회를 지원합니다.
+- **Verified:** `AuthServiceImpl`은 로그인(일반/구글) 시 필수 정책 동의 여부를 검증하며, 미동의 시 `PolicyAgreementRequiredException`을 발생시킵니다.
+- **Verified:** 로그인 요청 Body에 `agreedPolicyIds`가 포함된 경우, 선제적으로 동의 레코드를 생성한 후 로그인을 진행하는 재시도(Retry) 프로세스가 구현되었습니다.
+- **Verified:** 로그인된 사용자가 언제든 동의를 추가할 수 있는 `POST /api/v1/policies/agree` 엔드포인트가 추가되었습니다.
 
 #### Notification
 - **Verified:** `NotificationController` provides list/read/read-all endpoints.
@@ -953,7 +857,8 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
-| v2.5.14 | 2026-01-23 | 정책 관리 Admin API 명세 추가 (CDN 업로드, CRUD), 필수 정책 검증 로직 추가 |
+| v2.5.15 | 2026-01-23 | 필수 정책 미동의 시 로그인 차단 및 재시도(agreedPolicyIds) 프로세스 구현 |
+| v2.5.14 | 2026-01-23 | 정책 관리 Admin API 명세 추가 (CDN 업로드, CRUD) |
 | v2.5.13 | 2026-01-23 | 정책 및 약관 동의 기능 구현 완료 (Policy module, signup integration) |
 | v2.5.12 | 2026-01-21 | 회원가입 이메일 인증 기능 명세 추가 (signup/verify, signup/resend API) |
 | v2.5.11 | 2026-01-21 | Auth 커스텀 예외 추가 (401/409 응답), Google 로그인 프로필 동기화, RefreshToken soft-revoke 구현 |
