@@ -144,10 +144,15 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         refreshTokenMapper.save(newRefreshToken);
 
+        // 필수 정책 동의 여부 확인
+        boolean hasAgreedAllMandatory = policyService.getMissingMandatoryPolicies(user.getId()).isEmpty();
+
         return TokenResponseDto.builder()
                 .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .emailVerified(user.getIsVerified())
+                .hasAgreedAllMandatory(hasAgreedAllMandatory)
                 .build();
     }
 

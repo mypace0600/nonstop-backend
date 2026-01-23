@@ -2,6 +2,7 @@ package com.app.nonstop.domain.policy.controller;
 
 import com.app.nonstop.domain.policy.dto.PolicyAgreeRequestDto;
 import com.app.nonstop.domain.policy.dto.PolicyResponseDto;
+import com.app.nonstop.domain.policy.dto.PolicyStatusResponseDto;
 import com.app.nonstop.domain.policy.dto.UserPolicyAgreementDto;
 import com.app.nonstop.domain.policy.service.PolicyService;
 import com.app.nonstop.global.common.response.ApiResponse;
@@ -32,6 +33,16 @@ public class PolicyController {
     @Operation(summary = "내 동의 내역 조회", description = "로그인한 사용자가 동의한 정책 목록을 조회합니다.")
     public List<UserPolicyAgreementDto> getMyAgreements(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return policyService.getUserAgreements(userDetails.getUserId());
+    }
+
+    @GetMapping("/status")
+    @Operation(summary = "정책 동의 상태 조회", description = "사용자가 필수 정책에 모두 동의했는지 확인합니다.")
+    public PolicyStatusResponseDto getPolicyStatus(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<PolicyResponseDto> missing = policyService.getMissingMandatoryPolicies(userDetails.getUserId());
+        return PolicyStatusResponseDto.builder()
+                .hasAgreedAllMandatory(missing.isEmpty())
+                .missingPolicies(missing)
+                .build();
     }
 
     @PostMapping("/agree")
