@@ -41,5 +41,10 @@
 ## 4. 작업 순서
 1. [x] `PolicyAgreementRequiredException` 정의
 2. [x] `PolicyService`에 미동의 필수 정책 조회 로직 추가
-3. [x] `AuthServiceImpl`의 로그인(일반/구글) 로직에 검증 추가
-4. [x] 관련 단위 테스트 작성 (PolicyServiceTest 보강)
+3. [x] `SecurityPathConfig`를 통한 보안 경로 통합 관리 (Public/PolicyExclude)
+4. [x] `PolicyAgreementFilter` (OncePerRequestFilter) 구현 및 등록
+5. [x] `JwtAuthenticationFilter` 리팩토링 (통합 경로 설정 적용)
+6. [x] PRD 문서 업데이트 (로그인 후 후속 검증 및 필터 차단 프로세스 명시)
+
+## 5. 결과
+로그인 시점에 모든 유저(이메일 및 소셜)를 대상으로 필수 정책 동의 여부를 Spring Security Filter 수준에서 강제 검증합니다. 미동의 시 `403 Forbidden`과 함께 `POLICY_AGREEMENT_REQUIRED` 에러가 반환되며, 클라이언트는 이를 트리거로 약관 동의 화면을 노출할 수 있습니다.
