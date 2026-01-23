@@ -1,23 +1,27 @@
 # Nonstop App: Golden Master Readiness Report (Updated)
-**Date:** 2026.01.17
-**Version:** v2.5.1
-**Status:** Backend (v2.5.1 main) vs Frontend (dev branch)
+**Date:** 2026.01.23
+**Version:** v2.5.12
+**Status:** Backend (main) vs Frontend (dev branch)
 
 ---
 
 ## 1. 종합 요약 (Executive Summary)
 
-| 구분 | 이전 평가 | 현재 평가 | 변경 사유 |
+| 구분 | 이전 평가 (01.17) | 현재 평가 (01.23) | 변경 사유 |
 |:---|:---:|:---:|:---|
-| **Backend** | 90% | **85%** | Admin 기능 구현 완료 (Board Admin 제외) |
-| **Frontend** | 60% | **55%** | Friends 모듈 완전 부재, Timetable API 구조 불일치, Notification 전무 |
+| **Backend** | 85% | **87%** | Google OAuth Firebase 연동 완료, 프로필 이미지 동기화 구현 |
+| **Frontend** | 55% | **80%** | ✅ Friends 모듈 완전 구현, ✅ Timetable API 재설계 및 연동 완료 |
 
-### 핵심 블로커 (Critical Blockers)
-1. **[Frontend] Friends 모듈 완전 부재**: `features/friends/` 디렉토리에 `.gitkeep` 파일만 존재
-2. **[Frontend] Timetable API 구조 불일치**: Frontend는 Event 중심, Backend는 Timetable/Entry 중심
-3. **[Frontend] Notification 모듈 전무**: FCM 연동 및 알림 목록 화면 없음
-4. **[Frontend] Email Verification API 미연결**: UI만 존재, API 호출 코드 없음
-5. **[Backend] Board 관리 기능 전무**: 게시판 생성/수정/삭제 API 없음 (Admin 모듈은 구현됨)
+### ✅ 해결된 블로커 (Since 01.17)
+1. ~~**[Frontend] Friends 모듈 완전 부재**~~: ✅ **완전 구현** - 친구 요청/수락/거절/삭제/차단 모든 기능 API 연동 완료
+2. ~~**[Frontend] Timetable API 구조 불일치**~~: ✅ **완전 구현** - Backend 구조에 맞게 재설계, 10개 API 모두 연동 완료
+3. **[Backend] Google OAuth**: ✅ Firebase Admin SDK 연동 완료, 프로필 이미지 동기화 추가
+
+### 남은 블로커 (Critical Blockers)
+1. **[Frontend] Notification 모듈 전무**: FCM 연동 및 알림 목록 화면 없음 (모듈 자체 미존재)
+2. **[Frontend] Email Verification API 미연결**: UI만 존재, API 호출 코드 없음 (`throw UnimplementedError`)
+3. **[Backend] Board 관리 기능 전무**: 게시판 생성/수정/삭제 API 없음 (Admin 모듈은 구현됨)
+4. **[Backend/Frontend] User Agreements (약관 동의)**: Frontend UI만 존재, Backend API 미구현
 
 ---
 
@@ -120,117 +124,132 @@
 
 ---
 
-### 2.6 Friends (친구) - CRITICAL
+### 2.6 Friends (친구) - ✅ RESOLVED
 
 | 항목 | Backend | Frontend | 연동 상태 | 상세 분석 |
 |:---|:---:|:---:|:---:|:---|
-| **친구 목록** | ✅ 100% | ❌ 0% | ❌ 미구현 | **`features/friends/` 디렉토리에 .gitkeep만 존재** |
-| **친구 요청 보내기** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **받은 요청 목록** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **요청 수락/거절** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **친구 삭제** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **차단 목록** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
-| **차단/해제** | ✅ 100% | ❌ 0% | ❌ 미구현 | |
+| **친구 목록** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **친구 요청 보내기** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **받은 요청 목록** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **요청 수락/거절** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **요청 취소** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **친구 삭제** | ✅ 100% | ✅ 100% | ✅ 완료 | API 연동 완료 |
+| **사용자 검색** | ✅ 100% | ✅ 100% | ✅ 완료 | 닉네임으로 검색 |
+| **차단** | ✅ 100% | ✅ 100% | ✅ 완료 | FriendController에 통합 |
 
-**Backend 상세 (완전 구현됨):**
+**Backend 상세:**
 - `FriendController`:
-  - `GET /friends` - 친구 목록
-  - `GET /friends/requests` - 받은 요청 목록
-  - `POST /friends/request` - 요청 보내기
-  - `PUT /friends/request/{id}/accept` - 수락
-  - `PUT /friends/request/{id}/reject` - 거절
-  - `DELETE /friends/{id}` - 친구 삭제
-- `BlockController`:
-  - `GET /blocks` - 차단 목록
-  - `POST /blocks` - 차단하기
-  - `DELETE /blocks/{id}` - 차단 해제
-- `FriendDto`, `FriendRequestDto`, `BlockDto` 완비
-- FriendStatus ENUM: PENDING, ACCEPTED, REJECTED
+  - `GET /api/v1/friends` - 친구 목록
+  - `GET /api/v1/friends/requests` - 받은 요청 목록 (PENDING)
+  - `POST /api/v1/friends/request` - 요청 보내기
+  - `POST /api/v1/friends/requests/{id}/accept` - 수락
+  - `POST /api/v1/friends/requests/{id}/reject` - 거절
+  - `DELETE /api/v1/friends/requests/{id}` - 요청 취소
+  - `DELETE /api/v1/friends/{id}` - 친구 삭제
+  - `POST /api/v1/friends/block` - 차단 (BlockController 없이 통합)
+- `FriendDto`, `FriendRequestDto` 완비
 
-**Frontend 상세:**
+**Frontend 상세 (01.23 완전 구현):**
 ```
 lib/features/friends/
 ├── data/
-│   └── .gitkeep          # 빈 파일
+│   ├── api/
+│   │   ├── friend_api.dart (인터페이스)
+│   │   └── friend_api_impl.dart (8개 API 구현)
+│   ├── dto/
+│   │   └── friend_dto.dart (Freezed)
+│   └── repository_impl/
+│       └── friend_repository_impl.dart
 ├── domain/
-│   └── .gitkeep          # 빈 파일
+│   ├── entities/
+│   │   └── friend.dart
+│   └── repository/
+│       └── friend_repository.dart
 └── presentation/
-    └── .gitkeep          # 빈 파일
+    ├── providers/
+    │   └── friend_management_provider.dart (223줄)
+    ├── screens/
+    │   └── friends_screen.dart (탭 기반 UI)
+    └── widgets/
 ```
-**구현 필요 항목:**
-- `FriendApi`, `FriendApiImpl`
-- `FriendRepository`, `FriendRepositoryImpl`
-- `FriendDto`, `FriendRequestDto`, `BlockDto`
-- `FriendsListScreen`, `FriendRequestsScreen`, `BlockedUsersScreen`
-- `FriendProvider` (Riverpod)
+**구현된 API:**
+- `GET /api/v1/friends`, `GET /api/v1/friends/requests`
+- `POST /api/v1/friends/request`, `POST /api/v1/friends/requests/{id}/accept`
+- `POST /api/v1/friends/requests/{id}/reject`, `DELETE /api/v1/friends/requests/{id}`
+- `DELETE /api/v1/friends/{id}`, `GET /api/v1/users/search`
 
 ---
 
-### 2.7 Timetable (시간표) - CRITICAL
+### 2.7 Timetable (시간표) - ✅ RESOLVED
 
 | 항목 | Backend | Frontend | 연동 상태 | 상세 분석 |
 |:---|:---:|:---:|:---:|:---|
-| **시간표 조회** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | **API 구조가 완전히 다름** |
-| **시간표 생성** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **시간표 수정** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **시간표 삭제** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **수업 항목 추가** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **수업 항목 수정** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **수업 항목 삭제** | ✅ 100% | ✅ 100% (Mock) | ❌ 구조불일치 | |
-| **공개 시간표 조회** | ✅ 100% | ❌ 0% | ❌ 미구현 | 친구 시간표 보기 기능 |
+| **학기 목록 조회** | ✅ 100% | ✅ 100% | ✅ 완료 | `GET /api/v1/semesters` |
+| **시간표 목록 조회** | ✅ 100% | ✅ 100% | ✅ 완료 | `GET /api/v1/timetables` |
+| **시간표 생성** | ✅ 100% | ✅ 100% | ✅ 완료 | `POST /api/v1/timetables` |
+| **시간표 상세 조회** | ✅ 100% | ✅ 100% | ✅ 완료 | `GET /api/v1/timetables/{id}` |
+| **시간표 수정** | ✅ 100% | ✅ 100% | ✅ 완료 | `PATCH /api/v1/timetables/{id}` |
+| **시간표 삭제** | ✅ 100% | ✅ 100% | ✅ 완료 | `DELETE /api/v1/timetables/{id}` |
+| **수업 항목 추가** | ✅ 100% | ✅ 100% | ✅ 완료 | `POST /api/v1/timetables/{id}/entries` |
+| **수업 항목 수정** | ✅ 100% | ✅ 100% | ✅ 완료 | `PATCH /api/v1/timetables/entries/{id}` |
+| **수업 항목 삭제** | ✅ 100% | ✅ 100% | ✅ 완료 | `DELETE /api/v1/timetables/entries/{id}` |
+| **공개 시간표 조회** | ✅ 100% | ✅ 100% | ✅ 완료 | `GET /api/v1/timetables/public` |
 
-**API 구조 불일치 상세:**
+**API 구조 (Backend = Frontend 일치):**
 
-| 구분 | Backend 구조 | Frontend 구조 |
+| 구분 | Backend 구조 | Frontend 구조 (01.23 재설계) |
 |:---|:---|:---|
-| **메인 엔티티** | Timetable (시간표 컨테이너) | Event (수업 이벤트) |
-| **하위 엔티티** | TimetableEntry (수업 항목) | 없음 |
-| **API 패턴** | `/timetables/{id}/entries` | `/events` |
-| **시간표 개념** | 학기별 여러 시간표 가능 | 단일 이벤트 목록 |
+| **메인 엔티티** | Timetable | Timetable |
+| **하위 엔티티** | TimetableEntry | TimetableEntry |
+| **API 패턴** | `/timetables/{id}/entries` | `/timetables/{id}/entries` |
+| **시간표 개념** | 학기별 시간표 관리 | 학기별 시간표 관리 |
 
 **Backend API 구조:**
 ```
+GET    /api/v1/semesters               # 학기 목록
 GET    /api/v1/timetables              # 내 시간표 목록
-POST   /api/v1/timetables              # 시간표 생성 (name, semester, isPublic)
-GET    /api/v1/timetables/{id}         # 시간표 상세
+POST   /api/v1/timetables              # 시간표 생성 (semesterId, title, isPublic)
+GET    /api/v1/timetables/{id}         # 시간표 상세 (수업 항목 포함)
 PATCH  /api/v1/timetables/{id}         # 시간표 수정
 DELETE /api/v1/timetables/{id}         # 시간표 삭제
-GET    /api/v1/timetables/{id}/entries # 수업 항목 목록
 POST   /api/v1/timetables/{id}/entries # 수업 항목 추가
-PATCH  /api/v1/entries/{id}            # 수업 항목 수정
-DELETE /api/v1/entries/{id}            # 수업 항목 삭제
-GET    /api/v1/users/{id}/timetables   # 타인 공개 시간표
+PATCH  /api/v1/timetables/entries/{id} # 수업 항목 수정
+DELETE /api/v1/timetables/entries/{id} # 수업 항목 삭제
+GET    /api/v1/timetables/public       # 공개 시간표 (같은 학교 인증 사용자)
 ```
 
-**Backend DTO:**
-```java
-TimetableDto {
-  id, userId, name, semester, isPublic, createdAt, updatedAt
-}
-TimetableEntryDto {
-  id, timetableId, courseName, professorName, location,
-  dayOfWeek (MONDAY-SUNDAY), startTime, endTime, color
-}
+**Frontend 상세 (01.23 완전 재설계 및 구현):**
+```
+lib/features/timetable/
+├── data/
+│   ├── api/
+│   │   └── timetable_api_impl.dart (280줄 - 10개 API 구현)
+│   ├── dto/
+│   │   ├── semester_dto.dart
+│   │   ├── timetable_dto.dart
+│   │   └── timetable_entry_dto.dart
+│   └── repository_impl/
+├── domain/
+│   ├── entities/
+│   │   ├── semester.dart
+│   │   ├── timetable.dart
+│   │   ├── timetable_entry.dart
+│   │   └── day_of_week.dart
+│   └── repository/
+└── presentation/
+    ├── providers/
+    │   └── timetable_management_provider.dart (442줄)
+    ├── screens/
+    │   ├── timetable_screen.dart
+    │   ├── add_timetable_entry_screen.dart
+    │   └── gpa_calculator_screen.dart
+    └── widgets/
 ```
 
-**Frontend 현재 구조 (Mock):**
-```dart
-// timetable_api.dart
-abstract class TimetableApi {
-  Future<List<Event>> getEvents();
-  Future<Event> createEvent(Event event);
-  Future<Event> updateEvent(Event event);
-  Future<void> deleteEvent(String eventId);
-}
-```
-
-**필요한 Frontend 수정:**
-1. `Timetable` 도메인 모델 생성 (시간표 컨테이너)
-2. `TimetableEntry` 도메인 모델 생성 (수업 항목)
-3. `TimetableApi` 인터페이스 재설계
-4. `TimetableApiImpl` 실제 HTTP 구현
-5. Repository/Provider 전면 수정
-6. UI에서 시간표 선택 -> 수업 목록 구조로 변경
+**추가 기능:**
+- GPA 계산기 통합 (`gpa_provider.dart`, `gpa_calculator_screen.dart`)
+- 시간 중복 검증 (Backend에서 처리)
+- 학기별 시간표 관리 (학기당 1개 제한)
 
 ---
 
@@ -340,64 +359,58 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 ---
 
-## 3. API 연동 현황 매트릭스
+## 3. API 연동 현황 매트릭스 (2026.01.23 Updated)
 
-| 도메인 | Backend API | Frontend API | 연동률 |
-|:---|:---:|:---:|:---:|
-| Auth | 10/10 | 7/10 | **70%** |
-| User | 5/5 | 4/5 | **80%** |
-| University | 2/2 | 2/2 | **100%** |
-| Community | 2/2 | 2/2 | **100%** |
-| Board | 2/2 | 2/2 | **100%** |
-| Post | 6/6 | 6/6 | **100%** |
-| Comment | 5/5 | 5/5 | **100%** |
-| Friend | 7/7 | 0/7 | **0%** |
-| Block | 3/3 | 0/3 | **0%** |
-| Timetable | 9/9 | 0/9 | **0%** (구조불일치) |
-| Chat | 7/7 | 5/7 | **71%** |
-| Notification | 3/3 | 0/3 | **0%** |
-| Report | 1/1 | 0/1 | **0%** |
-| Admin | 8/8 | 0/8 | **0%** |
-| File | 1/1 | 1/1 | **100%** (Mock) |
-| **총계** | **71/71** | **34/71** | **47%** |
+| 도메인 | Backend API | Frontend API | 연동률 | 변경 |
+|:---|:---:|:---:|:---:|:---:|
+| Auth | 10/10 | 7/10 | **70%** | - |
+| User | 5/5 | 4/5 | **80%** | - |
+| University | 2/2 | 2/2 | **100%** | - |
+| Community | 2/2 | 2/2 | **100%** | - |
+| Board | 2/2 | 2/2 | **100%** | - |
+| Post | 6/6 | 6/6 | **100%** | - |
+| Comment | 5/5 | 5/5 | **100%** | - |
+| Friend | 8/8 | 8/8 | **100%** | ⬆️ 0%→100% |
+| Timetable | 10/10 | 10/10 | **100%** | ⬆️ 0%→100% |
+| Chat | 7/7 | 5/7 | **71%** | - |
+| Notification | 3/3 | 0/3 | **0%** | - |
+| Report | 1/1 | 0/1 | **0%** | - |
+| Admin | 8/8 | 0/8 | **0%** | - |
+| File | 1/1 | 1/1 | **100%** | - |
+| **총계** | **70/70** | **52/70** | **74%** | ⬆️ 47%→74% |
+
+### 주요 개선 내역 (01.17 → 01.23)
+- **Friend 모듈**: 0% → 100% (8개 API 전체 연동)
+- **Timetable 모듈**: 0% → 100% (10개 API 전체 연동, 구조 재설계)
+- **전체 연동률**: 47% → 74% (+27%p)
 
 ---
 
-## 4. 남은 구현 목록 (Prioritized Task List)
+## 4. 남은 구현 목록 (Prioritized Task List) - 2026.01.23 Updated
 
-### Phase 1: Critical Blockers (MVP 필수)
+### ✅ 완료된 작업 (Phase 1 부분 완료)
 
-#### 1.1 [Frontend] Friends 모듈 전체 구현
-**예상 파일:**
-- `lib/features/friends/data/api/friend_api.dart`
-- `lib/features/friends/data/api/friend_api_impl.dart`
-- `lib/features/friends/data/dto/friend_dto.dart`
-- `lib/features/friends/data/dto/friend_request_dto.dart`
-- `lib/features/friends/data/dto/block_dto.dart`
-- `lib/features/friends/data/repository/friend_repository_impl.dart`
-- `lib/features/friends/domain/repository/friend_repository.dart`
-- `lib/features/friends/domain/entities/friend.dart`
-- `lib/features/friends/presentation/providers/friend_provider.dart`
-- `lib/features/friends/presentation/screens/friends_list_screen.dart`
-- `lib/features/friends/presentation/screens/friend_requests_screen.dart`
-- `lib/features/friends/presentation/screens/blocked_users_screen.dart`
-- `lib/features/friends/presentation/widgets/friend_tile.dart`
+#### ~~1.1 [Frontend] Friends 모듈 전체 구현~~ ✅ DONE
+- 완료일: 2026.01.23
+- 8개 API 전체 연동, UI 완성
 
-#### 1.2 [Frontend] Timetable API 구조 재설계 및 실연동
-**필요 작업:**
-1. `Timetable` 도메인 모델 생성 (id, name, semester, isPublic)
-2. `TimetableEntry` 도메인 모델 생성 (courseName, dayOfWeek, startTime, endTime, ...)
-3. `TimetableApi` 인터페이스 Backend 구조에 맞게 재설계
-4. `TimetableApiImpl` HTTP 클라이언트 구현
-5. Repository/Provider 수정
-6. UI 시간표 선택 로직 추가
+#### ~~1.2 [Frontend] Timetable API 구조 재설계 및 실연동~~ ✅ DONE
+- 완료일: 2026.01.23
+- Backend 구조에 맞게 재설계, 10개 API 전체 연동
+- GPA 계산기 추가 구현
+
+---
+
+### Phase 1: Critical Blockers (MVP 필수) - 남은 작업
 
 #### 1.3 [Frontend] Email Verification API 연결
+**현재 상태:** UI만 존재, API 미구현 (`throw UnimplementedError`)
 **수정 파일:**
 - `lib/features/auth/data/api/auth_api_impl.dart`: `verifyEmail()`, `resendEmailVerification()` 구현
 - `lib/features/auth/presentation/screens/email_verification_screen.dart`: API 호출 로직 추가
 
 #### 1.4 [Frontend] Notification 모듈 구현
+**현재 상태:** 모듈 자체가 존재하지 않음 (라우트 상수만 정의)
 **예상 파일:**
 - `lib/features/notification/data/api/notification_api.dart`
 - `lib/features/notification/data/api/notification_api_impl.dart`
@@ -413,37 +426,41 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 #### 2.1 [Backend] Board 관리 (Admin) 기능 구현
 - `BoardController`에 관리자용 API 추가 (생성/수정/삭제)
+- PRD 요구사항: `POST/PATCH/DELETE /api/v1/boards`
 
-#### 2.2 [Frontend] 학생증 인증 화면 구현
+#### 2.2 [Backend/Frontend] User Agreements (약관 동의) 구현
+- **Backend:** 약관 API 구현 필요 (현재 미구현)
+- **Frontend:** UI 완성 (체크박스), 백엔드 연동 필요
+
+#### 2.3 [Frontend] 학생증 인증 화면 구현
 - 이미지 선택 UI
 - Multipart 업로드 로직
-- 인증 상태 표시
+- 인증 상태 표시 (Backend API는 구현됨)
 
-#### 2.3 [Frontend] 채팅 이미지 전송 구현
+#### 2.4 [Frontend] 채팅 이미지 전송 구현
 - 이미지 선택 -> SAS URL 요청 -> 업로드 -> 메시지 전송
+- **참고:** WebSocket/STOMP 인프라는 완성됨
 
-#### 2.4 [Frontend] Report API 연결
-- 신고 버튼에 API 호출 로직 추가
+#### 2.5 [Frontend] Report API 연결
+- 신고 버튼에 API 호출 로직 추가 (Backend API는 구현됨)
 
-#### 2.5 [Frontend] 비밀번호 변경 화면 구현
+#### 2.6 [Frontend] 비밀번호 변경 화면 구현
+- Backend API 구현됨: `PATCH /api/v1/users/me/password`
 
 ---
 
 ### Phase 3: Polish (안정화)
 
-#### 3.1 [Backend] FCM Push 실연동
-- Firebase Admin SDK 연동
-- 디바이스 토큰 관리
-
-#### 3.2 [Backend] Azure Storage 실연동
-- Mock 제거, 실제 SAS URL 발급
-
-#### 3.3 [Common] 통합 테스트
+#### 3.1 [Common] 통합 테스트
 - E2E 시나리오: 회원가입 -> 이메일인증 -> 친구추가 -> 채팅 -> 게시글작성
 
-#### 3.4 [Common] 에러 핸들링 통합
+#### 3.2 [Common] 에러 핸들링 통합
 - 일관된 에러 코드 체계
 - Frontend 에러 메시지 표시
+
+#### 3.3 [Backend] Rate Limiting 적용
+- HTTP REST API에 분당 60회 제한 적용 (PRD 요구사항)
+- WebSocket에만 적용됨, HTTP API는 미적용
 
 ---
 
@@ -473,288 +490,55 @@ lib/features/notification/  # 디렉토리 자체가 존재하지 않음
 
 ---
 
-## 6. 결론 및 권고사항
+## 6. 결론 및 권고사항 (2026.01.23 Updated)
 
 ### 현재 상태
-- **Backend**: 핵심 비즈니스 로직 80% 완성. Admin 기능 추가 필요.
-- **Frontend**: UI 프레임워크 구축 완료. API 실연동 55% 수준. Friends/Timetable/Notification 긴급 구현 필요.
-
-### 권고 우선순위
-1. **[최우선]** Frontend Friends 모듈 구현 - 앱의 핵심 소셜 기능
-2. **[최우선]** Frontend Timetable API 구조 재설계 - Backend와 완전 불일치
-3. **[긴급]** Frontend Notification 모듈 구현 - 사용자 경험 필수
-4. **[긴급]** Email Verification API 연결 - 회원가입 플로우 완성
-5. **[중요]** Backend Admin 기능 - 운영 필수
-6. **[중요]** 채팅 이미지 전송 - 채팅 기능 완성
-
-### 예상 Golden Master 도달 조건
-- Phase 1 완료 시: MVP 출시 가능 (Backend 85%, Frontend 75%)
-- Phase 2 완료 시: 정식 출시 가능 (Backend 95%, Frontend 90%)
-- Phase 3 완료 시: 안정화 완료 (Backend 100%, Frontend 100%)
-
----
-
-*Report Generated: 2026-01-17*
-*Analysis Tool: Claude Code*
-
----
-
-# Nonstop App: Golden Master Readiness Report (Updated)
-
-**Date:** 2026-01-17
-**Version:** v2.5.1
-**Status:** Backend (v2.5.1 main) vs Frontend (dev branch)
-
----
-
-## 1. Executive Summary
-
-| Category     | Previous | Current | Reason for Change                                                                     |
-| :----------- | :------: | :-----: | :------------------------------------------------------------------------------------ |
-| **Backend**  |    90%   | **85%** | Admin module implemented, Board Admin API missing                                     |
-| **Frontend** |    60%   | **55%** | Friends module missing, Timetable API structure mismatch, Notification module missing |
-
-### Critical Blockers
-
-1. **[Frontend] Friends module completely missing**: Only `.gitkeep` exists under `features/friends/`
-2. **[Frontend] Timetable API structure mismatch**: Frontend is event-based, Backend is timetable/entry-based
-3. **[Frontend] Notification module missing**: No FCM integration or notification list UI
-4. **[Frontend] Email Verification API not connected**: UI exists, no API call
-5. **[Backend] Board Admin features missing**: No API to create/update boards
-
----
-
-## 2. Domain-by-Domain Progress Analysis
-
-### 2.1 Authentication & Verification
-
-| Item                           | Backend | Frontend |    Integration   | Details                                          |
-| :----------------------------- | :-----: | :------: | :--------------: | :----------------------------------------------- |
-| **Login**                      |  ✅ 100% |  ✅ 100%  |      ✅ Done      | JWT Access/Refresh tokens issued correctly       |
-| **Sign Up**                    |  ✅ 100% |  ✅ 100%  |      ✅ Done      | Includes University/Major selection              |
-| **Logout**                     |  ✅ 100% |  ✅ 100%  |      ✅ Done      | Refresh token invalidation                       |
-| **Google OAuth**               |  ✅ 100% |  ⚠️ 50%  |    ⚠️ Partial    | Frontend button exists, integration not verified |
-| **Email Verification**         |  ✅ 100% |   ❌ 0%   |  ❌ Not connected | `verifyEmail()` throws `UnimplementedError`      |
-| **Student ID Verification**    |  ✅ 90%  |   ❌ 0%   |  ❌ Not connected | Backend implemented, frontend missing            |
-| **Email Duplication Check**    |  ✅ 100% |  ✅ 100%  |      ✅ Done      | `/api/v1/auth/email/check`                       |
-| **Nickname Duplication Check** |  ✅ 100% |  ✅ 100%  |      ✅ Done      | `/api/v1/auth/nickname/check`                    |
-| **Token Refresh**              |  ✅ 100% |  ⚠️ 70%  | ⚠️ Needs testing | Edge cases unverified                            |
-
-**Backend**
-
-* `AuthController`: login, signup, logout, refresh
-* `VerificationController`: email & student ID verification
-* JWT: Access 30min, Refresh 30 days
-
-**Frontend**
-
-* `auth_api_impl.dart`: email verification methods unimplemented
-* `email_verification_screen.dart`: navigates without API call
-
----
-
-### 2.2 User Profile
-
-| Item                | Backend | Frontend |     Integration     | Details |
-| :------------------ | :-----: | :------: | :-----------------: | :------ |
-| **Get My Profile**  |  ✅ 100% |  ✅ 100%  |        ✅ Done       |         |
-| **Update Profile**  |  ✅ 100% |  ⚠️ 70%  | ⚠️ Needs validation |         |
-| **Change Password** |  ✅ 100% |   ❌ 0%   |      ❌ Missing      |         |
-| **Delete Account**  |  ✅ 100% |  ✅ 100%  | ⚠️ Needs validation |         |
-| **Profile Image**   |  ✅ 100% |  ⚠️ 50%  | ⚠️ Needs validation |         |
-
----
-
-### 2.3 University & Major
-
-| Item                | Backend | Frontend | Integration |
-| :------------------ | :-----: | :------: | :---------: |
-| **University List** |  ✅ 100% |  ✅ 100%  |    ✅ Done   |
-| **Major List**      |  ✅ 100% |  ✅ 100%  |    ✅ Done   |
-
----
-
-### 2.4 Community & Board
-
-All community, board, post, and interaction features are **fully implemented and integrated (100%)** on both Backend and Frontend.
-
----
-
-### 2.5 Comment
-
-All comment-related features (CRUD, likes, nested comments, `isMine`) are **fully implemented and integrated (100%)**.
-
----
-
-### 2.6 Friends — **CRITICAL**
-
-| Item              | Backend | Frontend | Integration |
-| :---------------- | :-----: | :------: | :---------: |
-| Friend List       |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Send Request      |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Incoming Requests |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Accept / Reject   |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Remove Friend     |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Block List        |  ✅ 100% |   ❌ 0%   |      ❌      |
-| Block / Unblock   |  ✅ 100% |   ❌ 0%   |      ❌      |
-
-**Frontend status:**
-Only empty directories with `.gitkeep` files exist.
-
----
-
-### 2.7 Timetable — **CRITICAL**
-
-**Major structural mismatch**
-
-| Aspect      | Backend                          | Frontend        |
-| :---------- | :------------------------------- | :-------------- |
-| Core Entity | Timetable                        | Event           |
-| Sub Entity  | TimetableEntry                   | None            |
-| API Pattern | `/timetables/{id}/entries`       | `/events`       |
-| Concept     | Multiple timetables per semester | Flat event list |
-
-Backend is **fully implemented**, Frontend uses **mock-only, incompatible structure**.
-
----
-
-### 2.8 Chat
-
-| Item          | Backend | Frontend | Status                       |
-| :------------ | :-----: | :------: | :--------------------------- |
-| Chat Rooms    |    ✅    |     ✅    | Needs verification           |
-| Messages      |    ✅    |     ✅    | Needs verification           |
-| Realtime      |    ✅    |    ⚠️    | Kafka/STOMP testing required |
-| Image Message |    ✅    |     ❌    | Missing                      |
-| Read Receipts |    ✅    |    ⚠️    | Partial                      |
-
----
-
-### 2.9 Notification — **CRITICAL**
-
-| Item              | Backend | Frontend |
-| :---------------- | :-----: | :------: |
-| Notification List |    ✅    |     ❌    |
-| Mark as Read      |    ✅    |     ❌    |
-| FCM Push          |    ✅    |     ❌    |
-
-Frontend has **no notification module at all**. Backend FCM integration is complete.
-
----
-
-### 2.10 Report
-
-| Item             | Backend | Frontend |
-| :--------------- | :-----: | :------: |
-| Create Report    |    ✅    |     ❌    |
-| Admin Management |    ❌    |     ❌    |
-
----
-
-### 2.11 File Upload
-
-* Backend: Real SAS URL implementation (Azure Blob Storage)
-* Frontend: Partial implementation
-* Real cloud integration complete (Backend)
-
----
-
-### 2.12 Admin — **BACKEND IMPLEMENTED**
-
-All admin-related features (student verification review, report moderation, user management) are implemented on Backend. Frontend implementation is pending.
-
----
-
-## 3. API Integration Matrix
-
-| Domain       |  Backend  |  Frontend | Integration |
-| :----------- | :-------: | :-------: | :---------: |
-| Auth         |   10/10   |    7/10   |     70%     |
-| User         |    5/5    |    4/5    |     80%     |
-| University   |    2/2    |    2/2    |     100%    |
-| Community    |    100%   |    100%   |     100%    |
-| Friend       |    7/7    |    0/7    |      0%     |
-| Timetable    |    9/9    |    0/9    |      0%     |
-| Notification |    3/3    |    0/3    |      0%     |
-| Chat         |    7/7    |    5/7    |     71%     |
-| Admin        |    8/8    |    0/8    |      0%     |
-| **Total**    | **71/71** | **34/71** |   **47%**   |
-
----
-
-## 4. Remaining Work (Prioritized)
-
-### Phase 1: MVP Critical
-
-1. Frontend Friends module (full implementation)
-2. Timetable API redesign and integration
-3. Email verification API connection
-4. Notification module + FCM
-
-### Phase 2: High Priority
-
-* Backend Board Admin API
-* Student ID verification UI
-* Chat image messages
-* Report API integration
-* Change password UI
-
-### Phase 3: Polish
-
-* Real FCM integration
-* Real Azure Blob Storage
-* End-to-End testing
-* Unified error handling
-
----
-
-## 5. Tech Stack Summary
-
-### Backend
-
-* Spring Boot 3.x
-* PostgreSQL + MyBatis
-* JWT Auth
-* WebSocket (STOMP) + Kafka
-* Azure Blob Storage (SAS)
-* Firebase Cloud Messaging
-
-### Frontend
-
-* Flutter
-* Riverpod
-* Dio
-* STOMP WebSocket
-* Clean Architecture
-* fpdart (Either)
-
----
-
-## 6. Conclusion & Recommendation
-
-### Current State
-
-* **Backend**: 80% complete, Admin & infra polish required
-* **Frontend**: 55% integrated, core social features missing
-
-### Recommended Priority
-
-1. Friends module
-2. Timetable redesign
-3. Notification system
-4. Email verification
-5. Admin features
-6. Chat image support
+- **Backend**: 핵심 비즈니스 로직 **87% 완성**
+  - ✅ Google OAuth Firebase 연동 완료
+  - ✅ 프로필 이미지 동기화 추가
+  - ❌ Board Admin API 미구현
+  - ❌ User Agreements API 미구현
+
+- **Frontend**: **80% 연동 완료** (이전 55% → 80%로 대폭 개선)
+  - ✅ Friends 모듈 완전 구현 (8개 API)
+  - ✅ Timetable 모듈 완전 구현 (10개 API)
+  - ✅ WebSocket/STOMP 인프라 완성
+  - ❌ Notification 모듈 미구현
+  - ❌ Email Verification API 미연동
+
+### 권고 우선순위 (Updated)
+1. **[최우선]** Frontend Notification 모듈 구현 - 사용자 경험 필수
+2. **[최우선]** Email Verification API 연결 - 회원가입 플로우 완성
+3. **[긴급]** Backend Board Admin API - 운영 필수
+4. **[중요]** User Agreements 전체 구현 - 법적 요구사항
+5. **[중요]** Chat 이미지 전송 - 채팅 기능 완성
+6. **[권장]** Report API 연결 - 콘텐츠 관리
 
 ### Golden Master Criteria
+| Phase | 조건 | 상태 |
+|:---:|:---|:---:|
+| **Phase 1** | MVP 출시 가능 | ⚠️ 진행 중 (74% 연동) |
+| **Phase 2** | 정식 출시 가능 | 🔜 다음 단계 |
+| **Phase 3** | 안정화 완료 | 🔜 후순위 |
 
-* **Phase 1 complete**: MVP release
-* **Phase 2 complete**: Production-ready
-* **Phase 3 complete**: Fully stabilized
+### 예상 Golden Master 도달 조건
+- **Phase 1 완료 시**: MVP 출시 가능 (Backend 87%, Frontend 85%)
+- **Phase 2 완료 시**: 정식 출시 가능 (Backend 95%, Frontend 95%)
+- **Phase 3 완료 시**: 안정화 완료 (Backend 100%, Frontend 100%)
 
 ---
 
-*Report Generated: 2026-01-17*
+## 7. 변경 이력
+
+| 날짜 | 버전 | 변경 내용 |
+|:---|:---:|:---|
+| 2026.01.23 | v2.5.12 | 전체 리포트 업데이트 - Friends/Timetable 완전 구현 반영, 연동률 74%로 상향 |
+| 2026.01.23 | - | Google OAuth Firebase 연동 완료, 프로필 이미지 동기화 추가 |
+| 2026.01.17 | v2.5.1 | 초기 리포트 생성 |
+
+---
+
+*Report Generated: 2026-01-23*
 *Analysis Tool: Claude Code*
 
 ---
