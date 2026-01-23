@@ -37,6 +37,9 @@ public class SignUpRequestDto {
     @Schema(description = "전공 ID", example = "1")
     private Long majorId;
 
+    @Schema(description = "동의한 정책 ID 목록", example = "[1, 2]")
+    private java.util.List<Long> agreedPolicyIds;
+
     public User toEntity(PasswordEncoder passwordEncoder) {
         return User.builder()
                 .email(this.email)

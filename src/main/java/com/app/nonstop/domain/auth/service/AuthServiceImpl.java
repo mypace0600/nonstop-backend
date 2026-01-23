@@ -5,6 +5,7 @@ import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
 import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
 import com.app.nonstop.domain.auth.exception.InvalidTokenException;
 import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
+import com.app.nonstop.domain.policy.service.PolicyService;
 import com.app.nonstop.domain.token.entity.RefreshToken;
 import com.app.nonstop.mapper.AuthMapper;
 import com.app.nonstop.mapper.RefreshTokenMapper;
@@ -42,15 +43,17 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final Optional<FirebaseAuth> firebaseAuth;
+    private final PolicyService policyService;
 
     @Autowired
-    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth) {
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService) {
         this.authMapper = authMapper;
         this.refreshTokenMapper = refreshTokenMapper;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.firebaseAuth = firebaseAuth;
+        this.policyService = policyService;
     }
 
 
@@ -61,6 +64,9 @@ public class AuthServiceImpl implements AuthService {
 
         User user = signUpRequest.toEntity(passwordEncoder);
         authMapper.save(user);
+
+        // 정책 동의 저장
+        policyService.agreePolicies(user.getId(), signUpRequest.getAgreedPolicyIds());
     }
 
     @Override
