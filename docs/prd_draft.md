@@ -112,7 +112,7 @@
 ]
 ```
 
-##### 회원가입 시 동의 정보 전송
+##### 이메일 회원가입 시 동의 정보 전송
 **이메일 회원가입 (`POST /api/v1/auth/signup`)**
 ```json
 {
@@ -122,6 +122,98 @@
   "agreedPolicyIds": [1, 2, 3]  // 동의한 정책 ID 목록
 }
 ```
+- 필수 정책 미동의 시: `400 Bad Request` ("필수 약관에 동의해야 합니다: 서비스 이용약관, 개인정보 처리방침")
+
+##### Google OAuth 로그인 시 정책 동의 (v2.5.15)
+Google OAuth 사용자도 필수 정책에 동의해야 서비스를 이용할 수 있습니다.
+
+**1단계: Google 로그인 요청 (`POST /api/v1/auth/google`)**
+```json
+// Request
+{
+  "idToken": "firebase-id-token..."
+}
+
+// Response - 케이스 1: 정책 동의 필요 (신규 사용자 또는 미동의 필수 정책 존재)
+{
+  "requiresPolicyAgreement": true,
+  "isNewUser": true,
+  "pendingUserId": 123,
+  "pendingPolicies": [
+    { "id": 1, "type": "TERMS_OF_SERVICE", "title": "서비스 이용약관", "url": "https://...", "isMandatory": true },
+    { "id": 2, "type": "PRIVACY_POLICY", "title": "개인정보 처리방침", "url": "https://...", "isMandatory": true }
+  ]
+}
+
+// Response - 케이스 2: 정책 동의 완료 (기존 사용자, 모든 필수 정책 동의됨)
+{
+  "requiresPolicyAgreement": false,
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
+}
+```
+
+**2단계: 정책 동의 후 토큰 발급 (`POST /api/v1/auth/google/agree`)**
+```json
+// Request
+{
+  "pendingUserId": 123,
+  "agreedPolicyIds": [1, 2, 3]
+}
+
+// Response - 성공
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
+}
+
+// Response - 실패 (필수 정책 미동의)
+// 400 Bad Request: "필수 약관에 동의해야 합니다: 서비스 이용약관"
+```
+
+**Google OAuth 정책 동의 플로우:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Google OAuth 로그인 플로우                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  [클라이언트]                         [서버]                      │
+│      │                                  │                       │
+│      │─── POST /auth/google ───────────>│                       │
+│      │    (Firebase ID Token)           │                       │
+│      │                                  │                       │
+│      │                          ┌───────┴───────┐               │
+│      │                          │ 사용자 확인    │               │
+│      │                          │ 필수 정책 체크 │               │
+│      │                          └───────┬───────┘               │
+│      │                                  │                       │
+│      │                    ┌─────────────┴─────────────┐         │
+│      │                    │                           │         │
+│      │            [미동의 정책 있음]           [모두 동의됨]       │
+│      │                    │                           │         │
+│      │<── requiresPolicyAgreement: true ──┤           │         │
+│      │    pendingUserId, pendingPolicies  │           │         │
+│      │                                    │           │         │
+│      │                                    │   ┌───────┴───────┐ │
+│  [정책 동의 화면 표시]                      │   │ 토큰 발급     │ │
+│  [사용자가 동의 체크]                       │   │ 로그인 완료   │ │
+│      │                                    │   └───────────────┘ │
+│      │─── POST /auth/google/agree ───────>│                     │
+│      │    (pendingUserId, agreedPolicyIds)│                     │
+│      │                                    │                     │
+│      │<── accessToken, refreshToken ──────┤                     │
+│      │                                    │                     │
+│  [로그인 완료]                              │                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**기존 사용자 재동의 시나리오:**
+- 새로운 필수 정책이 추가된 경우, 기존 사용자도 해당 정책에 동의해야 함
+- 로그인 시 `pendingPolicies`에 미동의 필수 정책만 포함
+- `isNewUser: false`로 구분 가능
 
 ##### 데이터 모델
 ```sql
