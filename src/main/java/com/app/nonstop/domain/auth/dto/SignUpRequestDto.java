@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+
 @Getter
 @NoArgsConstructor
 @Schema(description = "이메일 회원가입 요청 DTO")
@@ -38,7 +40,7 @@ public class SignUpRequestDto {
     private Long majorId;
 
     @Schema(description = "동의한 정책 ID 목록", example = "[1, 2]")
-    private java.util.List<Long> agreedPolicyIds;
+    private List<Long> agreedPolicyIds;
 
     public User toEntity(PasswordEncoder passwordEncoder) {
         return User.builder()
