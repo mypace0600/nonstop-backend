@@ -5,6 +5,7 @@ import com.app.nonstop.global.security.oauth2.handler.OAuth2AuthenticationFailur
 import com.app.nonstop.global.security.oauth2.handler.OAuth2AuthenticationSuccessHandler;
 import com.app.nonstop.global.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.app.nonstop.global.security.oauth2.service.CustomOAuth2UserService;
+import com.app.nonstop.global.security.policy.PolicyAgreementFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final PolicyAgreementFilter policyAgreementFilter;
     private final GlobalRequestLoggingFilter globalRequestLoggingFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
@@ -47,15 +49,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/api/v1/universities/list",
-                                "/api/v1/universities/regions",
-                                "/oauth2/**",
-                                "/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        .requestMatchers(SecurityPathConfig.PUBLIC_URLS).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -85,7 +79,8 @@ public class SecurityConfig {
                         .failureHandler(oAuth2AuthenticationFailureHandler)
                 )
                 .addFilterBefore(globalRequestLoggingFilter, LogoutFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(policyAgreementFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

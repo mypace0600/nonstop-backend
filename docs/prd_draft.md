@@ -86,66 +86,65 @@
 - 공개 시간표 조회/공개
 - 일부 익명 게시판 (운영 정책에 따라)
 
-#### 3.1.6 회원가입 시 약관 동의 (Terms & Consent)
-회원가입 시 법적 요구사항을 충족하기 위한 약관 동의 절차입니다.
+#### 3.1.6 정책 및 약관 동의 (Policies & Consent)
+회원가입 및 서비스 이용을 위한 정책 동의 절차입니다. (v2.5.13 구현 완료)
 
-##### 동의 항목
-| 항목 | 필수 여부 | 설명 |
-|------|----------|------|
-| **서비스 이용약관** | 필수 | 서비스 이용에 관한 기본 약관 |
-| **개인정보 수집 및 이용** | 필수 | 개인정보 처리방침 동의 |
-| **마케팅 정보 수신** | 선택 | 푸시 알림, 이메일 마케팅 수신 동의 |
+##### 정책 종류 (`policy_type`)
+| 타입 | 설명 |
+|------|------|
+| `TERMS_OF_SERVICE` | 서비스 이용약관 (필수) |
+| `PRIVACY_POLICY` | 개인정보 처리방침 (필수) |
+| `MARKETING` | 마케팅 정보 수신 동의 (선택 가능) |
+| `THIRD_PARTY` | 제3자 정보 제공 동의 (선택 가능) |
 
-##### 회원가입 API 변경
-**이메일 회원가입 (`POST /api/v1/auth/signup`)**
-```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123!",
-  "nickname": "논스톱",
-  "agreements": {
-    "termsOfService": true,       // 필수
-    "privacyPolicy": true,        // 필수
-    "marketingConsent": false     // 선택
-  }
-}
-```
-- 필수 항목 미동의 시: `400 Bad Request` ("필수 약관에 동의해야 합니다.")
+##### 정책 목록 조회 (`GET /api/v1/policies`)
+- 현재 활성화된 모든 정책 목록(ID, 제목, URL, 필수 여부 등)을 반환합니다.
 
-**Google OAuth 회원가입 (`POST /api/v1/auth/google`)**
-- 최초 가입 시 약관 동의 필요
-- 기존 회원 로그인 시 동의 불필요 (기존 동의 내역 유지)
-- Response에 `isNewUser: true` 포함 시, 클라이언트에서 약관 동의 화면 표시 후 동의 정보 전송
+##### 정책 동의 및 검증 프로세스 (v2.5.15)
+정책 동의는 회원가입 시점에 이루어지는 것을 원칙으로 하나, 소셜 로그인 등 가입과 로그인이 동시에 발생하는 경우를 대비하여 **로그인 후 검증 단계**를 운영합니다.
+
+**1. 회원가입 시 동의 (Email)**
+- `POST /api/v1/auth/signup` 요청 시 `agreedPolicyIds`를 전송하여 가입과 동시에 동의 처리.
+
+**2. 로그인 후 상태 체크 (Common/Google)**
+- 사용자는 로그인(토큰 발급) 직후 정책 동의 상태를 확인해야 합니다.
+- **API**: `GET /api/v1/policies/status` (또는 유저 상세 정보에 포함)
+- **응답**: `hasAgreedAllMandatory: boolean` 필드를 통해 필수 약관 동의 여부 전달.
+- **클라이언트**: 해당 값이 `false`인 경우, 메인 화면 진입 전 정책 동의 UI를 강제 노출하고 `POST /api/v1/policies/agree`를 통해 동의 완료 후 서비스 이용.
+
+**3. 백엔드 보안 필터 (Server-side Guard)**
+- 클라이언트의 우회를 방지하기 위해 백엔드 **Spring Security Filter** 수준에서 검증을 수행합니다.
+- **대상**: 정책 조회/동의 API, 인증 관련 API를 제외한 모든 보호된 엔드포인트.
+- **동작**: 유저가 활성화된 모든 필수 정책에 동의하지 않은 상태에서 일반 API 호출 시 `403 Forbidden` 반환.
+- **에러 코드**: `POLICY_AGREEMENT_REQUIRED`를 반환하여 클라이언트가 즉시 약관 동의 화면으로 이동하도록 유도.
 
 ##### 데이터 모델
 ```sql
-CREATE TABLE user_agreements (
+CREATE TABLE policies (
+  id BIGSERIAL PRIMARY KEY,
+  type policy_type NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT,
+  url VARCHAR(512),
+  is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  version VARCHAR(50) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE user_policy_agreements (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users(id),
-  agreement_type VARCHAR(30) NOT NULL,  -- TERMS_OF_SERVICE, PRIVACY_POLICY, MARKETING
-  agreed BOOLEAN NOT NULL DEFAULT FALSE,
-  agreed_at TIMESTAMP,
-  ip_address VARCHAR(45),               -- 동의 시점 IP (법적 증빙용)
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at TIMESTAMP NOT NULL DEFAULT now(),
-  UNIQUE(user_id, agreement_type)
+  policy_id BIGINT NOT NULL REFERENCES policies(id),
+  agreed_at TIMESTAMP NOT NULL DEFAULT now(),
+  UNIQUE (user_id, policy_id)
 );
 ```
 
 ##### 동의 내역 관리
-- **동의 내역 조회 (`GET /api/v1/users/me/agreements`)**
-  - 현재 동의 상태 및 동의 일시 반환
-- **동의 변경 (`PATCH /api/v1/users/me/agreements`)**
-  - 선택 항목(마케팅 등)만 변경 가능
-  - 필수 항목 철회 시: 회원 탈퇴 안내
-- **약관 문서 조회 (`GET /api/v1/terms/{type}`)**
-  - `type`: `terms-of-service`, `privacy-policy`, `marketing`
-  - 최신 약관 내용(HTML/Markdown) 및 버전 반환
-
-##### 약관 버전 관리
-- 약관 내용 변경 시 버전 업데이트
-- 중요 변경 시 기존 사용자에게 재동의 요청 (앱 내 팝업)
-- 재동의 거부 시 서비스 이용 제한 가능
+- **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
+  - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
 #### 3.1.7 회원가입 이메일 인증 (Signup Email Verification)
 회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
@@ -567,6 +566,78 @@ last_read_message_id + unread_count 자동 관리
     - `REJECT`: 신고 기각
   - 처리 시 신고 상태를 `RESOLVED`로 변경
 
+#### 3.11.4 정책 및 약관 관리 (Policy Management)
+서비스 이용약관, 개인정보처리방침 등 법적 문서를 관리합니다. 정책 문서는 **CDN에 HTML 파일로 호스팅**되며, 서버는 해당 URL을 관리합니다.
+
+##### 정책 관리 워크플로우
+1. **정책 문서 작성**: 법무팀/운영팀이 HTML 형식으로 약관 문서 작성
+2. **CDN 업로드**: 관리자가 문서를 Azure Blob Storage (CDN)에 업로드
+3. **정책 등록/수정**: Admin API를 통해 정책 메타데이터(제목, URL, 버전 등) 등록
+4. **버전 관리**: 정책 변경 시 새 버전으로 등록, 기존 버전은 비활성화
+
+##### API 명세
+- **정책 목록 조회 (관리자용) (`GET /api/v1/admin/policies`)**
+  - 모든 정책 목록 조회 (활성/비활성 포함)
+  - 필터: 정책 타입, 활성 상태, 페이징 지원
+
+- **정책 생성 (`POST /api/v1/admin/policies`)**
+  - Request Body:
+    ```json
+    {
+      "type": "TERMS_OF_SERVICE",
+      "title": "서비스 이용약관",
+      "url": "https://cdn.nonstop.app/policies/terms-v1.0.html",
+      "isMandatory": true,
+      "version": "1.0"
+    }
+    ```
+  - 동일 타입의 기존 활성 정책이 있으면 자동으로 비활성화 처리
+
+- **정책 수정 (`PATCH /api/v1/admin/policies/{id}`)**
+  - 제목, URL, 필수 여부 등 수정 가능
+  - 버전 변경 시 새 정책으로 등록 권장 (이력 관리)
+
+- **정책 활성화/비활성화 (`PATCH /api/v1/admin/policies/{id}/status`)**
+  - Request: `{ "isActive": true/false }`
+  - 비활성화된 정책은 회원가입 시 노출되지 않음
+
+- **정책 문서 업로드 (CDN) (`POST /api/v1/admin/policies/upload`)**
+  - Multipart/form-data로 HTML 파일 업로드
+  - 서버가 Azure Blob Storage에 업로드 후 CDN URL 반환
+  - Response: `{ "url": "https://cdn.nonstop.app/policies/terms-v1.0.html" }`
+  - 파일명 규칙: `{type}-v{version}.html` (예: `terms-of-service-v1.0.html`)
+
+##### CDN 구조
+```
+https://cdn.nonstop.app/policies/
+├── terms-of-service-v1.0.html      # 서비스 이용약관 v1.0
+├── terms-of-service-v1.1.html      # 서비스 이용약관 v1.1
+├── privacy-policy-v1.0.html        # 개인정보처리방침 v1.0
+├── marketing-v1.0.html             # 마케팅 수신 동의 v1.0
+└── third-party-v1.0.html           # 제3자 정보제공 동의 v1.0
+```
+
+##### 정책 버전 관리 정책
+- **Major 버전 변경** (예: 1.0 → 2.0): 중요 내용 변경, 기존 사용자 재동의 필요
+- **Minor 버전 변경** (예: 1.0 → 1.1): 경미한 수정, 재동의 불필요
+- 재동의가 필요한 경우 앱에서 팝업으로 안내 (클라이언트 구현 필요)
+
+##### 데이터 모델 (기존)
+```sql
+CREATE TABLE policies (
+  id BIGSERIAL PRIMARY KEY,
+  type policy_type NOT NULL,           -- TERMS_OF_SERVICE, PRIVACY_POLICY, MARKETING, THIRD_PARTY
+  title VARCHAR(255) NOT NULL,
+  content TEXT,                        -- 선택: 짧은 설명 또는 요약
+  url VARCHAR(512),                    -- CDN URL
+  is_mandatory BOOLEAN DEFAULT FALSE,
+  version VARCHAR(50) NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
+```
+
 ## 4. API Endpoint Summary – Golden Master v2.5.5 (완전 목록)
 
 ### Authentication
@@ -582,6 +653,13 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
 | GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
 
+### Policy
+| Method | URI                                    | Description                     |
+|--------|----------------------------------------|---------------------------------|
+| GET    | /api/v1/policies                       | 정책 목록 조회 (활성화된 항목)  |
+| GET    | /api/v1/policies/me                    | 내 정책 동의 내역 조회          |
+| POST   | /api/v1/policies/agree                 | 정책 추가 동의 처리 (v2.5.15)   |
+
 ### Admin (Backend Implemented, Frontend Pending)
 | Method | URI                                             | Description                                      |
 |--------|-------------------------------------------------|--------------------------------------------------|
@@ -593,6 +671,11 @@ last_read_message_id + unread_count 자동 관리
 | GET    | /api/v1/admin/users                             | 사용자 목록 조회 (Search, Paging)                |
 | PATCH  | /api/v1/admin/users/{id}/role                   | 사용자 권한 변경 (USER/ADMIN)                    |
 | PATCH  | /api/v1/admin/users/{id}/status                 | 사용자 상태 변경 (활성/비활성)                   |
+| GET    | /api/v1/admin/policies                          | 정책 목록 조회 (관리자용, 전체)                  |
+| POST   | /api/v1/admin/policies                          | 정책 생성                                        |
+| PATCH  | /api/v1/admin/policies/{id}                     | 정책 수정                                        |
+| PATCH  | /api/v1/admin/policies/{id}/status              | 정책 활성화/비활성화                             |
+| POST   | /api/v1/admin/policies/upload                   | 정책 문서 업로드 (CDN)                           |
 | POST   | /api/v1/communities/{id}/boards                 | 게시판 생성 (관리자 전용)                        |
 | PATCH  | /api/v1/boards/{id}                             | 게시판 수정 (관리자 전용)                        |
 | DELETE | /api/v1/boards/{id}                             | 게시판 비활성화 (관리자 전용)                    |
@@ -607,9 +690,6 @@ last_read_message_id + unread_count 자동 관리
 | POST   | /api/v1/devices/fcm-token                 | FCM 토큰 등록·갱신 (upsert)              |
 | GET    | /api/v1/users/me/verification-status      | 인증 상태 조회 (v2 신규)                 |
 | POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
-| GET    | /api/v1/users/me/agreements               | 약관 동의 내역 조회                      |
-| PATCH  | /api/v1/users/me/agreements               | 약관 동의 변경 (선택 항목)               |
-| GET    | /api/v1/terms/{type}                      | 약관 문서 조회 (최신 버전)               |
 
 ### University
 | Method | URI                                   | Description                              |
@@ -723,6 +803,7 @@ last_read_message_id + unread_count 자동 관리
 | **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
 | **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
+| **Policy** | ✅ Fully Implemented | Policy list and user agreement persistence |
 | **File** | ✅ Fully Implemented | Real Azure Blob Integration (SAS URL + Single Container) |
 | **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService) |
 
@@ -759,6 +840,12 @@ last_read_message_id + unread_count 자동 관리
 - **Verified:** `ReportController` provides `/posts/{postId}/report` and `/comments/{commentId}/report`.
 - **Missing:** Admin capabilities to view and act on these reports.
 
+#### Policy (New)
+- **Verified:** `PolicyController`는 활성 정책 목록 조회 및 사용자 동의 내역 조회를 지원합니다.
+- **Verified:** `AuthServiceImpl`은 로그인(일반/구글) 시 필수 정책 동의 여부를 검증하며, 미동의 시 `PolicyAgreementRequiredException`을 발생시킵니다.
+- **Verified:** 로그인 요청 Body에 `agreedPolicyIds`가 포함된 경우, 선제적으로 동의 레코드를 생성한 후 로그인을 진행하는 재시도(Retry) 프로세스가 구현되었습니다.
+- **Verified:** 로그인된 사용자가 언제든 동의를 추가할 수 있는 `POST /api/v1/policies/agree` 엔드포인트가 추가되었습니다.
+
 #### Notification
 - **Verified:** `NotificationController` provides list/read/read-all endpoints.
 - **Verified:** `NotificationService` calls `FirebaseMessaging` to send multicast push notifications using tokens from `DeviceService`.
@@ -772,6 +859,9 @@ last_read_message_id + unread_count 자동 관리
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.15 | 2026-01-23 | 필수 정책 미동의 시 로그인 차단 및 재시도(agreedPolicyIds) 프로세스 구현 |
+| v2.5.14 | 2026-01-23 | 정책 관리 Admin API 명세 추가 (CDN 업로드, CRUD) |
+| v2.5.13 | 2026-01-23 | 정책 및 약관 동의 기능 구현 완료 (Policy module, signup integration) |
 | v2.5.12 | 2026-01-21 | 회원가입 이메일 인증 기능 명세 추가 (signup/verify, signup/resend API) |
 | v2.5.11 | 2026-01-21 | Auth 커스텀 예외 추가 (401/409 응답), Google 로그인 프로필 동기화, RefreshToken soft-revoke 구현 |
 | v2.5.10 | 2026-01-21 | 로그인 응답에 `userId` 추가, UserResponseDto에 `userId` 추가, Post/Comment 응답에 `writerId` 추가 |

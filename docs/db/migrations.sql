@@ -10,6 +10,7 @@
 --   V3 (2026-01-03): client_message_id UUID → BIGINT 변환
 --   V4 (2026-01-15): boards 테이블 description 컬럼 추가
 --   V5 (2026-01-15): comment_type ENUM 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS)
+--   V6 (2026-01-23): 정책 및 약관 동의 기능 추가
 -- ===================================================================
 
 
@@ -480,3 +481,37 @@ DROP TYPE comment_type;
 
 -- 4. 새 타입 이름 변경
 ALTER TYPE comment_type_new RENAME TO comment_type;
+
+-- ###################################################################
+-- V6: 정책 및 약관 동의 기능 추가 (2026-01-23)
+-- ###################################################################
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'policy_type') THEN
+    CREATE TYPE policy_type AS ENUM ('TERMS_OF_SERVICE', 'PRIVACY_POLICY', 'MARKETING', 'THIRD_PARTY');
+  END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS policies (
+  id BIGSERIAL PRIMARY KEY,
+  type policy_type NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT,
+  url VARCHAR(512),
+  is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  version VARCHAR(50) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS user_policy_agreements (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  policy_id BIGINT NOT NULL REFERENCES policies(id),
+  agreed_at TIMESTAMP NOT NULL DEFAULT now(),
+  UNIQUE (user_id, policy_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_user_policy_agreements_user ON user_policy_agreements(user_id);

@@ -1,9 +1,6 @@
 package com.app.nonstop.global.common.exception;
 
-import com.app.nonstop.domain.auth.exception.DuplicateEmailException;
-import com.app.nonstop.domain.auth.exception.ExpiredTokenException;
-import com.app.nonstop.domain.auth.exception.InvalidTokenException;
-import com.app.nonstop.domain.auth.exception.TokenNotFoundException;
+import com.app.nonstop.domain.auth.exception.*;
 import com.app.nonstop.domain.user.exception.InvalidPasswordException;
 import com.app.nonstop.domain.user.exception.UserNotFoundException;
 import com.app.nonstop.global.common.response.ApiResponse;
@@ -15,6 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(PolicyAgreementRequiredException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<?> handlePolicyAgreementRequiredException(PolicyAgreementRequiredException e) {
+        return ApiResponse.error(e.getMessage(), e.getRequiredPolicies());
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)

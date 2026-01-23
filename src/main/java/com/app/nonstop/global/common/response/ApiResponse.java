@@ -55,6 +55,17 @@ public class ApiResponse<T> {
     }
 
     /**
+     * 실패 응답을 생성합니다. (데이터 포함)
+     *
+     * @param message 실패 메시지
+     * @param data 포함할 데이터
+     * @return ApiResponse 객체
+     */
+    public static <T> ApiResponse<T> error(String message, T data) {
+        return new ApiResponse<>(false, data, message);
+    }
+
+    /**
      * 실패 응답을 생성합니다.
      *
      * @param message 실패 메시지
