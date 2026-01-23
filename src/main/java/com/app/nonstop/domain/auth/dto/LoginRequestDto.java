@@ -19,7 +19,4 @@ public class LoginRequestDto {
     @NotBlank(message = "비밀번호는 필수 입력 항목입니다.")
     @Schema(description = "비밀번호", example = "password123!")
     private String password;
-
-    @Schema(description = "동의한 정책 ID 목록", example = "[1, 2]")
-    private java.util.List<Long> agreedPolicyIds;
 }

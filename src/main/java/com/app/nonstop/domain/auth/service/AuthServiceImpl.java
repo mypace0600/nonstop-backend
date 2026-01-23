@@ -77,11 +77,6 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidPasswordException();
         }
 
-        // 로그인 요청에 정책 동의가 포함된 경우 처리
-        if (loginRequest.getAgreedPolicyIds() != null && !loginRequest.getAgreedPolicyIds().isEmpty()) {
-            policyService.agreePolicies(user.getId(), loginRequest.getAgreedPolicyIds());
-        }
-
         return issueTokens(user);
     }
 
@@ -122,22 +117,11 @@ public class AuthServiceImpl implements AuthService {
                     return newUser;
                 });
 
-        // 로그인 요청에 정책 동의가 포함된 경우 처리
-        if (googleLoginRequest.getAgreedPolicyIds() != null && !googleLoginRequest.getAgreedPolicyIds().isEmpty()) {
-            policyService.agreePolicies(user.getId(), googleLoginRequest.getAgreedPolicyIds());
-        }
-
         return issueTokens(user);
     }
 
 
     private TokenResponseDto issueTokens(User user) {
-        // 필수 정책 동의 여부 확인
-        List<PolicyResponseDto> missingPolicies = policyService.getMissingMandatoryPolicies(user.getId());
-        if (!missingPolicies.isEmpty()) {
-            throw new PolicyAgreementRequiredException(missingPolicies);
-        }
-
         CustomUserDetails userDetails = new CustomUserDetails(
                 user.getId(),
                 user.getEmail(),
