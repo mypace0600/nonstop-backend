@@ -4,7 +4,7 @@ import com.app.nonstop.domain.policy.dto.PolicyResponseDto;
 import com.app.nonstop.domain.policy.dto.UserPolicyAgreementDto;
 import com.app.nonstop.domain.policy.entity.Policy;
 import com.app.nonstop.domain.policy.entity.UserPolicyAgreement;
-import com.app.nonstop.global.exception.BusinessException;
+import com.app.nonstop.global.common.exception.BusinessException;
 import com.app.nonstop.mapper.PolicyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
