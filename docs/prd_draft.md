@@ -196,7 +196,7 @@ CREATE TABLE user_policy_agreements (
 - **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
   - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
-#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - v2.5.17 구현 완료
+#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - v2.5.18 API 분리
 회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
 
 ##### 인증 플로우
@@ -208,11 +208,21 @@ CREATE TABLE user_policy_agreements (
      - "만 14세 미만은 서비스 이용이 제한됩니다." 메시지 전달.
    - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
    - 서버: 사용자 정보를 **인증 대기 상태(`email_verified=false`)**로 저장
+   - Response: `201 Created` + `{ "userId": 123, "email": "user@example.com" }`
+
+2. **이메일 인증 코드 요청 (`POST /api/v1/auth/email/send-verification`)** - v2.5.18 신규
+   - 인증 대기 상태(`email_verified=false`)인 사용자만 요청 가능
+   - Request: `{ "email": "user@example.com" }`
    - 서버: 6자리 난수 인증 코드 생성 후 Redis에 저장 (TTL 5분)
    - 서버: 해당 이메일로 인증 코드 발송
-   - Response: `201 Created` + `{ "message": "인증 메일이 발송되었습니다." }`
+   - **Rate Limit**: 1분당 1회 제한 (스팸 방지)
+   - Response: `200 OK` + `{ "message": "인증 메일이 발송되었습니다." }`
+   - **에러 케이스**:
+     - 해당 이메일 사용자 없음: `404 Not Found` (Code: `USER_NOT_FOUND`)
+     - 이미 인증 완료: `400 Bad Request` (Code: `ALREADY_VERIFIED`)
+     - Rate Limit 초과: `429 Too Many Requests` (Code: `RATE_LIMIT_EXCEEDED`)
 
-2. **인증 코드 확인 (`POST /api/v1/auth/signup/verify`)**
+3. **인증 코드 확인 (`POST /api/v1/auth/email/verify`)** - v2.5.18 경로 변경
    - 사용자가 수신한 6자리 인증 코드 입력
    - Request: `{ "email": "user@example.com", "code": "123456" }`
    - 서버: Redis에서 코드 조회 및 검증
@@ -224,12 +234,7 @@ CREATE TABLE user_policy_agreements (
      - JWT 토큰 발급 (로그인 처리)
    - Response: `200 OK` + `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }`
 
-3. **인증 코드 재발송 (`POST /api/v1/auth/signup/resend`)**
-   - 인증 대기 상태(`email_verified=false`)인 사용자만 요청 가능
-   - Request: `{ "email": "user@example.com" }`
-   - 기존 인증 코드 삭제 후 새 코드 생성 및 발송
-   - **Rate Limit**: 1분당 1회 제한 (스팸 방지)
-   - Response: `200 OK` + `{ "message": "인증 메일이 재발송되었습니다." }`
+> **v2.5.18 변경사항**: 기존 `/signup/verify`, `/signup/resend` API를 `/email/send-verification`, `/email/verify`로 통합하여 관심사 분리. 회원가입 API는 사용자 생성만 담당하고, 이메일 인증은 별도 API로 분리.
 
 ##### 인증 대기 상태 관리
 - `email_verified=false`인 사용자도 **로그인 가능**
