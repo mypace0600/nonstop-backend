@@ -171,7 +171,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .userRole(user.getUserRole())
                 .universityId(user.getUniversityId())
-                .isVerified(user.getIsVerified())
+                .isUniversityVerified(user.getIsUniversityVerified())
                 .emailVerified(true)
                 .birthDate(user.getBirthDate())
                 .build();
@@ -240,7 +240,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getId(),
                 user.getEmail(),
                 user.getUniversityId(),
-                user.getIsVerified(),
+                user.getIsUniversityVerified(),
                 Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole().name()))
         );
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

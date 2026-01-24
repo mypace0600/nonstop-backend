@@ -19,7 +19,7 @@
 
     <update id="updateVerificationStatus">
         UPDATE users
-        SET is_verified = #{isVerified},
+        SET is_university_verified = #{isUniversityVerified},
             verification_method = #{verificationMethod}::verification_method,
             updated_at = now()
         WHERE id = #{userId}
@@ -27,7 +27,7 @@
     </update>
 
     <select id="searchByNickname" resultType="com.app.nonstop.domain.user.dto.UserResponseDto">
-        SELECT u.id, u.id AS user_id, u.email, u.nickname, u.university_id, u.major_id, u.profile_image_url, u.introduction, u.preferred_language, u.is_verified
+        SELECT u.id, u.id AS user_id, u.email, u.nickname, u.university_id, u.major_id, u.profile_image_url, u.introduction, u.preferred_language, u.is_university_verified
         FROM users u
         WHERE u.nickname LIKE CONCAT('%', #{query}, '%')
           AND u.deleted_at IS NULL

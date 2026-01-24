@@ -19,9 +19,9 @@ public class CommunityServiceImpl implements CommunityService {
     private final CommunityMapper communityMapper;
 
     @Override
-    public CommunityListWrapper getCommunities(Long universityId, Boolean isVerified) {
+    public CommunityListWrapper getCommunities(Long universityId, Boolean isUniversityVerified) {
         // 인증된 사용자라면 본인 대학 ID를 사용, 아니라면 null (공통 커뮤니티만 조회)
-        Long queryUniversityId = (Boolean.TRUE.equals(isVerified)) ? universityId : null;
+        Long queryUniversityId = (Boolean.TRUE.equals(isUniversityVerified)) ? universityId : null;
 
         List<CommunityResponseDto> communities = communityMapper.findByUniversityId(queryUniversityId)
                 .stream()
@@ -29,7 +29,7 @@ public class CommunityServiceImpl implements CommunityService {
                 .collect(Collectors.toList());
 
         // 미인증 상태라면 '학교 인증 필요' 플래그는 true로 유지 (프론트엔드 안내용)
-        boolean universityRequired = universityId == null || !Boolean.TRUE.equals(isVerified);
+        boolean universityRequired = universityId == null || !Boolean.TRUE.equals(isUniversityVerified);
 
         return CommunityListWrapper.builder()
                 .communities(communities)

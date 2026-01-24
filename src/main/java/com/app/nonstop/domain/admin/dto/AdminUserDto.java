@@ -38,7 +38,7 @@ public class AdminUserDto {
     private Boolean isActive;
 
     @Schema(description = "학교 인증 여부", example = "false")
-    private Boolean isVerified;
+    private Boolean isUniversityVerified;
 
     @Schema(description = "가입 일시", example = "2025-01-01T09:00:00")
     private LocalDateTime createdAt;

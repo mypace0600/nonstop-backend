@@ -102,7 +102,7 @@ public class TimetableController {
     ) {
         return ApiResponse.success(timetableService.getPublicTimetables(
                 userDetails.getUniversityId(),
-                userDetails.getIsVerified()
+                userDetails.getIsUniversityVerified()
         ));
     }
 }

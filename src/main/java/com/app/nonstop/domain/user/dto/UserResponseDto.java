@@ -46,7 +46,7 @@ public class UserResponseDto {
     private String preferredLanguage;
 
     @Schema(description = "대학생 인증 여부", example = "true")
-    private Boolean isVerified;
+    private Boolean isUniversityVerified;
 
     @Schema(description = "사용자 권한", example = "USER")
     private UserRole userRole;
@@ -66,7 +66,7 @@ public class UserResponseDto {
                 .profileImageUrl(user.getProfileImageUrl())
                 .introduction(user.getIntroduction())
                 .preferredLanguage(user.getPreferredLanguage())
-                .isVerified(user.getIsVerified())
+                .isUniversityVerified(user.getIsUniversityVerified())
                 .userRole(user.getUserRole())
                 .birthDate(user.getBirthDate())
                 .build();

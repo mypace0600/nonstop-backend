@@ -34,7 +34,7 @@
         <result property="majorName" column="major_name"/>
         <result property="userRole" column="user_role"/>
         <result property="isActive" column="is_active"/>
-        <result property="isVerified" column="is_verified"/>
+        <result property="isUniversityVerified" column="is_university_verified"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
@@ -74,7 +74,7 @@
 
     <update id="updateUserVerificationStatus">
         UPDATE users
-        SET is_verified = #{isVerified},
+        SET is_university_verified = #{isUniversityVerified},
             updated_at = NOW()
         WHERE id = #{userId}
     </update>
@@ -130,7 +130,7 @@
             m.name AS major_name,
             u.user_role,
             u.is_active,
-            u.is_verified,
+            u.is_university_verified,
             u.created_at
         FROM users u
         LEFT JOIN universities uni ON u.university_id = uni.id

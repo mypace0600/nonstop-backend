@@ -23,13 +23,13 @@ public class BoardServiceImpl implements BoardService {
     private final CommunityMapper communityMapper;
 
     @Override
-    public List<BoardResponseDto> getBoardsByCommunityId(Long communityId, Long universityId, Boolean isVerified) {
+    public List<BoardResponseDto> getBoardsByCommunityId(Long communityId, Long universityId, Boolean isUniversityVerified) {
         Community community = communityMapper.findById(communityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Community not found"));
 
         // 공통 커뮤니티(universityId == null)는 인증 없이 접근 가능
         if (community.getUniversityId() != null) {
-            if (!Boolean.TRUE.equals(isVerified)) {
+            if (!Boolean.TRUE.equals(isUniversityVerified)) {
                 throw new BusinessException("University verification required");
             }
 

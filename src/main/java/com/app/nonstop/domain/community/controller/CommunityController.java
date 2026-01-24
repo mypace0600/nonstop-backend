@@ -25,7 +25,7 @@ public class CommunityController {
 
     @GetMapping("/communities")
     public ApiResponse<CommunityListWrapper> getCommunities(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        CommunityListWrapper communities = communityService.getCommunities(customUserDetails.getUniversityId(), customUserDetails.getIsVerified());
+        CommunityListWrapper communities = communityService.getCommunities(customUserDetails.getUniversityId(), customUserDetails.getIsUniversityVerified());
         return ApiResponse.success(communities);
     }
 
@@ -37,7 +37,7 @@ public class CommunityController {
         List<BoardResponseDto> boards = boardService.getBoardsByCommunityId(
                 communityId,
                 customUserDetails.getUniversityId(),
-                customUserDetails.getIsVerified()
+                customUserDetails.getIsUniversityVerified()
         );
         return ApiResponse.success(boards);
     }

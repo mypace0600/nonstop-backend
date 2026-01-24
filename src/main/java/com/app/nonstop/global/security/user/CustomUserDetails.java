@@ -17,15 +17,15 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     private final Long userId;
     private final String email;
     private final Long universityId; // Added
-    private final Boolean isVerified; // Added
+    private final Boolean isUniversityVerified; // Added
     private final Collection<? extends GrantedAuthority> authorities;
     private Map<String, Object> attributes;
 
-    public CustomUserDetails(Long userId, String email, Long universityId, Boolean isVerified, Collection<? extends GrantedAuthority> authorities) {
+    public CustomUserDetails(Long userId, String email, Long universityId, Boolean isUniversityVerified, Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.email = email;
         this.universityId = universityId; // Set in constructor
-        this.isVerified = isVerified;     // Set in constructor
+        this.isUniversityVerified = isUniversityVerified;     // Set in constructor
         this.authorities = authorities;
     }
 
@@ -34,7 +34,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
                 user.getId(),
                 user.getEmail(),
                 user.getUniversityId(), // Pass universityId
-                user.getIsVerified(),   // Pass isVerified
+                user.getIsUniversityVerified(),   // Pass isUniversityVerified
                 Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole().name()))
         );
     }

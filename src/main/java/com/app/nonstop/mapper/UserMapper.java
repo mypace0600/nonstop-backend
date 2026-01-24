@@ -29,7 +29,7 @@ public interface UserMapper {
 
     void updateUniversity(@Param("userId") Long userId, @Param("universityId") Long universityId, @Param("majorId") Long majorId);
 
-    void updateVerificationStatus(@Param("userId") Long userId, @Param("isVerified") boolean isVerified, @Param("verificationMethod") com.app.nonstop.domain.user.entity.VerificationMethod verificationMethod);
+    void updateVerificationStatus(@Param("userId") Long userId, @Param("isUniversityVerified") boolean isUniversityVerified, @Param("verificationMethod") com.app.nonstop.domain.user.entity.VerificationMethod verificationMethod);
 
     void updateBirthDate(@Param("userId") Long userId, @Param("birthDate") java.time.LocalDate birthDate);
 
