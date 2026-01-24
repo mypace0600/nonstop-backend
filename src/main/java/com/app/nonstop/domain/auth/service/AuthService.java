@@ -3,17 +3,23 @@ package com.app.nonstop.domain.auth.service;
 import com.app.nonstop.domain.auth.dto.*;
 
 public interface AuthService {
-    void signUp(SignUpRequestDto signUpRequest);
+    SignUpResponseDto signUp(SignUpRequestDto signUpRequest);
 
-    TokenResponseDto login(LoginRequestDto loginRequest);
+    TokenResponseDto login(LoginRequestDto loginRequest, String ipAddress, String userAgent);
 
-    TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest);
+    TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest, String ipAddress, String userAgent);
 
-    void logout(String refreshToken);
+    void logout(String refreshToken, String ipAddress, String userAgent);
 
     TokenResponseDto refresh(String refreshTokenValue);
 
     void checkEmailDuplicate(String email);
 
     void checkNicknameDuplicate(String nickname);
+
+    void sendEmailVerification(EmailVerificationRequestDto request);
+
+    TokenResponseDto verifyEmail(SignupVerificationRequestDto request);
+
+    void cleanupUnverifiedUsers();
 }

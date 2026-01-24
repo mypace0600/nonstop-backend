@@ -17,6 +17,7 @@ import com.app.nonstop.global.security.jwt.JwtTokenProvider;
 import com.app.nonstop.global.security.user.CustomUserDetails;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -26,12 +27,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 
+import com.app.nonstop.global.util.EmailService;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
+
+@Slf4j
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
@@ -43,9 +54,16 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final Optional<FirebaseAuth> firebaseAuth;
     private final PolicyService policyService;
+    private final EmailService emailService;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String SIGNUP_VERIFICATION_PREFIX = "signup:verification:";
+    private static final String SIGNUP_RESEND_LIMIT_PREFIX = "signup:resend:limit:";
+    private static final long SIGNUP_VERIFICATION_TTL = 5; // 5분
+    private static final long SIGNUP_RESEND_LIMIT_TTL = 1; // 1분
 
     @Autowired
-    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService) {
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService, EmailService emailService, StringRedisTemplate redisTemplate) {
         this.authMapper = authMapper;
         this.refreshTokenMapper = refreshTokenMapper;
         this.userMapper = userMapper;
@@ -53,23 +71,119 @@ public class AuthServiceImpl implements AuthService {
         this.jwtTokenProvider = jwtTokenProvider;
         this.firebaseAuth = firebaseAuth;
         this.policyService = policyService;
+        this.emailService = emailService;
+        this.redisTemplate = redisTemplate;
     }
 
 
     @Override
-    public void signUp(SignUpRequestDto signUpRequest) {
+    public SignUpResponseDto signUp(SignUpRequestDto signUpRequest) {
         checkEmailDuplicate(signUpRequest.getEmail());
         checkNicknameDuplicate(signUpRequest.getNickname());
+
+        // 만 14세 미만 체크
+        validateAge(signUpRequest.getBirthDate());
 
         User user = signUpRequest.toEntity(passwordEncoder);
         authMapper.save(user);
 
         // 정책 동의 저장
         policyService.agreePolicies(user.getId(), signUpRequest.getAgreedPolicyIds());
+
+        // 이메일 인증은 별도 API에서 처리
+        return new SignUpResponseDto(user.getId(), user.getEmail());
     }
 
     @Override
-    public TokenResponseDto login(LoginRequestDto loginRequest) {
+    public void sendEmailVerification(EmailVerificationRequestDto request) {
+        String email = request.getEmail();
+
+        // Rate Limit 체크
+        String rateLimitKey = SIGNUP_RESEND_LIMIT_PREFIX + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ResendRateLimitedException();
+        }
+
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new AlreadyVerifiedException();
+        }
+
+        // 인증 코드 발송
+        sendVerificationEmail(email);
+
+        // Rate Limit 설정
+        redisTemplate.opsForValue().set(rateLimitKey, "1", SIGNUP_RESEND_LIMIT_TTL, TimeUnit.MINUTES);
+    }
+
+    private void validateAge(LocalDate birthDate) {
+        if (birthDate == null) return;
+        if (Period.between(birthDate, LocalDate.now()).getYears() < 14) {
+            throw new UnderAgeException();
+        }
+    }
+
+    private void sendVerificationEmail(String email) {
+        // 6자리 난수 생성
+        String code = String.valueOf(new Random().nextInt(900000) + 100000);
+
+        // Redis 저장
+        redisTemplate.opsForValue().set(SIGNUP_VERIFICATION_PREFIX + email, code, SIGNUP_VERIFICATION_TTL, TimeUnit.MINUTES);
+
+        // 이메일 발송
+        emailService.sendSimpleMessage(email, "[Nonstop] 회원가입 인증 코드", 
+                "회원가입을 위해 아래 인증 코드를 입력해주세요.\n\n인증 코드: " + code + "\n\n5분 내에 입력해주세요.");
+    }
+
+    @Override
+    public TokenResponseDto verifyEmail(SignupVerificationRequestDto request) {
+        String email = request.getEmail();
+        String code = request.getCode();
+        String redisKey = SIGNUP_VERIFICATION_PREFIX + email;
+
+        String storedCode = redisTemplate.opsForValue().get(redisKey);
+
+        if (storedCode == null) {
+            throw new VerificationCodeExpiredException();
+        }
+
+        if (!storedCode.equals(code)) {
+            throw new VerificationCodeMismatchException();
+        }
+
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 이미 인증된 경우 처리 (선택적)
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+             // 이미 인증되었으면 바로 토큰 발급
+             return issueTokens(user);
+        }
+
+        // DB 업데이트
+        authMapper.updateEmailVerified(user.getId(), true, LocalDateTime.now());
+
+        // 변경된 상태 반영
+        User updatedUser = User.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .userRole(user.getUserRole())
+                .universityId(user.getUniversityId())
+                .isVerified(user.getIsVerified())
+                .emailVerified(true)
+                .birthDate(user.getBirthDate())
+                .build();
+
+        // Redis 키 삭제
+        redisTemplate.delete(redisKey);
+
+        return issueTokens(updatedUser);
+    }
+
+    @Override
+    public TokenResponseDto login(LoginRequestDto loginRequest, String ipAddress, String userAgent) {
         User user = authMapper.findByEmail(loginRequest.getEmail())
                 .orElseThrow(UserNotFoundException::new);
 
@@ -81,7 +195,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest) {
+    public TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest, String ipAddress, String userAgent) {
         FirebaseAuth auth = firebaseAuth.orElseThrow(() -> new IllegalStateException("Firebase not configured for this environment."));
         FirebaseToken firebaseToken;
         try {
@@ -151,14 +265,15 @@ public class AuthServiceImpl implements AuthService {
                 .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .emailVerified(user.getIsVerified())
+                .emailVerified(user.getEmailVerified())
                 .hasAgreedAllMandatory(hasAgreedAllMandatory)
+                .hasBirthDate(user.getBirthDate() != null)
                 .build();
     }
 
 
     @Override
-    public void logout(String refreshToken) {
+    public void logout(String refreshToken, String ipAddress, String userAgent) {
         RefreshToken token = refreshTokenMapper.findByToken(refreshToken)
                 .orElse(null);
         if (token != null) {
@@ -199,6 +314,13 @@ public class AuthServiceImpl implements AuthService {
         if (authMapper.existsByNickname(nickname)) {
             throw new DuplicateNicknameException();
         }
+    }
+
+    @Override
+    public void cleanupUnverifiedUsers() {
+        LocalDateTime threshold = LocalDateTime.now().minusHours(24);
+        int deletedCount = authMapper.deleteUnverifiedUsersBefore(threshold);
+        log.info("Cleaned up {} unverified users before {}", deletedCount, threshold);
     }
 }
 

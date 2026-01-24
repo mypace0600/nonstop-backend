@@ -11,6 +11,7 @@
 --   V4 (2026-01-15): boards 테이블 description 컬럼 추가
 --   V5 (2026-01-15): comment_type ENUM 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS)
 --   V6 (2026-01-23): 정책 및 약관 동의 기능 추가
+--   V7 (2026-01-24): 회원가입 이메일 인증, 생년월일, 로그인 히스토리 추가
 -- ===================================================================
 
 
@@ -515,3 +516,25 @@ CREATE TABLE IF NOT EXISTS user_policy_agreements (
 );
 
 CREATE INDEX IF NOT EXISTS ix_user_policy_agreements_user ON user_policy_agreements(user_id);
+
+-- ###################################################################
+-- V7: 회원가입 이메일 인증, 생년월일, 로그인 히스토리 추가 (2026-01-24)
+-- ###################################################################
+
+-- 1. users 테이블 컬럼 추가
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;
+
+-- 2. login_history 테이블 생성
+CREATE TABLE IF NOT EXISTS login_history (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    type VARCHAR(20) NOT NULL, -- LOGIN, LOGOUT
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(512),
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_login_history_user_id ON login_history(user_id);
+CREATE INDEX IF NOT EXISTS ix_login_history_created_at ON login_history(created_at);

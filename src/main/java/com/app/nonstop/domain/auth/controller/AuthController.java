@@ -5,6 +5,7 @@ import com.app.nonstop.domain.auth.service.AuthService;
 import com.app.nonstop.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,32 +22,60 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "이메일 회원가입", description = "이메일, 비밀번호, 닉네임으로 회원가입을 진행합니다.")
+    @Operation(summary = "이메일 회원가입", description = "이메일, 비밀번호, 닉네임, 생년월일로 회원가입을 진행합니다. 가입 후 별도로 이메일 인증을 요청해야 합니다.")
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<?>> signUp(@RequestBody @Valid SignUpRequestDto request) {
-        authService.signUp(request);
-        return ResponseEntity.ok(ApiResponse.success());
+    public ResponseEntity<ApiResponse<SignUpResponseDto>> signUp(@RequestBody @Valid SignUpRequestDto request) {
+        SignUpResponseDto response = authService.signUp(request);
+        return ResponseEntity.status(201).body(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "이메일 인증 코드 요청", description = "이메일 인증 코드를 발송합니다. (1분 제한)")
+    @PostMapping("/email/send-verification")
+    public ResponseEntity<ApiResponse<?>> sendEmailVerification(@RequestBody @Valid EmailVerificationRequestDto request) {
+        authService.sendEmailVerification(request);
+        return ResponseEntity.ok(ApiResponse.success("인증 메일이 발송되었습니다."));
+    }
+
+    @Operation(summary = "이메일 인증 확인", description = "이메일로 전송된 인증 코드를 확인하고 토큰을 발급합니다.")
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponse<TokenResponseDto>> verifyEmail(@RequestBody @Valid SignupVerificationRequestDto request) {
+        TokenResponseDto tokenResponse = authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success(tokenResponse));
     }
 
     @Operation(summary = "이메일 로그인", description = "이메일과 비밀번호로 로그인을 진행하고 토큰을 발급합니다.")
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<TokenResponseDto>> login(@RequestBody @Valid LoginRequestDto request) {
-        TokenResponseDto tokenResponse = authService.login(request);
+    public ResponseEntity<ApiResponse<TokenResponseDto>> login(@RequestBody @Valid LoginRequestDto request, HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        TokenResponseDto tokenResponse = authService.login(request, ipAddress, userAgent);
         return ResponseEntity.ok(ApiResponse.success(tokenResponse));
     }
 
     @Operation(summary = "Google 로그인", description = "Google ID 토큰으로 로그인 또는 회원가입을 진행합니다.")
     @PostMapping("/google")
-    public ResponseEntity<ApiResponse<TokenResponseDto>> googleLogin(@RequestBody @Valid GoogleLoginRequestDto request) {
-        TokenResponseDto tokenResponse = authService.googleLogin(request);
+    public ResponseEntity<ApiResponse<TokenResponseDto>> googleLogin(@RequestBody @Valid GoogleLoginRequestDto request, HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        TokenResponseDto tokenResponse = authService.googleLogin(request, ipAddress, userAgent);
         return ResponseEntity.ok(ApiResponse.success(tokenResponse));
     }
 
     @Operation(summary = "로그아웃", description = "사용자의 Refresh Token을 만료시켜 로그아웃 처리합니다.")
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<?>> logout(@RequestBody @Valid RefreshRequestDto request) {
-        authService.logout(request.getRefreshToken());
+    public ResponseEntity<ApiResponse<?>> logout(@RequestBody @Valid RefreshRequestDto request, HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        authService.logout(request.getRefreshToken(), ipAddress, userAgent);
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @Operation(summary = "Access Token 재발급", description = "유효한 Refresh Token으로 새로운 Access Token과 Refresh Token을 발급합니다.")
