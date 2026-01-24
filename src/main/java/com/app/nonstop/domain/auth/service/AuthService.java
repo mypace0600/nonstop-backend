@@ -5,11 +5,11 @@ import com.app.nonstop.domain.auth.dto.*;
 public interface AuthService {
     void signUp(SignUpRequestDto signUpRequest);
 
-    TokenResponseDto login(LoginRequestDto loginRequest);
+    TokenResponseDto login(LoginRequestDto loginRequest, String ipAddress, String userAgent);
 
-    TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest);
+    TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest, String ipAddress, String userAgent);
 
-    void logout(String refreshToken);
+    void logout(String refreshToken, String ipAddress, String userAgent);
 
     TokenResponseDto refresh(String refreshTokenValue);
 
@@ -20,4 +20,6 @@ public interface AuthService {
     TokenResponseDto verifySignupEmail(SignupVerificationRequestDto request);
 
     void resendSignupVerificationCode(SignupResendRequestDto request);
+
+    void cleanupUnverifiedUsers();
 }

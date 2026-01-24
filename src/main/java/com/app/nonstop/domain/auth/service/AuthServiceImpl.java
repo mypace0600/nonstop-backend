@@ -17,6 +17,7 @@ import com.app.nonstop.global.security.jwt.JwtTokenProvider;
 import com.app.nonstop.global.security.user.CustomUserDetails;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +42,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 
+@Slf4j
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
@@ -181,7 +184,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponseDto login(LoginRequestDto loginRequest) {
+    public TokenResponseDto login(LoginRequestDto loginRequest, String ipAddress, String userAgent) {
         User user = authMapper.findByEmail(loginRequest.getEmail())
                 .orElseThrow(UserNotFoundException::new);
 
@@ -193,7 +196,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest) {
+    public TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest, String ipAddress, String userAgent) {
         FirebaseAuth auth = firebaseAuth.orElseThrow(() -> new IllegalStateException("Firebase not configured for this environment."));
         FirebaseToken firebaseToken;
         try {
@@ -271,7 +274,7 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
-    public void logout(String refreshToken) {
+    public void logout(String refreshToken, String ipAddress, String userAgent) {
         RefreshToken token = refreshTokenMapper.findByToken(refreshToken)
                 .orElse(null);
         if (token != null) {
@@ -312,6 +315,13 @@ public class AuthServiceImpl implements AuthService {
         if (authMapper.existsByNickname(nickname)) {
             throw new DuplicateNicknameException();
         }
+    }
+
+    @Override
+    public void cleanupUnverifiedUsers() {
+        LocalDateTime threshold = LocalDateTime.now().minusHours(24);
+        int deletedCount = authMapper.deleteUnverifiedUsersBefore(threshold);
+        log.info("Cleaned up {} unverified users before {}", deletedCount, threshold);
     }
 }
 
