@@ -5,6 +5,7 @@ import com.app.nonstop.domain.university.entity.University;
 import com.app.nonstop.global.common.entity.BaseTimeEntity;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -35,6 +36,9 @@ public class User extends BaseTimeEntity {
     private String preferredLanguage;
     private Boolean isActive;
     private Boolean isVerified;
+    private Boolean emailVerified;
+    private LocalDateTime emailVerifiedAt;
+    private LocalDate birthDate;
     private VerificationMethod verificationMethod;
     private LocalDateTime lastLoginAt;
     private LocalDateTime deletedAt;

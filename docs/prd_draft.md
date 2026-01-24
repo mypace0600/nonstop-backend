@@ -51,19 +51,21 @@
 - Response (성공): `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }` (userId + 새 토큰 쌍)
 - Response (실패): `401 Unauthorized` 또는 `403 Forbidden`
 
-**로그인 응답 공통 형식 (v2.5.16):**
-모든 로그인/토큰 재발급 API 응답에는 `userId`와 정책 동의 상태가 포함됩니다:
+**로그인 응답 공통 형식 (v2.5.17 - 생년월일 체크 추가):**
+모든 로그인/토큰 재발급 API 응답에는 `userId`, 정책 동의 상태, **생년월일 등록 여부**가 포함됩니다:
 ```json
 {
   "userId": 123,
   "accessToken": "eyJhbG...",
   "refreshToken": "eyJhbG...",
   "isVerified": true,
-  "hasAgreedAllMandatory": true
+  "hasAgreedAllMandatory": true,
+  "hasBirthDate": true
 }
 ```
 - `isVerified`: 대학생 인증 완료 여부
 - `hasAgreedAllMandatory`: 필수 정책 동의 완료 여부 (false인 경우 정책 동의 화면으로 이동 필요)
+- `hasBirthDate`: 생년월일 등록 여부 (false인 경우 생년월일 입력 화면으로 이동 필요, 만 14세 미만 체크용)
 
 #### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
@@ -83,14 +85,39 @@
 }
 ```
 
-#### 3.1.5 universityId = null 허용 정책 (Graceful Degradation)
+#### 3.1.5 로그인/로그아웃 이력 관리 (Login History) - v2.5.17 신규
+보안 및 감사 목적으로 사용자의 로그인, 로그아웃 활동을 기록합니다.
+
+- **기록 시점**:
+  - 로그인 성공 시 (이메일, 소셜)
+  - 로그아웃 성공 시
+  - 토큰 갱신(Refresh) 시 (선택적, 초기에는 제외)
+- **저장 데이터**:
+  - `user_id`: 사용자 ID
+  - `type`: `LOGIN`, `LOGOUT`
+  - `ip_address`: 클라이언트 IP 주소
+  - `user_agent`: 디바이스/브라우저 정보
+  - `created_at`: 발생 시각
+- **데이터 모델**:
+  ```sql
+  CREATE TABLE login_history (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      type VARCHAR(20) NOT NULL, -- LOGIN, LOGOUT
+      ip_address VARCHAR(45),
+      user_agent VARCHAR(512),
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+  );
+  ```
+
+#### 3.1.6 universityId = null 허용 정책 (Graceful Degradation)
 가능 기능: 프로필, 친구, 1:1 채팅, 알림, 내 시간표 관리, **공통 커뮤니티 이용**
 제한 기능 (universityRequired = true 반환):
 - **학교별** 커뮤니티/게시판 이용
 - 공개 시간표 조회/공개
 - 일부 익명 게시판 (운영 정책에 따라)
 
-#### 3.1.6 정책 및 약관 동의 (Policies & Consent)
+#### 3.1.7 정책 및 약관 동의 (Policies & Consent)
 회원가입 및 서비스 이용을 위한 정책 동의 절차입니다. (v2.5.13 구현 완료)
 
 ##### 정책 종류 (`policy_type`)
@@ -169,14 +196,18 @@ CREATE TABLE user_policy_agreements (
 - **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
   - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
-#### 3.1.7 회원가입 이메일 인증 (Signup Email Verification) - ⚠️ 미구현
+#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - ⚠️ 미구현
 > **Note:** 이 기능은 명세만 정의되어 있으며, 백엔드 구현이 아직 진행되지 않았습니다.
 
 회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
 
 ##### 인증 플로우
 1. **회원가입 요청 (`POST /api/v1/auth/signup`)**
-   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보를 입력
+   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보, **생년월일(birthDate)**을 입력
+   - **만 14세 미만 가입 제한 (v2.5.17)**:
+     - 입력받은 `birthDate`로 만 나이 계산.
+     - 만 14세 미만인 경우 `400 Bad Request` 반환 (Code: `UNDER_AGE_LIMIT`).
+     - "만 14세 미만은 서비스 이용이 제한됩니다." 메시지 전달.
    - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
    - 서버: 사용자 정보를 **인증 대기 상태(`email_verified=false`)**로 저장
    - 서버: 6자리 난수 인증 코드 생성 후 Redis에 저장 (TTL 5분)
@@ -226,6 +257,7 @@ CREATE TABLE user_policy_agreements (
 -- users 테이블에 컬럼 추가
 ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN birth_date DATE; -- 생년월일 (v2.5.17)
 ```
 
 ##### Redis 키 구조
@@ -233,23 +265,33 @@ ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP;
 - **Value**: `{ "code": "123456", "userId": 123 }`
 - **TTL**: 5분 (300초)
 
-##### 정책 요약
-| 항목 | 값 |
-|------|-----|
-| 인증 코드 길이 | 6자리 숫자 |
-| 인증 코드 유효 시간 | 5분 |
-| 인증 코드 재발송 제한 | 1분당 1회 |
-| 인증 대기 상태 유지 기간 | 24시간 |
-| 미인증 사용자 로그인 | 허용 (응답에 `emailVerified: false` 포함) |
-
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
 - **내 정보 조회 응답에 `userId` 필드 포함** (User.id 값, v2.5.10)
 - **내 정보 조회 응답에 `userRole` 필드 포함** (`USER`, `ADMIN`, `MANAGER`)
 - 이메일 유저만 비밀번호 변경 가능
-- 회원 탈퇴 → soft delete (deleted_at)
 
-#### 3.2.1 대학/전공 설정
+#### 3.2.1 회원 탈퇴 (Account Withdrawal)
+- **회원 탈퇴 (`DELETE /api/v1/users/me`)**
+  - **Soft Delete**: DB에서 데이터를 즉시 삭제하지 않고 `deleted_at` 타임스탬프를 갱신합니다.
+  - **상태 변경**: `is_active`를 `false`로 변경합니다.
+  - **로그아웃 처리**: 현재 사용자의 Refresh Token을 모두 무효화합니다.
+  - **개인정보 처리**: 법적 보관 의무가 있는 데이터를 제외한 민감 정보는 정책에 따라 처리(보관 또는 익명화)합니다. (상세 정책은 개인정보처리방침 따름)
+  - Response: `200 OK`
+
+#### 3.2.2 생년월일 등록 (Age Verification) - v2.5.17 신규
+기존 가입자 중 생년월일 정보가 없는 사용자를 위한 API입니다.
+
+- **생년월일 등록 (`POST /api/v1/users/me/birth-date`)**
+  - **Request**: `{ "birthDate": "2000-01-01" }`
+  - **검증**:
+    - `birthDate` 필수
+    - **만 14세 미만 체크**: 입력된 생년월일 기준 만 14세 미만인 경우 `400 Bad Request` 반환하며 저장을 거부합니다.
+  - **로직**:
+    - `users.birth_date` 업데이트
+  - **제약**: 이미 생년월일이 존재하는 경우 수정 불가 (필요시 관리자 문의)
+
+#### 3.2.3 대학/전공 설정
 - **대학 목록 조회**: 검색어(keyword) 및 지역(region) 필터 지원
 - **지역 목록 조회**: 대학 필터링용 지역 목록 제공
 - **전공 목록 조회**: 대학별 전공 목록, 검색어 필터 지원
@@ -711,6 +753,7 @@ CREATE TABLE policies (
 | GET    | /api/v1/users/me                          | 내 정보 조회                             |
 | PATCH  | /api/v1/users/me                          | 프로필 수정 (학교·전공·닉네임·사진·언어) |
 | PATCH  | /api/v1/users/me/password                 | 비밀번호 변경                            |
+| POST   | /api/v1/users/me/birth-date               | 생년월일 등록 (만 14세 미만 체크)         |
 | DELETE | /api/v1/users/me                          | 회원 탈퇴                                |
 | PATCH  | /api/v1/users/me/university               | 대학/전공 설정                           |
 | GET    | /api/v1/users/me/verification-status      | 인증 상태 조회                           |

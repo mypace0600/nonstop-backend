@@ -30,8 +30,32 @@
     </select>
 
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_verified, university_id, major_id)
-        VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false, #{universityId}, #{majorId})
+        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_verified, email_verified, email_verified_at, birth_date, university_id, major_id)
+        VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false, #{emailVerified}, #{emailVerifiedAt}, #{birthDate}, #{universityId}, #{majorId})
     </insert>
+
+    <update id="updateEmailVerified">
+        UPDATE users
+        SET email_verified = #{emailVerified},
+            email_verified_at = #{emailVerifiedAt},
+            updated_at = now()
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="updateBirthDate">
+        UPDATE users
+        SET birth_date = #{birthDate},
+            updated_at = now()
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+    <delete id="deleteUnverifiedUsersBefore">
+        DELETE FROM users
+        WHERE email_verified = false
+          AND created_at &lt; #{threshold}
+          AND auth_provider = 'EMAIL'
+    </delete>
 
 </mapper>
