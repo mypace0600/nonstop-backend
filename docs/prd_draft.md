@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.12 (2026.01 Backend Status: 85% Completed)**
+**Golden Master v2.5.16 (2026.01 Backend Status: 95% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -51,15 +51,19 @@
 - Response (성공): `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }` (userId + 새 토큰 쌍)
 - Response (실패): `401 Unauthorized` 또는 `403 Forbidden`
 
-**로그인 응답 공통 형식 (v2.5.10):**
-모든 로그인/토큰 재발급 API 응답에는 `userId`가 포함됩니다:
+**로그인 응답 공통 형식 (v2.5.16):**
+모든 로그인/토큰 재발급 API 응답에는 `userId`와 정책 동의 상태가 포함됩니다:
 ```json
 {
   "userId": 123,
   "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG..."
+  "refreshToken": "eyJhbG...",
+  "isVerified": true,
+  "hasAgreedAllMandatory": true
 }
 ```
+- `isVerified`: 대학생 인증 완료 여부
+- `hasAgreedAllMandatory`: 필수 정책 동의 완료 여부 (false인 경우 정책 동의 화면으로 이동 필요)
 
 #### 3.1.3 지원 로그인 방식
 - 이메일 + 비밀번호 (bcrypt)
@@ -90,12 +94,13 @@
 회원가입 및 서비스 이용을 위한 정책 동의 절차입니다. (v2.5.13 구현 완료)
 
 ##### 정책 종류 (`policy_type`)
-| 타입 | 설명 |
-|------|------|
-| `TERMS_OF_SERVICE` | 서비스 이용약관 (필수) |
-| `PRIVACY_POLICY` | 개인정보 처리방침 (필수) |
-| `MARKETING` | 마케팅 정보 수신 동의 (선택 가능) |
-| `THIRD_PARTY` | 제3자 정보 제공 동의 (선택 가능) |
+| 타입                    | 설명                   |
+|-----------------------|----------------------|
+| `TERMS_OF_SERVICE`    | 서비스 이용약관 (필수)        |
+| `PRIVACY_POLICY`      | 개인정보 처리방침 (필수)       |
+| `COMMUNITY_GUIDELINES` | 커뮤니티 이용약관 (필수)       |
+| `MARKETING`           | 마케팅 정보 수신 동의 (선택 가능) |
+| `THIRD_PARTY`         | 제3자 정보 제공 동의 (선택 가능) |
 
 ##### 정책 목록 조회 (`GET /api/v1/policies`)
 - 현재 활성화된 모든 정책 목록(ID, 제목, URL, 필수 여부 등)을 반환합니다.
@@ -112,10 +117,28 @@
 - **응답**: `hasAgreedAllMandatory: boolean` 필드를 통해 필수 약관 동의 여부 전달.
 - **클라이언트**: 해당 값이 `false`인 경우, 메인 화면 진입 전 정책 동의 UI를 강제 노출하고 `POST /api/v1/policies/agree`를 통해 동의 완료 후 서비스 이용.
 
-**3. 백엔드 보안 필터 (Server-side Guard)**
+**3. 백엔드 보안 필터 (Server-side Guard) - v2.5.16 구현 완료**
 - 클라이언트의 우회를 방지하기 위해 백엔드 **Spring Security Filter** 수준에서 검증을 수행합니다.
+- **구현 클래스**: `PolicyAgreementFilter` (Spring Security Filter Chain에 등록)
 - **대상**: 정책 조회/동의 API, 인증 관련 API를 제외한 모든 보호된 엔드포인트.
+- **제외 경로 (검증 생략)**:
+  - `/api/v1/policies/**` - 정책 조회 및 동의
+  - `/api/v1/auth/logout` - 로그아웃
+  - `/api/v1/auth/refresh` - 토큰 갱신
+  - 모든 Public URL (인증 불필요 경로)
 - **동작**: 유저가 활성화된 모든 필수 정책에 동의하지 않은 상태에서 일반 API 호출 시 `403 Forbidden` 반환.
+- **에러 응답 형식**:
+  ```json
+  {
+    "success": false,
+    "data": {
+      "requiredPolicies": [
+        { "id": 1, "title": "서비스 이용약관", "isMandatory": true }
+      ]
+    },
+    "message": "필수 정책에 동의해야 합니다."
+  }
+  ```
 - **에러 코드**: `POLICY_AGREEMENT_REQUIRED`를 반환하여 클라이언트가 즉시 약관 동의 화면으로 이동하도록 유도.
 
 ##### 데이터 모델
@@ -146,7 +169,9 @@ CREATE TABLE user_policy_agreements (
 - **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
   - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
-#### 3.1.7 회원가입 이메일 인증 (Signup Email Verification)
+#### 3.1.7 회원가입 이메일 인증 (Signup Email Verification) - ⚠️ 미구현
+> **Note:** 이 기능은 명세만 정의되어 있으며, 백엔드 구현이 아직 진행되지 않았습니다.
+
 회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
 
 ##### 인증 플로우
@@ -497,7 +522,7 @@ last_read_message_id + unread_count 자동 관리
 
 ##### 데이터 흐름 (SAS URL 방식)
 1.  **SAS URL 요청 (Client → Server)**
-    - 클라이언트는 `POST /api/v1/files/sas-url` 엔드포인트로 업로드할 파일의 정보(`fileName`, `contentType`, `purpose`, `targetId` 등)를 전송하여 업로드 권한이 담긴 일회성 URL(SAS URL)을 요청합니다.
+    - 클라이언트는 `POST /api/v1/files/upload-url` 엔드포인트로 업로드할 파일의 정보(`fileName`, `contentType`, `purpose`, `targetId` 등)를 전송하여 업로드 권한이 담긴 일회성 URL(SAS URL)을 요청합니다.
     - `purpose`는 `PROFILE_IMAGE`, `BOARD_ATTACHMENT` 등 파일의 사용 목적을 나타내는 Enum입니다.
 2.  **파일 직접 업로드 (Client → Azure)**
     - 클라이언트는 서버로부터 받은 SAS URL을 사용하여 파일을 Azure Blob Storage에 직접 업로드(HTTP PUT)합니다.
@@ -638,27 +663,27 @@ CREATE TABLE policies (
 );
 ```
 
-## 4. API Endpoint Summary – Golden Master v2.5.5 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.16 (완전 목록)
 
 ### Authentication
-| Method | URI                                    | Description                     |
-|--------|----------------------------------------|---------------------------------|
-| POST   | /api/v1/auth/signup                    | 이메일 회원가입 (인증 대기 상태) |
-| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   |
-| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        |
-| POST   | /api/v1/auth/login                     | 이메일 로그인                   |
-| POST   | /api/v1/auth/google                    | Google 로그인                   |
-| POST   | /api/v1/auth/refresh                   | Access Token 재발급             |
-| POST   | /api/v1/auth/logout                    | Refresh Token 무효화               |
-| GET    | /api/v1/auth/email/check               | 이메일 중복 체크                |
-| GET    | /api/v1/auth/nickname/check            | 닉네임 중복 체크                |
+| Method | URI                                    | Description                     | Status |
+|--------|----------------------------------------|---------------------------------|--------|
+| POST   | /api/v1/auth/signup                    | 이메일 회원가입                 | ✅ |
+| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   | ❌ 미구현 |
+| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        | ❌ 미구현 |
+| POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
+| POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
+| POST   | /api/v1/auth/refresh                   | Access Token 재발급             | ✅ |
+| POST   | /api/v1/auth/logout                    | Refresh Token 무효화            | ✅ |
+| POST   | /api/v1/auth/email/check               | 이메일 중복 체크                | ✅ |
+| POST   | /api/v1/auth/nickname/check            | 닉네임 중복 체크                | ✅ |
 
 ### Policy
 | Method | URI                                    | Description                     |
 |--------|----------------------------------------|---------------------------------|
 | GET    | /api/v1/policies                       | 정책 목록 조회 (활성화된 항목)  |
-| GET    | /api/v1/policies/me                    | 내 정책 동의 내역 조회          |
-| POST   | /api/v1/policies/agree                 | 정책 추가 동의 처리 (v2.5.15)   |
+| GET    | /api/v1/policies/status                | 정책 동의 상태 조회 (v2.5.16)   |
+| POST   | /api/v1/policies/agree                 | 정책 동의 처리                  |
 
 ### Admin (Backend Implemented, Frontend Pending)
 | Method | URI                                             | Description                                      |
@@ -687,9 +712,18 @@ CREATE TABLE policies (
 | PATCH  | /api/v1/users/me                          | 프로필 수정 (학교·전공·닉네임·사진·언어) |
 | PATCH  | /api/v1/users/me/password                 | 비밀번호 변경                            |
 | DELETE | /api/v1/users/me                          | 회원 탈퇴                                |
-| POST   | /api/v1/devices/fcm-token                 | FCM 토큰 등록·갱신 (upsert)              |
-| GET    | /api/v1/users/me/verification-status      | 인증 상태 조회 (v2 신규)                 |
-| POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청 (v2 신규)   |
+| PATCH  | /api/v1/users/me/university               | 대학/전공 설정                           |
+| GET    | /api/v1/users/me/verification-status      | 인증 상태 조회                           |
+| GET    | /api/v1/users/search                      | 사용자 검색 (닉네임 기반)                |
+| POST   | /api/v1/devices/token                     | FCM 토큰 등록                            |
+| DELETE | /api/v1/devices/token                     | FCM 토큰 제거                            |
+
+### Verification
+| Method | URI                                       | Description                              |
+|--------|-------------------------------------------|------------------------------------------|
+| POST   | /api/v1/verification/student-id           | 학생증 사진 업로드 인증 요청             |
+| POST   | /api/v1/verification/email/request        | 학교 웹메일 인증 요청                    |
+| POST   | /api/v1/verification/email/confirm        | 학교 웹메일 인증 코드 확인               |
 
 ### University
 | Method | URI                                   | Description                              |
@@ -727,7 +761,7 @@ CREATE TABLE policies (
 | POST   | /api/v1/comments/{commentId}/like            | 댓글 좋아요 토글      |
 | POST   | /api/v1/comments/{commentId}/report        | 댓글 신고             |
 
-### Friend, Block & User Report
+### Friend & Block
 | Method | URI                                       | Description                        |
 |--------|-------------------------------------------|------------------------------------|
 | GET    | /api/v1/friends                           | 친구 목록                          |
@@ -736,10 +770,13 @@ CREATE TABLE policies (
 | POST   | /api/v1/friends/requests/{id}/accept      | 수락                               |
 | POST   | /api/v1/friends/requests/{id}/reject      | 거절                               |
 | DELETE | /api/v1/friends/requests/{id}             | 요청 취소                          |
-| POST   | /api/v1/users/{userId}/block              | 사용자 차단                        |
-| DELETE | /api/v1/users/{userId}/block              | 차단 해제                          |
-| GET    | /api/v1/users/me/blocked                  | 차단 목록 조회                     |
-| POST   | /api/v1/users/{userId}/report             | 사용자 신고                        |
+| DELETE | /api/v1/friends/{friendId}                | 친구 삭제                          |
+| POST   | /api/v1/friends/block                     | 사용자 차단                        |
+
+### Report
+| Method | URI                                       | Description                        |
+|--------|-------------------------------------------|------------------------------------|
+| POST   | /api/v1/reports                           | 신고 (게시글/댓글/사용자)          |
 
 ### Chat
 | Method | URI                                                | Description                                |
@@ -748,14 +785,14 @@ CREATE TABLE policies (
 | POST   | /api/v1/chat/rooms                                 | 1:1 채팅방 생성 (with targetUserId)        |
 | DELETE | /api/v1/chat/rooms/{roomId}                        | 채팅방 나가기 (1:1, 그룹 공통)             |
 | GET    | /api/v1/chat/rooms/{roomId}/messages               | 과거 메시지 조회 (Pagination)              |
+| PATCH  | /api/v1/chat/rooms/{roomId}/read                   | 읽음 처리                                  |
 | DELETE | /api/v1/chat/rooms/{roomId}/messages/{msgId}       | 나에게만 메시지 삭제                       |
 | POST   | /api/v1/chat/group-rooms                           | 그룹 채팅방 생성                           |
 | PATCH  | /api/v1/chat/group-rooms/{roomId}                  | 그룹 채팅방 정보 수정 (이름 등)            |
 | GET    | /api/v1/chat/group-rooms/{roomId}/members          | 그룹 채팅방 참여자 목록 조회               |
 | POST   | /api/v1/chat/group-rooms/{roomId}/invite           | 그룹 채팅방에 사용자 초대                  |
 | DELETE | /api/v1/chat/group-rooms/{roomId}/members/{userId} | 그룹 채팅방에서 사용자 강퇴 (방장 권한)    |
-| POST   | /api/v1/chat/rooms/{roomId}/messages/{msgId}/report | 채팅 메시지 신고                          |
-| WS     | wss://api.nonstop.app/ws/v1/chat                   | 실시간 채팅 연결 (STOMP Handshake)         |
+| WS     | /ws/v1/chat                                        | 실시간 채팅 연결 (STOMP Handshake)         |
 | SUB    | /sub/chat/room/{roomId}                            | (STOMP) 채팅방 메시지 구독                 |
 | PUB    | /pub/chat/message                                  | (STOMP) 메시지 발행 (전송)                 |
 
@@ -783,31 +820,33 @@ CREATE TABLE policies (
 ### File
 | Method | URI                                    | Description                     |
 |--------|----------------------------------------|---------------------------------|
-| POST   | /api/v1/files/sas-url                  | 파일 직접 업로드를 위한 SAS URL 요청 |
+| POST   | /api/v1/files/upload-url               | 파일 직접 업로드를 위한 SAS URL 요청 |
 | POST   | /api/v1/files/upload-complete          | 파일 업로드 완료 콜백             |
 
 ---
 
-## 5. Backend Implementation Status (v2.5.5)
+## 5. Backend Implementation Status (v2.5.16)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
-| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google) |
-| **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support |
-| **University** | ✅ Fully Implemented | Search, Paging (`/list`), Major validation |
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Firebase ID Token 검증 |
+| **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search |
+| **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
-| **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll |
+| **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll, Image Attachments |
 | **Board (Admin)** | ❌ Not Implemented | Create/Edit/Delete Board endpoints missing |
-| **Admin (App)** | ✅ Fully Implemented | Verification Review, Report Management, User Control implemented |
-| **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS) |
+| **Admin (App)** | ✅ Fully Implemented | Verification Review, Report Management, User Control (Role/Status) |
+| **Chat** | ✅ Fully Implemented | WebSocket + Kafka, 1:1, Group, Image (SAS), Rate Limiting, Read Status |
 | **Timetable** | ✅ Fully Implemented | CRUD, Color, Validation (Overlap), Public View |
-| **Report** | ✅ Fully Implemented | Post/Comment Report (Creation only) |
-| **Policy** | ✅ Fully Implemented | Policy list and user agreement persistence |
-| **File** | ✅ Fully Implemented | Real Azure Blob Integration (SAS URL + Single Container) |
-| **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService) |
+| **Report** | ✅ Fully Implemented | Post/Comment/User Report (Creation + Admin Processing) |
+| **Policy** | ✅ Fully Implemented | Policy list, User agreement, **PolicyAgreementFilter**, Status API, Login response integration |
+| **File** | ✅ Fully Implemented | Real Azure Blob Integration (SAS URL + Single Container + Purpose-based prefixes) |
+| **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService), Multicast support |
+| **Friend** | ✅ Fully Implemented | Friend Request/Accept/Reject, Block/Unblock |
+| **Security** | ✅ Fully Implemented | JWT Filter, Policy Filter, WebSocket Auth, Rate Limiting (Bucket4j) |
 
-### 5.2 Detailed Verification Notes (2026-01-17)
+### 5.2 Detailed Verification Notes (2026-01-24)
 
 #### Community & Board
 - **Verified:** `CommunityController`, `PostController`, `CommentController` exist and function as expected.
@@ -816,20 +855,30 @@ CREATE TABLE policies (
 - **Verified:** `CommentType` uses `GENERAL/ANONYMOUS`.
 - **Missing:** Admin-only Board management APIs (`POST/PATCH/DELETE /boards`) are not present in the codebase.
 
+#### University & Major
+- **Verified:** `UniversityController` provides list, region filter, and major endpoints.
+- **Verified:** `GET /api/v1/universities/list` - 대학 목록 (인증 불필요)
+- **Verified:** `GET /api/v1/universities/regions` - 지역 목록 (인증 불필요)
+- **Verified:** `GET /api/v1/universities/{id}/majors` - 전공 목록
+
 #### University Verification
 - **Verified:** `VerificationController` handles both `student-id` (multipart) and `email` (request/confirm).
-- **Verified:** `VerificationService` implements logic for redis-based code validation (inferred) and database updates.
-- **Missing:** Admin endpoints to list pending requests and approve/reject them.
+- **Verified:** `VerificationService` implements logic for redis-based code validation and database updates.
 
-#### Admin Features (New)
+#### Admin Features
 - **Verified:** `AdminController` provides endpoints for verification review (`/verifications`), report processing (`/reports`), and user management (`/users`).
 - **Verified:** `AdminService` implements business logic for approving/rejecting verifications and blinding reported content.
 - **Verified:** `SecurityConfig` restricts access to `/api/v1/admin/**` to users with `ADMIN` authority.
+- **Verified:** User role change (`PATCH /api/v1/admin/users/{id}/role`)
+- **Verified:** User status change (`PATCH /api/v1/admin/users/{id}/status`)
 
 #### Chat System
+- **Verified:** `ChatController` and `ChatRoomController` handle all chat-related REST APIs.
 - **Verified:** `ChatKafkaProducer` and `ChatKafkaConsumer` classes exist, confirming the Kafka-based architecture.
-- **Verified:** `WebSocketChatController` handles STOMP messages.
-- **Verified:** `MessageType` includes `IMAGE`, `SYSTEM` types.
+- **Verified:** `WebSocketChatController` handles STOMP messages at `/pub/chat/message`.
+- **Verified:** `MessageType` includes `TEXT`, `IMAGE`, `SYSTEM` types.
+- **Verified:** `WebSocketRateLimitInterceptor` enforces 60 msg/min rate limit using Redis + Bucket4j.
+- **Verified:** Group chat features: create, update, invite, kick, member list.
 
 #### Timetable
 - **Verified:** `TimetableController` provides full CRUD.
@@ -837,28 +886,48 @@ CREATE TABLE policies (
 - **Verified:** `DayOfWeek` enum matches spec.
 
 #### Report
-- **Verified:** `ReportController` provides `/posts/{postId}/report` and `/comments/{commentId}/report`.
-- **Missing:** Admin capabilities to view and act on these reports.
+- **Verified:** `ReportController` provides `/api/v1/reports` endpoint.
+- **Verified:** Report target types: `POST`, `COMMENT`, `USER`.
+- **Verified:** Admin can process reports via `AdminController`.
 
-#### Policy (New)
-- **Verified:** `PolicyController`는 활성 정책 목록 조회 및 사용자 동의 내역 조회를 지원합니다.
-- **Verified:** `AuthServiceImpl`은 로그인(일반/구글) 시 필수 정책 동의 여부를 검증하며, 미동의 시 `PolicyAgreementRequiredException`을 발생시킵니다.
-- **Verified:** 로그인 요청 Body에 `agreedPolicyIds`가 포함된 경우, 선제적으로 동의 레코드를 생성한 후 로그인을 진행하는 재시도(Retry) 프로세스가 구현되었습니다.
-- **Verified:** 로그인된 사용자가 언제든 동의를 추가할 수 있는 `POST /api/v1/policies/agree` 엔드포인트가 추가되었습니다.
+#### Policy (v2.5.16 Updated)
+- **Verified:** `PolicyController`는 활성 정책 목록 조회 및 사용자 동의 상태 조회를 지원합니다.
+- **Verified:** `GET /api/v1/policies` - 활성화된 정책 목록 조회
+- **Verified:** `GET /api/v1/policies/status` - 정책 동의 상태 조회 (hasAgreedAllMandatory 포함)
+- **Verified:** `POST /api/v1/policies/agree` - 정책 동의 처리
+- **Verified:** `PolicyAgreementFilter`가 Spring Security Filter Chain에 등록되어 필수 정책 미동의 사용자의 API 접근을 차단합니다.
+- **Verified:** 필터 제외 경로: `/api/v1/policies/**`, `/api/v1/auth/logout`, `/api/v1/auth/refresh`, Public URLs
+- **Verified:** 로그인 응답에 `hasAgreedAllMandatory` 필드가 포함되어 클라이언트가 정책 동의 화면 표시 여부를 판단할 수 있습니다.
+- **Verified:** `PolicyAgreementRequiredException` 발생 시 미동의 필수 정책 목록이 응답에 포함됩니다.
+
+#### Friend & Block
+- **Verified:** `FriendController` provides friend request, accept, reject, cancel, and list endpoints.
+- **Verified:** Block/Unblock functionality with `UserBlock` entity.
+- **Verified:** Friend status: `PENDING`, `ACCEPTED`, `REJECTED`.
 
 #### Notification
 - **Verified:** `NotificationController` provides list/read/read-all endpoints.
 - **Verified:** `NotificationService` calls `FirebaseMessaging` to send multicast push notifications using tokens from `DeviceService`.
+- **Verified:** Actor nickname snapshot stored for notification display.
 
 #### File Upload
 - **Verified:** `FileController` provides SAS URL generation and completion callback.
 - **Verified:** `AzureBlobStorageConfig` uses environment variables for real integration.
-- **Verified:** `FileService` generates real Azure SAS URLs with 10-min write permission, using a single container (`nonstop`) and purpose-based prefixes.
+- **Verified:** `FileService` generates real Azure SAS URLs with 10-min write permission, using a single container and purpose-based prefixes.
+- **Verified:** File purposes: `PROFILE_IMAGE`, `BOARD_ATTACHMENT`, `STUDENT_ID_VERIFICATION`, etc.
+
+#### Security Configuration
+- **Verified:** `SecurityConfig` configures filter chain: `GlobalRequestLoggingFilter` → `JwtAuthenticationFilter` → `PolicyAgreementFilter`.
+- **Verified:** CORS configured for `localhost:3000`, `localhost:28080`.
+- **Verified:** Session policy: STATELESS (JWT-based).
+- **Verified:** Public URLs properly excluded from authentication.
+- **Verified:** Admin endpoints require `ADMIN` authority.
 
 ### 5.3 변경 이력
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.16 | 2026-01-24 | 로그인 응답에 `hasAgreedAllMandatory` 필드 추가, `GET /api/v1/policies/status` API 추가, PolicyAgreementFilter 제외 경로 구체화 (로그아웃, 토큰 갱신), 전체 코드베이스 검증 및 PRD 동기화 |
 | v2.5.15 | 2026-01-23 | 필수 정책 미동의 시 로그인 차단 및 재시도(agreedPolicyIds) 프로세스 구현 |
 | v2.5.14 | 2026-01-23 | 정책 관리 Admin API 명세 추가 (CDN 업로드, CRUD) |
 | v2.5.13 | 2026-01-23 | 정책 및 약관 동의 기능 구현 완료 (Policy module, signup integration) |
@@ -955,3 +1024,224 @@ CREATE TABLE course_metadata (
 - 시간표 기능 MVP 안정화 완료 후 진행
 - 수업 메타데이터 수집 전략 확정 필요
 - 대학별 커리큘럼 구조 차이 조사 필요
+
+---
+
+## 7. Technical Stack & Architecture
+
+### 7.1 Core Technologies
+| Category | Technology | Version | Notes |
+|----------|------------|---------|-------|
+| **Language** | Java | 17 | LTS |
+| **Framework** | Spring Boot | 3.4.12 | WebFlux 미사용, 동기 방식 |
+| **Security** | Spring Security | 6.x | OAuth2 Client 포함 |
+| **Database** | PostgreSQL | - | Primary Database |
+| **ORM** | MyBatis | 3.0.5 | XML Mapper 기반 |
+| **Cache/Session** | Redis | - | 인증 코드, 레이트 리밋, WebSocket 세션 |
+| **Message Queue** | Apache Kafka | - | 채팅 메시지 처리 |
+| **WebSocket** | Spring WebSocket + STOMP | - | 실시간 채팅 |
+| **Push Notification** | Firebase Cloud Messaging (FCM) | - | 모바일 푸시 알림 |
+| **File Storage** | Azure Blob Storage | - | SAS URL 기반 직접 업로드 |
+| **API Documentation** | SpringDoc OpenAPI | - | Swagger UI |
+
+### 7.2 Authentication & Security
+| Component | Technology | Notes |
+|-----------|------------|-------|
+| **JWT Library** | jjwt | 0.12.6 |
+| **Password Encoding** | BCrypt | Spring Security 기본 |
+| **OAuth2 Provider** | Google | Firebase Admin SDK로 ID Token 검증 |
+| **Rate Limiting** | Bucket4j + Redis | WebSocket 60 msg/min, API 분당 제한 |
+
+### 7.3 External Services
+| Service | Provider | Purpose |
+|---------|----------|---------|
+| **Cloud Storage** | Azure Blob Storage | 파일 업로드 (프로필, 게시글 이미지, 학생증) |
+| **Push Notification** | Firebase Cloud Messaging | iOS/Android 푸시 알림 |
+| **Email** | Gmail SMTP | 인증 코드 발송 |
+| **OAuth** | Google OAuth 2.0 | 소셜 로그인 |
+
+### 7.4 Project Structure
+```
+src/main/java/com/app/nonstop/
+├── domain/                    # 도메인별 비즈니스 로직
+│   ├── admin/                 # 관리자 기능
+│   ├── auth/                  # 인증/인가
+│   ├── chat/                  # 채팅 (WebSocket + Kafka)
+│   ├── community/             # 커뮤니티/게시판/게시글/댓글
+│   ├── device/                # FCM 디바이스 토큰
+│   ├── file/                  # 파일 업로드 (Azure)
+│   ├── friend/                # 친구/차단
+│   ├── major/                 # 전공
+│   ├── notification/          # 알림
+│   ├── policy/                # 정책 동의
+│   ├── report/                # 신고
+│   ├── timetable/             # 시간표
+│   ├── token/                 # Refresh Token
+│   ├── university/            # 대학
+│   ├── user/                  # 사용자
+│   └── verification/          # 학생 인증
+├── global/
+│   ├── common/                # 공통 (BaseEntity, ApiResponse, Exception)
+│   ├── config/                # 설정 (Security, WebSocket, Kafka, Firebase, Azure)
+│   ├── security/              # 보안 (JWT, OAuth2, Policy Filter)
+│   ├── util/                  # 유틸리티
+│   └── infra/                 # 외부 인프라
+└── mapper/                    # MyBatis Mapper 인터페이스
+```
+
+### 7.5 Configuration Properties
+| Property | Default | Description |
+|----------|---------|-------------|
+| `server.port` | 28080 | 서버 포트 |
+| `app.auth.tokenExpiry` | 1800000 (30분) | Access Token 만료 시간 (ms) |
+| `app.auth.refreshTokenExpiry` | 2592000000 (30일) | Refresh Token 만료 시간 (ms) |
+| `websocket.rate-limit.max-messages-per-minute` | 60 | WebSocket 분당 메시지 제한 |
+| `websocket.session.max-sessions-per-user` | 3 | 사용자당 최대 WebSocket 세션 |
+| `websocket.message.max-size-kb` | 64 | 메시지 최대 크기 |
+
+### 7.6 Database Schema (주요 테이블)
+```sql
+-- 사용자
+users (id, email, password, nickname, auth_provider, provider_id,
+       university_id, major_id, profile_image_url, is_verified,
+       verification_method, is_active, deleted_at, ...)
+
+-- 정책
+policies (id, type, title, content, url, is_mandatory, version, is_active, ...)
+user_policy_agreements (id, user_id, policy_id, agreed_at)
+
+-- 커뮤니티
+communities (id, university_id, name, description, is_anonymous, ...)
+boards (id, community_id, name, type, description, ...)
+posts (id, board_id, user_id, title, content, view_count, is_anonymous, deleted_at, ...)
+comments (id, post_id, user_id, upper_comment_id, content, type, depth, is_anonymous, deleted_at, ...)
+post_likes (id, post_id, user_id, ...)
+comment_likes (id, comment_id, user_id, ...)
+
+-- 채팅
+chat_rooms (id, type, name, creator_id, ...)
+chat_room_members (id, chat_room_id, user_id, last_read_message_id, ...)
+messages (id, room_id, sender_id, content, message_type, client_message_id, ...)
+
+-- 친구/차단
+friends (id, sender_id, receiver_id, status, ...)
+user_blocks (id, blocker_id, blocked_user_id, ...)
+
+-- 신고
+reports (id, reporter_id, target_type, target_id, reason, description, status, ...)
+
+-- 시간표
+semesters (id, university_id, year, type, start_date, end_date)
+timetables (id, user_id, semester_id, title, is_public, ...)
+timetable_entries (id, timetable_id, subject_name, professor, day_of_week, start_time, end_time, place, color)
+
+-- 파일
+files (id, uploader_id, target_domain, target_id, purpose, file_url, original_file_name, ...)
+
+-- 알림
+notifications (id, user_id, actor_id, actor_nickname, type, post_id, comment_id, chat_room_id, message, is_read, ...)
+device_tokens (id, user_id, device_type, token, is_active, ...)
+
+-- 인증
+refresh_tokens (id, user_id, token, expires_at, revoked_at, ...)
+student_verification_requests (id, user_id, image_url, status, reject_reason, reviewed_by, ...)
+```
+
+---
+
+## 8. Appendix
+
+### 8.1 Enum Definitions
+
+#### UserRole
+```java
+USER, ADMIN
+```
+
+#### AuthProvider
+```java
+EMAIL, GOOGLE
+```
+
+#### VerificationMethod
+```java
+EMAIL, STUDENT_ID, EMAIL_VERIFICATION
+```
+
+#### PolicyType
+```java
+TERMS_OF_SERVICE, PRIVACY_POLICY, COMMUNITY_GUIDELINES, MARKETING, THIRD_PARTY
+```
+
+#### ChatRoomType
+```java
+ONE_TO_ONE, GROUP
+```
+
+#### MessageType
+```java
+TEXT, IMAGE, SYSTEM
+```
+
+#### FriendStatus
+```java
+PENDING, ACCEPTED, REJECTED
+```
+
+#### ReportTargetType
+```java
+POST, COMMENT, USER
+```
+
+#### ReportReasonType
+```java
+SPAM, HARASSMENT, INAPPROPRIATE_CONTENT, IMPERSONATION, OTHER
+```
+
+#### ReportStatus
+```java
+PENDING, RESOLVED, REJECTED
+```
+
+#### CommentType
+```java
+GENERAL, ANONYMOUS
+```
+
+#### NotificationType
+```java
+POST_LIKE, COMMENT, COMMENT_LIKE, FRIEND_REQUEST, FRIEND_ACCEPTED, CHAT_MESSAGE, SYSTEM
+```
+
+#### FilePurpose
+```java
+PROFILE_IMAGE, BOARD_ATTACHMENT, STUDENT_ID_VERIFICATION, CHAT_IMAGE
+```
+
+#### DayOfWeek (Timetable)
+```java
+MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+```
+
+#### SemesterType
+```java
+FIRST, SECOND, SUMMER, WINTER
+```
+
+### 8.2 Error Response Format
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "에러 메시지"
+}
+```
+
+### 8.3 Success Response Format
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": null
+}
+```
