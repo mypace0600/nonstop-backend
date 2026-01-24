@@ -228,4 +228,25 @@ public class UserServiceImpl implements UserService {
     public List<UserResponseDto> searchUsers(String query) {
         return userMapper.searchByNickname(query);
     }
+
+    @Override
+    @Transactional
+    public void registerBirthDate(Long userId, java.time.LocalDate birthDate) {
+        // 1. 사용자 존재 여부 확인
+        User user = userMapper.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 이미 생년월일이 등록된 경우 예외 처리
+        if (user.getBirthDate() != null) {
+            throw new IllegalArgumentException("Birth date is already registered.");
+        }
+
+        // 3. 만 14세 미만 체크
+        if (birthDate.plusYears(14).isAfter(java.time.LocalDate.now())) {
+             throw new com.app.nonstop.domain.auth.exception.UnderAgeException();
+        }
+
+        // 4. 업데이트
+        userMapper.updateBirthDate(userId, birthDate);
+    }
 }

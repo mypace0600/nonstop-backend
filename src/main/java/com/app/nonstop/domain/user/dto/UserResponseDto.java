@@ -51,6 +51,9 @@ public class UserResponseDto {
     @Schema(description = "사용자 권한", example = "USER")
     private UserRole userRole;
 
+    @Schema(description = "생년월일", example = "2000-01-01")
+    private java.time.LocalDate birthDate;
+
     public static UserResponseDto of(User user) {
         return UserResponseDto.builder()
                 .userId(user.getId())
@@ -65,6 +68,7 @@ public class UserResponseDto {
                 .preferredLanguage(user.getPreferredLanguage())
                 .isVerified(user.getIsVerified())
                 .userRole(user.getUserRole())
+                .birthDate(user.getBirthDate())
                 .build();
     }
 }
