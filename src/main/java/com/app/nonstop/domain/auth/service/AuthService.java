@@ -3,7 +3,7 @@ package com.app.nonstop.domain.auth.service;
 import com.app.nonstop.domain.auth.dto.*;
 
 public interface AuthService {
-    void signUp(SignUpRequestDto signUpRequest);
+    SignUpResponseDto signUp(SignUpRequestDto signUpRequest);
 
     TokenResponseDto login(LoginRequestDto loginRequest, String ipAddress, String userAgent);
 
@@ -17,9 +17,9 @@ public interface AuthService {
 
     void checkNicknameDuplicate(String nickname);
 
-    TokenResponseDto verifySignupEmail(SignupVerificationRequestDto request);
+    void sendEmailVerification(EmailVerificationRequestDto request);
 
-    void resendSignupVerificationCode(SignupResendRequestDto request);
+    TokenResponseDto verifyEmail(SignupVerificationRequestDto request);
 
     void cleanupUnverifiedUsers();
 }

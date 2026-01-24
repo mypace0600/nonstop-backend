@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-@Schema(description = "회원가입 인증 코드 재발송 요청 DTO")
-public class SignupResendRequestDto {
+@Schema(description = "이메일 인증 코드 요청 DTO")
+public class EmailVerificationRequestDto {
 
     @NotBlank(message = "이메일은 필수 입력 항목입니다.")
     @Email(message = "유효한 이메일 형식이 아닙니다.")

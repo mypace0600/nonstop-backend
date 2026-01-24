@@ -77,10 +77,10 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
-    public void signUp(SignUpRequestDto signUpRequest) {
+    public SignUpResponseDto signUp(SignUpRequestDto signUpRequest) {
         checkEmailDuplicate(signUpRequest.getEmail());
         checkNicknameDuplicate(signUpRequest.getNickname());
-        
+
         // 만 14세 미만 체크
         validateAge(signUpRequest.getBirthDate());
 
@@ -90,8 +90,32 @@ public class AuthServiceImpl implements AuthService {
         // 정책 동의 저장
         policyService.agreePolicies(user.getId(), signUpRequest.getAgreedPolicyIds());
 
-        // 이메일 인증 절차 시작
-        sendVerificationEmail(user.getEmail());
+        // 이메일 인증은 별도 API에서 처리
+        return new SignUpResponseDto(user.getId(), user.getEmail());
+    }
+
+    @Override
+    public void sendEmailVerification(EmailVerificationRequestDto request) {
+        String email = request.getEmail();
+
+        // Rate Limit 체크
+        String rateLimitKey = SIGNUP_RESEND_LIMIT_PREFIX + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ResendRateLimitedException();
+        }
+
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new AlreadyVerifiedException();
+        }
+
+        // 인증 코드 발송
+        sendVerificationEmail(email);
+
+        // Rate Limit 설정
+        redisTemplate.opsForValue().set(rateLimitKey, "1", SIGNUP_RESEND_LIMIT_TTL, TimeUnit.MINUTES);
     }
 
     private void validateAge(LocalDate birthDate) {
@@ -114,7 +138,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponseDto verifySignupEmail(SignupVerificationRequestDto request) {
+    public TokenResponseDto verifyEmail(SignupVerificationRequestDto request) {
         String email = request.getEmail();
         String code = request.getCode();
         String redisKey = SIGNUP_VERIFICATION_PREFIX + email;
@@ -140,16 +164,15 @@ public class AuthServiceImpl implements AuthService {
 
         // DB 업데이트
         authMapper.updateEmailVerified(user.getId(), true, LocalDateTime.now());
-        
-        // 변경된 상태 반영을 위해 user 객체 갱신 혹은 issueTokens에서 다시 조회?
-        // issueTokens는 user 객체를 받으므로, 여기서 user 객체의 상태를 업데이트해서 넘겨준다.
+
+        // 변경된 상태 반영
         User updatedUser = User.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .userRole(user.getUserRole())
                 .universityId(user.getUniversityId())
                 .isVerified(user.getIsVerified())
-                .emailVerified(true) // 업데이트
+                .emailVerified(true)
                 .birthDate(user.getBirthDate())
                 .build();
 
@@ -157,30 +180,6 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete(redisKey);
 
         return issueTokens(updatedUser);
-    }
-
-    @Override
-    public void resendSignupVerificationCode(SignupResendRequestDto request) {
-        String email = request.getEmail();
-        
-        // Rate Limit 체크
-        String rateLimitKey = SIGNUP_RESEND_LIMIT_PREFIX + email;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
-            throw new ResendRateLimitedException();
-        }
-
-        User user = authMapper.findByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
-
-        if (Boolean.TRUE.equals(user.getEmailVerified())) {
-            throw new IllegalStateException("이미 이메일 인증이 완료된 사용자입니다.");
-        }
-
-        // 인증 코드 재발송
-        sendVerificationEmail(email);
-
-        // Rate Limit 설정
-        redisTemplate.opsForValue().set(rateLimitKey, "1", SIGNUP_RESEND_LIMIT_TTL, TimeUnit.MINUTES);
     }
 
     @Override
