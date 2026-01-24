@@ -10,6 +10,7 @@ public class SecurityPathConfig {
 
     // 1. JWT 필터 및 Security 상에서 권한 없이 접근 가능한 경로 (Public)
     public static final String[] PUBLIC_URLS = {
+            "/api/v1/policies/**",
             "/api/v1/auth/login",
             "/api/v1/auth/signup",
             "/api/v1/auth/google",
