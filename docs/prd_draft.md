@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.16 (2026.01 Backend Status: 95% Completed)**
+**Golden Master v2.5.17 (2026.01 Backend Status: 98% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -196,9 +196,7 @@ CREATE TABLE user_policy_agreements (
 - **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
   - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
-#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - ⚠️ 미구현
-> **Note:** 이 기능은 명세만 정의되어 있으며, 백엔드 구현이 아직 진행되지 않았습니다.
-
+#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - v2.5.17 구현 완료
 회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
 
 ##### 인증 플로우
@@ -711,8 +709,8 @@ CREATE TABLE policies (
 | Method | URI                                    | Description                     | Status |
 |--------|----------------------------------------|---------------------------------|--------|
 | POST   | /api/v1/auth/signup                    | 이메일 회원가입                 | ✅ |
-| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   | ❌ 미구현 |
-| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        | ❌ 미구현 |
+| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   | ✅ |
+| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        | ✅ |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
 | POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             | ✅ |
@@ -873,7 +871,7 @@ CREATE TABLE policies (
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
-| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Firebase ID Token 검증 |
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Firebase ID Token 검증, Signup Email Verification |
 | **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search |
 | **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
@@ -970,6 +968,7 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.17 | 2026-01-24 | 회원가입 이메일 인증 기능(verify, resend) 구현, 미인증 사용자 정리 스케줄러 추가, 기존 사용자 마이그레이션 스크립트 작성 |
 | v2.5.16 | 2026-01-24 | 로그인 응답에 `hasAgreedAllMandatory` 필드 추가, `GET /api/v1/policies/status` API 추가, PolicyAgreementFilter 제외 경로 구체화 (로그아웃, 토큰 갱신), 전체 코드베이스 검증 및 PRD 동기화 |
 | v2.5.15 | 2026-01-23 | 필수 정책 미동의 시 로그인 차단 및 재시도(agreedPolicyIds) 프로세스 구현 |
 | v2.5.14 | 2026-01-23 | 정책 관리 Admin API 명세 추가 (CDN 업로드, CRUD) |
