@@ -55,7 +55,9 @@ public class AuthServiceImpl implements AuthService {
     private final StringRedisTemplate redisTemplate;
 
     private static final String SIGNUP_VERIFICATION_PREFIX = "signup:verification:";
+    private static final String SIGNUP_RESEND_LIMIT_PREFIX = "signup:resend:limit:";
     private static final long SIGNUP_VERIFICATION_TTL = 5; // 5분
+    private static final long SIGNUP_RESEND_LIMIT_TTL = 1; // 1분
 
     @Autowired
     public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService, EmailService emailService, StringRedisTemplate redisTemplate) {
@@ -106,6 +108,76 @@ public class AuthServiceImpl implements AuthService {
         // 이메일 발송
         emailService.sendSimpleMessage(email, "[Nonstop] 회원가입 인증 코드", 
                 "회원가입을 위해 아래 인증 코드를 입력해주세요.\n\n인증 코드: " + code + "\n\n5분 내에 입력해주세요.");
+    }
+
+    @Override
+    public TokenResponseDto verifySignupEmail(SignupVerificationRequestDto request) {
+        String email = request.getEmail();
+        String code = request.getCode();
+        String redisKey = SIGNUP_VERIFICATION_PREFIX + email;
+
+        String storedCode = redisTemplate.opsForValue().get(redisKey);
+
+        if (storedCode == null) {
+            throw new VerificationCodeExpiredException();
+        }
+
+        if (!storedCode.equals(code)) {
+            throw new VerificationCodeMismatchException();
+        }
+
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 이미 인증된 경우 처리 (선택적)
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+             // 이미 인증되었으면 바로 토큰 발급
+             return issueTokens(user);
+        }
+
+        // DB 업데이트
+        authMapper.updateEmailVerified(user.getId(), true, LocalDateTime.now());
+        
+        // 변경된 상태 반영을 위해 user 객체 갱신 혹은 issueTokens에서 다시 조회?
+        // issueTokens는 user 객체를 받으므로, 여기서 user 객체의 상태를 업데이트해서 넘겨준다.
+        User updatedUser = User.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .userRole(user.getUserRole())
+                .universityId(user.getUniversityId())
+                .isVerified(user.getIsVerified())
+                .emailVerified(true) // 업데이트
+                .birthDate(user.getBirthDate())
+                .build();
+
+        // Redis 키 삭제
+        redisTemplate.delete(redisKey);
+
+        return issueTokens(updatedUser);
+    }
+
+    @Override
+    public void resendSignupVerificationCode(SignupResendRequestDto request) {
+        String email = request.getEmail();
+        
+        // Rate Limit 체크
+        String rateLimitKey = SIGNUP_RESEND_LIMIT_PREFIX + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ResendRateLimitedException();
+        }
+
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new IllegalStateException("이미 이메일 인증이 완료된 사용자입니다.");
+        }
+
+        // 인증 코드 재발송
+        sendVerificationEmail(email);
+
+        // Rate Limit 설정
+        redisTemplate.opsForValue().set(rateLimitKey, "1", SIGNUP_RESEND_LIMIT_TTL, TimeUnit.MINUTES);
     }
 
     @Override

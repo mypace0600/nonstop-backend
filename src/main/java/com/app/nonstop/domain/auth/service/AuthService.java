@@ -16,4 +16,8 @@ public interface AuthService {
     void checkEmailDuplicate(String email);
 
     void checkNicknameDuplicate(String nickname);
+
+    TokenResponseDto verifySignupEmail(SignupVerificationRequestDto request);
+
+    void resendSignupVerificationCode(SignupResendRequestDto request);
 }
