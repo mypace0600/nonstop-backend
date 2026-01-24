@@ -186,8 +186,8 @@ public class TimetableService {
     }
 
     @Transactional(readOnly = true)
-    public List<TimetableDto.Response> getPublicTimetables(Long universityId, Boolean isVerified) {
-        if (universityId == null || !Boolean.TRUE.equals(isVerified)) {
+    public List<TimetableDto.Response> getPublicTimetables(Long universityId, Boolean isUniversityVerified) {
+        if (universityId == null || !Boolean.TRUE.equals(isUniversityVerified)) {
             throw new AccessDeniedException("대학 인증이 완료된 사용자만 공개 시간표를 조회할 수 있습니다.");
         }
 

@@ -35,7 +35,7 @@ public class User extends BaseTimeEntity {
     private String introduction;
     private String preferredLanguage;
     private Boolean isActive;
-    private Boolean isVerified;
+    private Boolean isUniversityVerified;
     private Boolean emailVerified;
     private LocalDateTime emailVerifiedAt;
     private LocalDate birthDate;

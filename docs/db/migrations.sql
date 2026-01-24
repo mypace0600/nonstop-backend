@@ -12,6 +12,7 @@
 --   V5 (2026-01-15): comment_type ENUM 변경 (COMMENT/REPLY → GENERAL/ANONYMOUS)
 --   V6 (2026-01-23): 정책 및 약관 동의 기능 추가
 --   V7 (2026-01-24): 회원가입 이메일 인증, 생년월일, 로그인 히스토리 추가
+--   V8 (2026-01-24): Rename is_verified to is_university_verified
 -- ===================================================================
 
 
@@ -538,3 +539,10 @@ CREATE TABLE IF NOT EXISTS login_history (
 
 CREATE INDEX IF NOT EXISTS ix_login_history_user_id ON login_history(user_id);
 CREATE INDEX IF NOT EXISTS ix_login_history_created_at ON login_history(created_at);
+
+
+-- ###################################################################
+-- V8: Rename is_verified to is_university_verified (2026-01-24)
+-- ###################################################################
+
+ALTER TABLE users RENAME COLUMN is_verified TO is_university_verified;

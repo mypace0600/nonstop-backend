@@ -30,7 +30,7 @@
     </select>
 
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_verified, email_verified, email_verified_at, birth_date, university_id, major_id)
+        INSERT INTO users (email, password, nickname, auth_provider, user_role, is_active, is_university_verified, email_verified, email_verified_at, birth_date, university_id, major_id)
         VALUES (#{email}, #{password}, #{nickname}, #{authProvider}::auth_provider, 'USER'::user_role, true, false, #{emailVerified}, #{emailVerifiedAt}, #{birthDate}, #{universityId}, #{majorId})
     </insert>
 

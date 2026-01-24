@@ -16,14 +16,14 @@ import lombok.AllArgsConstructor;
 public class VerificationStatusResponseDto {
 
     @Schema(description = "대학생 인증 여부", example = "true")
-    private Boolean isVerified;
+    private Boolean isUniversityVerified;
 
     @Schema(description = "대학생 인증 방식 (EMAIL_DOMAIN, MANUAL_REVIEW, STUDENT_ID_PHOTO)", example = "EMAIL_DOMAIN")
     private VerificationMethod verificationMethod;
 
     public static VerificationStatusResponseDto of(User user) {
         return VerificationStatusResponseDto.builder()
-                .isVerified(user.getIsVerified())
+                .isUniversityVerified(user.getIsUniversityVerified())
                 .verificationMethod(user.getVerificationMethod())
                 .build();
     }

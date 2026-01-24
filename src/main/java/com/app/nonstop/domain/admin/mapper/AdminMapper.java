@@ -20,7 +20,7 @@ public interface AdminMapper {
     
     Long getUserIdByVerificationId(Long verificationId);
     
-    int updateUserVerificationStatus(@Param("userId") Long userId, @Param("isVerified") boolean isVerified);
+    int updateUserVerificationStatus(@Param("userId") Long userId, @Param("isUniversityVerified") boolean isUniversityVerified);
 
     // Report
     List<AdminReportDto> selectReports(@Param("limit") int limit, @Param("offset") int offset);

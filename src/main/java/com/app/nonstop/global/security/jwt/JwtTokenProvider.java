@@ -56,7 +56,7 @@ public class JwtTokenProvider {
                 .claim("auth", authorities)
                 .claim("email", userDetails.getEmail())
                 .claim("universityId", userDetails.getUniversityId())
-                .claim("isVerified", userDetails.getIsVerified())
+                .claim("isUniversityVerified", userDetails.getIsUniversityVerified())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -89,14 +89,14 @@ public class JwtTokenProvider {
             universityId = Long.valueOf(universityIdObj.toString());
         }
 
-        Object isVerifiedObj = claims.get("isVerified");
-        Boolean isVerified = isVerifiedObj != null && (Boolean) isVerifiedObj;
+        Object isUniversityVerifiedObj = claims.get("isUniversityVerified");
+        Boolean isUniversityVerified = isUniversityVerifiedObj != null && (Boolean) isUniversityVerifiedObj;
 
         CustomUserDetails principal = new CustomUserDetails(
                 Long.parseLong(claims.getSubject()),
                 claims.get("email", String.class),
                 universityId,
-                isVerified,
+                isUniversityVerified,
                 authorities
         );
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
