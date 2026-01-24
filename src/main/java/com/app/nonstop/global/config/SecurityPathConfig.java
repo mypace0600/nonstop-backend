@@ -16,6 +16,8 @@ public class SecurityPathConfig {
             "/api/v1/auth/google",
             "/api/v1/auth/email/check",
             "/api/v1/auth/nickname/check",
+            "/api/v1/auth/email/send-verification",  // v2.5.18: 이메일 인증 요청 (토큰 없이 호출)
+            "/api/v1/auth/email/verify",             // v2.5.18: 이메일 인증 확인 (토큰 없이 호출)
             "/api/v1/universities/list",
             "/api/v1/universities/regions",
             "/oauth2/**",
@@ -34,6 +36,8 @@ public class SecurityPathConfig {
             "/api/v1/auth/google",
             "/api/v1/auth/email/check",
             "/api/v1/auth/nickname/check",
+            "/api/v1/auth/email/send-verification",  // v2.5.18: 이메일 인증 요청
+            "/api/v1/auth/email/verify",             // v2.5.18: 이메일 인증 확인
             "/api/v1/auth/logout",           // 정책 미동의 상태에서도 로그아웃은 허용
             "/api/v1/auth/refresh",          // 정책 미동의 상태에서도 세션 갱신은 허용
             "/api/v1/universities/list",
