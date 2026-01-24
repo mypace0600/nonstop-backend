@@ -32,6 +32,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 
+import com.app.nonstop.global.util.EmailService;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
+
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
@@ -43,9 +51,14 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final Optional<FirebaseAuth> firebaseAuth;
     private final PolicyService policyService;
+    private final EmailService emailService;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String SIGNUP_VERIFICATION_PREFIX = "signup:verification:";
+    private static final long SIGNUP_VERIFICATION_TTL = 5; // 5분
 
     @Autowired
-    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService) {
+    public AuthServiceImpl(AuthMapper authMapper, RefreshTokenMapper refreshTokenMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, Optional<FirebaseAuth> firebaseAuth, PolicyService policyService, EmailService emailService, StringRedisTemplate redisTemplate) {
         this.authMapper = authMapper;
         this.refreshTokenMapper = refreshTokenMapper;
         this.userMapper = userMapper;
@@ -53,6 +66,8 @@ public class AuthServiceImpl implements AuthService {
         this.jwtTokenProvider = jwtTokenProvider;
         this.firebaseAuth = firebaseAuth;
         this.policyService = policyService;
+        this.emailService = emailService;
+        this.redisTemplate = redisTemplate;
     }
 
 
@@ -60,12 +75,37 @@ public class AuthServiceImpl implements AuthService {
     public void signUp(SignUpRequestDto signUpRequest) {
         checkEmailDuplicate(signUpRequest.getEmail());
         checkNicknameDuplicate(signUpRequest.getNickname());
+        
+        // 만 14세 미만 체크
+        validateAge(signUpRequest.getBirthDate());
 
         User user = signUpRequest.toEntity(passwordEncoder);
         authMapper.save(user);
 
         // 정책 동의 저장
         policyService.agreePolicies(user.getId(), signUpRequest.getAgreedPolicyIds());
+
+        // 이메일 인증 절차 시작
+        sendVerificationEmail(user.getEmail());
+    }
+
+    private void validateAge(LocalDate birthDate) {
+        if (birthDate == null) return;
+        if (Period.between(birthDate, LocalDate.now()).getYears() < 14) {
+            throw new UnderAgeException();
+        }
+    }
+
+    private void sendVerificationEmail(String email) {
+        // 6자리 난수 생성
+        String code = String.valueOf(new Random().nextInt(900000) + 100000);
+
+        // Redis 저장
+        redisTemplate.opsForValue().set(SIGNUP_VERIFICATION_PREFIX + email, code, SIGNUP_VERIFICATION_TTL, TimeUnit.MINUTES);
+
+        // 이메일 발송
+        emailService.sendSimpleMessage(email, "[Nonstop] 회원가입 인증 코드", 
+                "회원가입을 위해 아래 인증 코드를 입력해주세요.\n\n인증 코드: " + code + "\n\n5분 내에 입력해주세요.");
     }
 
     @Override
@@ -151,8 +191,9 @@ public class AuthServiceImpl implements AuthService {
                 .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .emailVerified(user.getIsVerified())
+                .emailVerified(user.getEmailVerified())
                 .hasAgreedAllMandatory(hasAgreedAllMandatory)
+                .hasBirthDate(user.getBirthDate() != null)
                 .build();
     }
 

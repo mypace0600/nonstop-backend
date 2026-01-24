@@ -5,12 +5,14 @@ import com.app.nonstop.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -33,6 +35,10 @@ public class SignUpRequestDto {
     @Schema(description = "닉네임", example = "테스트유저")
     private String nickname;
 
+    @NotNull(message = "생년월일은 필수 입력 항목입니다.")
+    @Schema(description = "생년월일", example = "2000-01-01")
+    private LocalDate birthDate;
+
     @Schema(description = "대학교 ID", example = "1")
     private Long universityId;
 
@@ -47,9 +53,11 @@ public class SignUpRequestDto {
                 .email(this.email)
                 .password(passwordEncoder.encode(this.password))
                 .nickname(this.nickname)
+                .birthDate(this.birthDate)
                 .authProvider(AuthProvider.EMAIL)
                 .universityId(this.universityId)
                 .majorId(this.majorId)
+                .emailVerified(false)
                 .build();
     }
 }

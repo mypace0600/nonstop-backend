@@ -25,4 +25,7 @@ public class TokenResponseDto {
 
     @Schema(description = "필수 정책 동의 완료 여부", example = "true")
     private Boolean hasAgreedAllMandatory;
+
+    @Schema(description = "생년월일 등록 여부", example = "true")
+    private Boolean hasBirthDate;
 }
