@@ -42,4 +42,12 @@
           AND deleted_at IS NULL
     </update>
 
+    <update id="updateBirthDate">
+        UPDATE users
+        SET birth_date = #{birthDate},
+            updated_at = now()
+        WHERE id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
 </mapper>

@@ -31,5 +31,7 @@ public interface UserMapper {
 
     void updateVerificationStatus(@Param("userId") Long userId, @Param("isVerified") boolean isVerified, @Param("verificationMethod") com.app.nonstop.domain.user.entity.VerificationMethod verificationMethod);
 
+    void updateBirthDate(@Param("userId") Long userId, @Param("birthDate") java.time.LocalDate birthDate);
+
     List<com.app.nonstop.domain.user.dto.UserResponseDto> searchByNickname(@Param("query") String query);
 }

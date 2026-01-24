@@ -56,6 +56,13 @@ public interface UserService {
     void updateUniversity(Long userId, Long universityId, Long majorId);
 
     /**
+     * 사용자의 생년월일을 등록합니다. (최초 1회, 만 14세 이상 체크)
+     * @param userId 사용자 ID
+     * @param birthDate 생년월일
+     */
+    void registerBirthDate(Long userId, java.time.LocalDate birthDate);
+
+    /**
      * 닉네임으로 사용자를 검색합니다.
      *
      * @param query 검색어

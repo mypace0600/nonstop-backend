@@ -1,6 +1,7 @@
 package com.app.nonstop.domain.user.controller;
 
 import com.app.nonstop.domain.university.dto.UserUniversityRequestDto;
+import com.app.nonstop.domain.user.dto.BirthDateUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.ProfileUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.UserResponseDto;
@@ -19,6 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,11 +51,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponseDto>> getMyInfo(
             @Parameter(hidden = true) // Swagger 문서에서 파라미터 입력을 숨기기 위한 어노테이션
             @AuthenticationPrincipal CustomUserDetails customUserDetails
-            /**
-             * @AuthenticationPrincipal: Spring Security의 SecurityContextHolder에서 현재 인증된 사용자의 Principal 객체를 주입받습니다.
-             * JwtAuthenticationFilter에서 인증 성공 시 SecurityContext에 CustomUserDetails를 담아두었기 때문에,
-             * 컨트롤러에서는 이 어노테이션 하나로 편리하게 사용자 정보(ID 등)를 얻을 수 있습니다.
-             */
     ) {
         UserResponseDto myInfo = userService.getMyInfo(customUserDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.success(myInfo));
@@ -164,5 +161,16 @@ public class UserController {
     ) {
         List<UserResponseDto> searchResults = userService.searchUsers(query);
         return ResponseEntity.ok(ApiResponse.success(searchResults));
+    }
+
+    @Operation(summary = "생년월일 등록", description = "만 14세 이상만 등록 가능합니다. 최초 1회만 가능합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/me/birth-date")
+    public ResponseEntity<ApiResponse<?>> registerBirthDate(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody @Valid BirthDateUpdateRequestDto requestDto
+    ) {
+        userService.registerBirthDate(customUserDetails.getUserId(), requestDto.getBirthDate());
+        return ResponseEntity.ok(ApiResponse.success());
     }
 }

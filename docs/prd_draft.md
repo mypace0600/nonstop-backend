@@ -877,7 +877,7 @@ CREATE TABLE policies (
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
 | **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Firebase ID Token 검증, Signup Email Verification |
-| **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search |
+| **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search, **Birthdate registration** |
 | **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
 | **Community** | ✅ Fully Implemented | Post/Comment CRUD, Like, `isMine` field, Infinite Scroll, Image Attachments |
