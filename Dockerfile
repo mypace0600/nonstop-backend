@@ -10,5 +10,5 @@ RUN gradle bootJar
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/build/libs/nonstop-0.0.1-SNAPSHOT.jar .
-EXPOSE 8080
+EXPOSE 28080
 ENTRYPOINT ["java", "-jar", "nonstop-0.0.1-SNAPSHOT.jar"]

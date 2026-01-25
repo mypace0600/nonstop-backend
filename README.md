@@ -125,8 +125,8 @@
 ```bash
 docker-compose up --build
 ```
-* `app`, `db`, `redis` 컨테이너가 실행됩니다.
-* **Note**: Kafka는 `docker-compose.yml` 구성에 따라 포함 여부가 다를 수 있으므로 확인이 필요합니다.
+* `app`, `db`, `redis`, `zookeeper`, `kafka`, `init-kafka` 컨테이너가 실행됩니다.
+* Kafka 토픽(`chat-messages`, `chat-read-events`)은 `init-kafka` 컨테이너에 의해 자동으로 생성됩니다.
 
 ---
 
