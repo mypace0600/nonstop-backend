@@ -59,7 +59,7 @@ services:
       - app-net
 
   kafka:
-    image: bitnami/kafka:3.6
+    image: bitnami/kafka:3.7
     container_name: nonstop-kafka
     ports:
       - "9092:9092"
@@ -74,7 +74,7 @@ services:
       - app-net
 
   init-kafka:
-    image: bitnami/kafka:3.6
+    image: bitnami/kafka:3.7
     container_name: nonstop-init-kafka
     depends_on:
       - kafka
