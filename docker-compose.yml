@@ -51,24 +51,27 @@ services:
       - app-net
 
   kafka:
-    image: bitnami/kafka:latest
+    image: apache/kafka:3.7.0
     container_name: nonstop-kafka
     ports:
       - "9092:9092"
     environment:
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
     networks:
       - app-net
 
   init-kafka:
-    image: bitnami/kafka:latest
+    image: apache/kafka:3.7.0
     container_name: nonstop-init-kafka
     depends_on:
       - kafka
@@ -76,14 +79,14 @@ services:
     command: |
       "
       # blocks until kafka is reachable
-      kafka-topics.sh --bootstrap-server kafka:9092 --list
-      
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+
       echo -e 'Creating kafka topics'
-      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-messages --replication-factor 1 --partitions 10
-      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-read-events --replication-factor 1 --partitions 5
-      
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-messages --replication-factor 1 --partitions 10
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-read-events --replication-factor 1 --partitions 5
+
       echo -e 'Successfully created the following topics:'
-      kafka-topics.sh --bootstrap-server kafka:9092 --list
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
       "
     networks:
       - app-net
