@@ -1,8 +1,8 @@
-# docker-compose.yml
+# docker-compose.prod.yml - Production deployment (image-based)
 
 services:
   app:
-    build: .
+    image: ghcr.io/mypace0600/nonstop-backend:latest
     container_name: nonstop-app
     ports:
       - "28080:28080"
@@ -61,8 +61,6 @@ services:
   kafka:
     image: bitnami/kafka:3.6
     container_name: nonstop-kafka
-    ports:
-      - "9092:9092"
     environment:
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
@@ -83,11 +81,11 @@ services:
       "
       # blocks until kafka is reachable
       kafka-topics.sh --bootstrap-server kafka:9092 --list
-      
+
       echo -e 'Creating kafka topics'
       kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-messages --replication-factor 1 --partitions 10
       kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic chat-read-events --replication-factor 1 --partitions 5
-      
+
       echo -e 'Successfully created the following topics:'
       kafka-topics.sh --bootstrap-server kafka:9092 --list
       "
