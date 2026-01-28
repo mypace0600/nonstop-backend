@@ -19,7 +19,7 @@ public interface AuthService {
 
     void sendEmailVerification(EmailVerificationRequestDto request);
 
-    TokenResponseDto verifyEmail(SignupVerificationRequestDto request);
+    void verifyEmail(SignupVerificationRequestDto request);
 
     void cleanupUnverifiedUsers();
 }

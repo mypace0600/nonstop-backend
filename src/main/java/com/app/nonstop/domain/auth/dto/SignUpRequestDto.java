@@ -48,7 +48,7 @@ public class SignUpRequestDto {
     @Schema(description = "동의한 정책 ID 목록", example = "[1, 2]")
     private List<Long> agreedPolicyIds;
 
-    public User toEntity(PasswordEncoder passwordEncoder) {
+    public User toEntity(PasswordEncoder passwordEncoder, boolean emailVerified) {
         return User.builder()
                 .email(this.email)
                 .password(passwordEncoder.encode(this.password))
@@ -57,7 +57,8 @@ public class SignUpRequestDto {
                 .authProvider(AuthProvider.EMAIL)
                 .universityId(this.universityId)
                 .majorId(this.majorId)
-                .emailVerified(false)
+                .emailVerified(emailVerified)
+                .emailVerifiedAt(emailVerified ? java.time.LocalDateTime.now() : null)
                 .build();
     }
 }
