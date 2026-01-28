@@ -22,7 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "이메일 회원가입", description = "이메일, 비밀번호, 닉네임, 생년월일로 회원가입을 진행합니다. 가입 후 별도로 이메일 인증을 요청해야 합니다.")
+    @Operation(summary = "이메일 회원가입", description = "이메일, 비밀번호, 닉네임, 생년월일로 회원가입을 진행합니다. 가입 전 이메일 인증이 완료되어야 합니다.")
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponseDto>> signUp(@RequestBody @Valid SignUpRequestDto request) {
         SignUpResponseDto response = authService.signUp(request);
@@ -36,11 +36,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("인증 메일이 발송되었습니다."));
     }
 
-    @Operation(summary = "이메일 인증 확인", description = "이메일로 전송된 인증 코드를 확인하고 토큰을 발급합니다.")
+    @Operation(summary = "이메일 인증 확인", description = "이메일로 전송된 인증 코드를 확인합니다. 성공 시 해당 이메일은 가입 가능한 상태가 됩니다.")
     @PostMapping("/email/verify")
-    public ResponseEntity<ApiResponse<TokenResponseDto>> verifyEmail(@RequestBody @Valid SignupVerificationRequestDto request) {
-        TokenResponseDto tokenResponse = authService.verifyEmail(request);
-        return ResponseEntity.ok(ApiResponse.success(tokenResponse));
+    public ResponseEntity<ApiResponse<?>> verifyEmail(@RequestBody @Valid SignupVerificationRequestDto request) {
+        authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success("이메일 인증이 완료되었습니다."));
     }
 
     @Operation(summary = "이메일 로그인", description = "이메일과 비밀번호로 로그인을 진행하고 토큰을 발급합니다.")

@@ -78,19 +78,29 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public SignUpResponseDto signUp(SignUpRequestDto signUpRequest) {
+        // Redis에서 이메일 인증 여부 확인
+        String isVerified = redisTemplate.opsForValue().get("verified:email:" + signUpRequest.getEmail());
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new EmailNotVerifiedException();
+        }
+
         checkEmailDuplicate(signUpRequest.getEmail());
         checkNicknameDuplicate(signUpRequest.getNickname());
 
         // 만 14세 미만 체크
         validateAge(signUpRequest.getBirthDate());
 
-        User user = signUpRequest.toEntity(passwordEncoder);
+        // 인증이 완료된 상태로 엔티티 생성
+        User user = signUpRequest.toEntity(passwordEncoder, true);
+        
         authMapper.save(user);
 
         // 정책 동의 저장
         policyService.agreePolicies(user.getId(), signUpRequest.getAgreedPolicyIds());
 
-        // 이메일 인증은 별도 API에서 처리
+        // 인증 상태 삭제
+        redisTemplate.delete("verified:email:" + signUpRequest.getEmail());
+
         return new SignUpResponseDto(user.getId(), user.getEmail());
     }
 
@@ -98,17 +108,15 @@ public class AuthServiceImpl implements AuthService {
     public void sendEmailVerification(EmailVerificationRequestDto request) {
         String email = request.getEmail();
 
+        // 중복 이메일 체크 (이미 가입된 이메일인지)
+        if (authMapper.existsByEmail(email)) {
+            throw new DuplicateEmailException();
+        }
+
         // Rate Limit 체크
         String rateLimitKey = SIGNUP_RESEND_LIMIT_PREFIX + email;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
             throw new ResendRateLimitedException();
-        }
-
-        User user = authMapper.findByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
-
-        if (Boolean.TRUE.equals(user.getEmailVerified())) {
-            throw new AlreadyVerifiedException();
         }
 
         // 인증 코드 발송
@@ -138,7 +146,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public TokenResponseDto verifyEmail(SignupVerificationRequestDto request) {
+    public void verifyEmail(SignupVerificationRequestDto request) {
         String email = request.getEmail();
         String code = request.getCode();
         String redisKey = SIGNUP_VERIFICATION_PREFIX + email;
@@ -153,33 +161,11 @@ public class AuthServiceImpl implements AuthService {
             throw new VerificationCodeMismatchException();
         }
 
-        User user = authMapper.findByEmail(email)
-                .orElseThrow(UserNotFoundException::new);
+        // Redis에 인증 완료 상태 저장 (30분간 유효)
+        redisTemplate.opsForValue().set("verified:email:" + email, "true", 30, TimeUnit.MINUTES);
 
-        // 이미 인증된 경우 처리 (선택적)
-        if (Boolean.TRUE.equals(user.getEmailVerified())) {
-             // 이미 인증되었으면 바로 토큰 발급
-             return issueTokens(user);
-        }
-
-        // DB 업데이트
-        authMapper.updateEmailVerified(user.getId(), true, LocalDateTime.now());
-
-        // 변경된 상태 반영
-        User updatedUser = User.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .userRole(user.getUserRole())
-                .universityId(user.getUniversityId())
-                .isUniversityVerified(user.getIsUniversityVerified())
-                .emailVerified(true)
-                .birthDate(user.getBirthDate())
-                .build();
-
-        // Redis 키 삭제
+        // 인증 코드 삭제
         redisTemplate.delete(redisKey);
-
-        return issueTokens(updatedUser);
     }
 
     @Override
@@ -226,6 +212,8 @@ public class AuthServiceImpl implements AuthService {
                             .nickname(nickname)
                             .authProvider(AuthProvider.GOOGLE)
                             .profileImageUrl(googleProfileImage)
+                            .emailVerified(true)
+                            .emailVerifiedAt(LocalDateTime.now())
                             .build();
                     authMapper.save(newUser);
                     return newUser;
