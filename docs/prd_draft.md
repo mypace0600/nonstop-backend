@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.17 (2026.01 Backend Status: 98% Completed)**
+**Golden Master v2.5.18 (2026.01 Backend Status: 98% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -196,77 +196,49 @@ CREATE TABLE user_policy_agreements (
 - **내 동의 내역 조회 (`GET /api/v1/policies/me`)**
   - 현재 로그인한 사용자가 동의한 정책 목록 및 동의 시점을 반환합니다.
 
-#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - v2.5.18 API 분리
-회원가입 시 입력한 이메일의 실제 소유 여부를 확인하기 위한 인증 절차입니다.
+#### 3.1.8 회원가입 이메일 인증 (Signup Email Verification) - v2.5.18 선행 인증 방식으로 개편
+회원가입 전 이메일 소유 여부를 먼저 확인하는 선행 인증(Pre-verification) 절차입니다. 이메일 인증이 완료된 사용자만 회원가입이 가능합니다.
 
 ##### 인증 플로우
-1. **회원가입 요청 (`POST /api/v1/auth/signup`)**
-   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보, **생년월일(birthDate)**을 입력
-   - **만 14세 미만 가입 제한 (v2.5.17)**:
-     - 입력받은 `birthDate`로 만 나이 계산.
-     - 만 14세 미만인 경우 `400 Bad Request` 반환 (Code: `UNDER_AGE_LIMIT`).
-     - "만 14세 미만은 서비스 이용이 제한됩니다." 메시지 전달.
-   - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
-   - 서버: 사용자 정보를 **인증 대기 상태(`email_verified=false`)**로 저장
-   - Response: `201 Created` + `{ "userId": 123, "email": "user@example.com" }`
-
-2. **이메일 인증 코드 요청 (`POST /api/v1/auth/email/send-verification`)** - v2.5.18 신규
-   - 인증 대기 상태(`email_verified=false`)인 사용자만 요청 가능
-   - Request: `{ "email": "user@example.com" }`
+1. **이메일 인증 코드 요청 (`POST /api/v1/auth/email/send-verification`)**
+   - 사용자가 가입하고자 하는 이메일 입력
+   - 서버: 이메일 중복 체크 (이미 가입된 사용자인지 확인)
    - 서버: 6자리 난수 인증 코드 생성 후 Redis에 저장 (TTL 5분)
    - 서버: 해당 이메일로 인증 코드 발송
    - **Rate Limit**: 1분당 1회 제한 (스팸 방지)
    - Response: `200 OK` + `{ "message": "인증 메일이 발송되었습니다." }`
    - **에러 케이스**:
-     - 해당 이메일 사용자 없음: `404 Not Found` (Code: `USER_NOT_FOUND`)
-     - 이미 인증 완료: `400 Bad Request` (Code: `ALREADY_VERIFIED`)
+     - 이미 가입된 이메일: `400 Bad Request` (Code: `DUPLICATE_EMAIL`)
      - Rate Limit 초과: `429 Too Many Requests` (Code: `RATE_LIMIT_EXCEEDED`)
 
-3. **인증 코드 확인 (`POST /api/v1/auth/email/verify`)** - v2.5.18 경로 변경
+2. **인증 코드 확인 (`POST /api/v1/auth/email/verify`)**
    - 사용자가 수신한 6자리 인증 코드 입력
    - Request: `{ "email": "user@example.com", "code": "123456" }`
    - 서버: Redis에서 코드 조회 및 검증
      - 코드 불일치: `400 Bad Request` ("인증 코드가 일치하지 않습니다.")
      - 코드 만료: `400 Bad Request` ("인증 코드가 만료되었습니다.")
    - 검증 성공 시:
-     - `users.email_verified = true` 업데이트
-     - Redis 키 삭제 (일회용)
-     - JWT 토큰 발급 (로그인 처리)
-   - Response: `200 OK` + `{ "userId": 123, "accessToken": "...", "refreshToken": "..." }`
+     - Redis에 해당 이메일의 **인증 완료 상태 저장** (TTL 30분)
+     - 기존 인증 코드 삭제 (일회용)
+   - Response: `200 OK` + `{ "message": "이메일 인증이 완료되었습니다." }`
 
-> **v2.5.18 변경사항**: 기존 `/signup/verify`, `/signup/resend` API를 `/email/send-verification`, `/email/verify`로 통합하여 관심사 분리. 회원가입 API는 사용자 생성만 담당하고, 이메일 인증은 별도 API로 분리.
+3. **회원가입 요청 (`POST /api/v1/auth/signup`)**
+   - 사용자가 이메일, 비밀번호, 닉네임, 약관 동의 정보, **생년월일(birthDate)**을 입력
+   - 서버: **Redis에서 해당 이메일의 인증 완료 여부 확인**
+     - 미인증 이메일인 경우: `403 Forbidden` (Code: `EMAIL_NOT_VERIFIED`)
+   - **만 14세 미만 가입 제한 (v2.5.17)**:
+     - 입력받은 `birthDate`로 만 나이 계산.
+     - 만 14세 미만인 경우 `400 Bad Request` 반환 (Code: `UNDER_AGE_LIMIT`).
+   - 서버: 입력 정보 유효성 검증 (이메일/닉네임 중복 체크 포함)
+   - 서버: 사용자 정보를 **인증 완료 상태(`email_verified=true`)**로 저장
+   - 서버: Redis의 인증 상태 삭제
+   - Response: `201 Created` + `{ "userId": 123, "email": "user@example.com" }`
 
-##### 인증 대기 상태 관리
-- `email_verified=false`인 사용자도 **로그인 가능**
-  - 로그인 응답에 `emailVerified: false` 포함
-  - 클라이언트에서 인증 화면으로 유도 (선택적)
-- 인증 대기 상태로 **24시간 경과** 시 자동 삭제 (스케줄러)
-- 동일 이메일로 재가입 시도 시:
-  - 인증 대기 상태 사용자 존재 → 기존 데이터 삭제 후 새로 가입 진행
+> **v2.5.18 변경사항**: 기존 '가입 후 인증' 방식에서 '인증 후 가입' 방식으로 개편되었습니다. 이메일 인증 성공 시 Redis에 30분간 인증 상태가 유지되며, 가입 시 이를 검증합니다.
 
-##### 로그인 응답 변경
-모든 로그인/토큰 재발급 API 응답에 `emailVerified` 필드 추가:
-```json
-{
-  "userId": 123,
-  "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG...",
-  "emailVerified": false
-}
-```
-
-##### 데이터 모델 변경
-```sql
--- users 테이블에 컬럼 추가
-ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP;
-ALTER TABLE users ADD COLUMN birth_date DATE; -- 생년월일 (v2.5.17)
-```
-
-##### Redis 키 구조
-- **Key**: `signup:verification:{email}`
-- **Value**: `{ "code": "123456", "userId": 123 }`
-- **TTL**: 5분 (300초)
+##### 인증 상태 관리 (Redis)
+- **인증 코드**: `signup:verification:{email}` (TTL 5분)
+- **인증 완료 상태**: `verified:email:{email}` (Value: "true", TTL 30분)
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
@@ -708,14 +680,14 @@ CREATE TABLE policies (
 );
 ```
 
-## 4. API Endpoint Summary – Golden Master v2.5.16 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.18 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     | Status |
 |--------|----------------------------------------|---------------------------------|--------|
-| POST   | /api/v1/auth/signup                    | 이메일 회원가입                 | ✅ |
-| POST   | /api/v1/auth/signup/verify             | 회원가입 이메일 인증 코드 확인   | ✅ |
-| POST   | /api/v1/auth/signup/resend             | 회원가입 인증 코드 재발송        | ✅ |
+| POST   | /api/v1/auth/signup                    | 이메일 회원가입 (인증 완료 이메일 필수) | ✅ |
+| POST   | /api/v1/auth/email/send-verification   | 회원가입 이메일 인증 코드 발송   | ✅ |
+| POST   | /api/v1/auth/email/verify              | 회원가입 이메일 인증 코드 확인   | ✅ |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
 | POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             | ✅ |
@@ -871,12 +843,12 @@ CREATE TABLE policies (
 
 ---
 
-## 5. Backend Implementation Status (v2.5.16)
+## 5. Backend Implementation Status (v2.5.18)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
-| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Firebase ID Token 검증, Signup Email Verification |
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Signup Email Pre-verification (v2.5.18) |
 | **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search, **Birthdate registration** |
 | **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
@@ -892,7 +864,7 @@ CREATE TABLE policies (
 | **Friend** | ✅ Fully Implemented | Friend Request/Accept/Reject, Block/Unblock |
 | **Security** | ✅ Fully Implemented | JWT Filter, Policy Filter, WebSocket Auth, Rate Limiting (Bucket4j) |
 
-### 5.2 Detailed Verification Notes (2026-01-24)
+### 5.2 Detailed Verification Notes (2026-01-29)
 
 #### Community & Board
 - **Verified:** `CommunityController`, `PostController`, `CommentController` exist and function as expected.
@@ -973,6 +945,7 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.18 | 2026-01-29 | 회원가입 이메일 인증 절차를 '선행 인증(Pre-verification)' 방식으로 개편. 가입 전 이메일 인증을 완료해야 하며, 인증 상태는 Redis에서 30분간 유지됨. |
 | v2.5.17 | 2026-01-24 | 회원가입 이메일 인증 기능(verify, resend) 구현, 미인증 사용자 정리 스케줄러 추가, 기존 사용자 마이그레이션 스크립트 작성 |
 | v2.5.16 | 2026-01-24 | 로그인 응답에 `hasAgreedAllMandatory` 필드 추가, `GET /api/v1/policies/status` API 추가, PolicyAgreementFilter 제외 경로 구체화 (로그아웃, 토큰 갱신), 전체 코드베이스 검증 및 PRD 동기화 |
 | v2.5.15 | 2026-01-23 | 필수 정책 미동의 시 로그인 차단 및 재시도(agreedPolicyIds) 프로세스 구현 |
