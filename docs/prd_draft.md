@@ -240,6 +240,101 @@ CREATE TABLE user_policy_agreements (
 - **인증 코드**: `signup:verification:{email}` (TTL 5분)
 - **인증 완료 상태**: `verified:email:{email}` (Value: "true", TTL 30분)
 
+#### 3.1.9 비밀번호 재설정 (Password Reset) - 신규
+비밀번호를 분실한 이메일 가입 사용자를 위한 임시 비밀번호 발급 및 강제 변경 기능입니다.
+
+##### 대상 사용자
+- `authProvider = EMAIL` 사용자만 대상
+- Google OAuth 사용자는 비밀번호 재설정 불가 (소셜 로그인 안내)
+- `deleted_at IS NULL` (탈퇴하지 않은 활성 사용자)
+
+##### 비밀번호 재설정 플로우
+
+**1. 임시 비밀번호 발급 요청 (`POST /api/v1/auth/password/reset-request`)**
+- 사용자가 가입한 이메일 주소 입력
+- **Request**: `{ "email": "user@example.com" }`
+- **서버 검증**:
+  - 가입된 이메일인지 확인
+  - `authProvider = EMAIL` 인지 확인
+  - 탈퇴하지 않은 사용자인지 확인
+- **처리**:
+  - 8자리 임시 비밀번호 생성 (영문 대소문자 + 숫자 조합)
+  - 임시 비밀번호를 bcrypt로 암호화하여 `users.password` 업데이트
+  - `users.password_must_change = true` 설정
+  - 이메일로 임시 비밀번호 발송
+- **Rate Limit**: 동일 이메일에 대해 1분당 1회 제한
+- **Response (200 OK)**: `{ "message": "임시 비밀번호가 이메일로 발송되었습니다." }`
+- **에러 케이스**:
+  - 미가입 이메일: `404 Not Found` (Code: `USER_NOT_FOUND`)
+  - Google 계정: `400 Bad Request` (Code: `INVALID_AUTH_PROVIDER`, Message: "소셜 로그인 계정은 비밀번호 재설정이 불가합니다.")
+  - Rate Limit 초과: `429 Too Many Requests` (Code: `RATE_LIMIT_EXCEEDED`)
+
+**2. 임시 비밀번호로 로그인 (`POST /api/v1/auth/login`)**
+- 기존 로그인 API 사용 (변경 없음)
+- **응답 필드 추가**: `mustChangePassword: boolean`
+  - `password_must_change = true`인 사용자 로그인 시 `mustChangePassword: true` 반환
+- **클라이언트 처리**: `mustChangePassword: true` 수신 시 비밀번호 변경 화면으로 강제 이동
+
+**3. 비밀번호 변경 (`PATCH /api/v1/users/me/password`)**
+- 기존 비밀번호 변경 API 활용
+- **Request**: `{ "currentPassword": "임시비밀번호", "newPassword": "새비밀번호123" }`
+- **추가 처리**: 비밀번호 변경 성공 시 `password_must_change = false` 자동 설정
+- 변경 완료 후 정상 서비스 이용 가능
+
+##### 로그인 응답 형식 (v2.5.19 변경)
+```json
+{
+  "userId": 123,
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG...",
+  "isVerified": true,
+  "hasAgreedAllMandatory": true,
+  "hasBirthDate": true,
+  "mustChangePassword": false
+}
+```
+- `mustChangePassword`: 임시 비밀번호 사용 여부 (true인 경우 비밀번호 변경 화면 강제 이동)
+
+##### 데이터 모델 변경
+```sql
+-- users 테이블에 컬럼 추가
+ALTER TABLE users ADD COLUMN password_must_change BOOLEAN DEFAULT FALSE;
+```
+
+##### 임시 비밀번호 이메일 템플릿
+```
+제목: [Nonstop] 임시 비밀번호 안내
+
+본문:
+비밀번호 재설정 요청에 따라 임시 비밀번호를 발급해드립니다.
+
+임시 비밀번호: {tempPassword}
+
+로그인 후 반드시 비밀번호를 변경해주세요.
+본인이 요청하지 않으셨다면 이 메일을 무시해주세요.
+```
+
+##### Redis 키
+| Key Pattern | Value | TTL | 용도 |
+|-------------|-------|-----|------|
+| `password:reset:limit:{email}` | "1" | 60초 | 재요청 Rate Limiting |
+
+##### 보안 고려사항
+- 임시 비밀번호는 8자리 영문+숫자 조합으로 충분한 엔트로피 확보
+- 평문 임시 비밀번호는 이메일 발송 후 메모리에서 즉시 폐기
+- 악용 방지를 위한 Rate Limiting 적용
+- 로그인 이력에 임시 비밀번호 사용 여부 기록 가능 (선택적)
+
+##### 프론트엔드 구현 요구사항
+1. **비밀번호 찾기 화면**
+   - 이메일 입력 필드
+   - "임시 비밀번호 발송" 버튼
+   - 발송 완료/실패 안내 메시지
+2. **비밀번호 강제 변경 화면**
+   - 로그인 응답의 `mustChangePassword: true` 시 자동 이동
+   - 현재 비밀번호(임시) + 새 비밀번호 + 새 비밀번호 확인 입력
+   - 변경 완료 전까지 다른 화면 이동 차단 (뒤로가기 포함)
+
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
 - **내 정보 조회 응답에 `userId` 필드 포함** (User.id 값, v2.5.10)
