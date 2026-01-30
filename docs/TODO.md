@@ -13,24 +13,34 @@
 
 ## P0 - Critical (MVP 출시 필수)
 
-### 1. 비밀번호 재설정 기능
+### 1. 비밀번호 재설정 기능 (보안 강화형)
 - **Status**: ❌ Not Started
 - **PRD Section**: 3.1.9
-- **Description**: 임시 비밀번호 발급 및 강제 변경 기능
+- **Description**: 인증 코드 확인 후 비밀번호 변경 기능
 
 **Tasks:**
-- [ ] `users` 테이블에 `password_must_change` 컬럼 추가
-- [ ] `POST /api/v1/auth/password/reset-request` API 구현
-- [ ] 임시 비밀번호 생성 로직 (8자리 영문+숫자)
-- [ ] 이메일 발송 템플릿 추가
-- [ ] Rate Limit 적용 (1분당 1회)
-- [ ] 로그인 응답에 `mustChangePassword` 필드 추가
-- [ ] 비밀번호 변경 시 `password_must_change = false` 처리
+- [ ] `POST /api/v1/auth/password/send-code` API 구현
+  - 이메일 유효성 검증 (가입 여부, authProvider 체크)
+  - 6자리 인증 코드 생성 및 Redis 저장 (TTL 5분)
+  - 이메일 발송
+  - Rate Limit 적용 (1분당 1회)
+- [ ] `POST /api/v1/auth/password/reset` API 구현
+  - 인증 코드 검증
+  - 시도 횟수 체크 (5회 초과 시 무효화)
+  - 새 비밀번호 유효성 검증
+  - 비밀번호 업데이트 (bcrypt 암호화)
+  - Redis 인증 코드 삭제
+- [ ] Redis Key 설계
+  - `password:reset:code:{email}` (TTL 5분)
+  - `password:reset:limit:{email}` (TTL 60초)
+  - `password:reset:attempt:{email}` (TTL 5분)
+- [ ] 이메일 템플릿 추가
 
 **Acceptance Criteria:**
 - 이메일 가입 사용자만 요청 가능
 - Google OAuth 사용자 요청 시 적절한 에러 메시지 반환
-- 임시 비밀번호로 로그인 후 비밀번호 변경 강제
+- 인증 코드 확인 전까지 기존 비밀번호 유지 (계정 잠금 방지)
+- 5회 시도 초과 시 인증 코드 무효화
 
 ---
 
@@ -197,12 +207,19 @@
 ## Database Migration Required
 
 ```sql
--- P0: 비밀번호 재설정
-ALTER TABLE users ADD COLUMN password_must_change BOOLEAN DEFAULT FALSE;
+-- P0: 비밀번호 재설정 (보안 강화형)
+-- DB 스키마 변경 불필요! Redis만 사용
 
 -- (Optional) P1: 신고 처리 알림용
 -- NotificationType에 REPORT_RESULT 추가 필요
 ```
+
+**Redis Keys (비밀번호 재설정):**
+| Key | TTL | 용도 |
+|-----|-----|------|
+| `password:reset:code:{email}` | 5분 | 인증 코드 |
+| `password:reset:limit:{email}` | 60초 | Rate Limit |
+| `password:reset:attempt:{email}` | 5분 | 시도 횟수 |
 
 ---
 

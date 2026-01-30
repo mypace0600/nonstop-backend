@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.19 (2026.01 Backend Status: 95% Completed)**
+**Golden Master v2.5.20 (2026.01 Backend Status: 95% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -240,8 +240,12 @@ CREATE TABLE user_policy_agreements (
 - **인증 코드**: `signup:verification:{email}` (TTL 5분)
 - **인증 완료 상태**: `verified:email:{email}` (Value: "true", TTL 30분)
 
-#### 3.1.9 비밀번호 재설정 (Password Reset) - 신규
-비밀번호를 분실한 이메일 가입 사용자를 위한 임시 비밀번호 발급 및 강제 변경 기능입니다.
+#### 3.1.9 비밀번호 재설정 (Password Reset) - v2.5.20 보안 강화
+비밀번호를 분실한 이메일 가입 사용자를 위한 인증 코드 기반 비밀번호 재설정 기능입니다.
+
+> **v2.5.20 변경사항**: 기존 '임시 비밀번호 즉시 발급' 방식에서 '인증 코드 확인 후 비밀번호 변경' 방식으로 개선되었습니다.
+>
+> **개선 이유**: 기존 방식은 타인이 이메일 주소만 알면 해당 계정의 비밀번호를 강제로 변경할 수 있는 보안 취약점이 있었습니다. 새 방식은 인증 코드를 확인한 후에만 비밀번호가 변경되므로, 이메일 소유자만 비밀번호를 재설정할 수 있습니다.
 
 ##### 대상 사용자
 - `authProvider = EMAIL` 사용자만 대상
@@ -249,8 +253,11 @@ CREATE TABLE user_policy_agreements (
 - `deleted_at IS NULL` (탈퇴하지 않은 활성 사용자)
 
 ##### 비밀번호 재설정 플로우
+```
+1. 이메일 입력 → 2. 인증 코드 발송 → 3. 코드 + 새 비밀번호 입력 → 4. 비밀번호 변경 완료
+```
 
-**1. 임시 비밀번호 발급 요청 (`POST /api/v1/auth/password/reset-request`)**
+**1. 인증 코드 발송 요청 (`POST /api/v1/auth/password/send-code`)**
 - 사용자가 가입한 이메일 주소 입력
 - **Request**: `{ "email": "user@example.com" }`
 - **서버 검증**:
@@ -258,82 +265,95 @@ CREATE TABLE user_policy_agreements (
   - `authProvider = EMAIL` 인지 확인
   - 탈퇴하지 않은 사용자인지 확인
 - **처리**:
-  - 8자리 임시 비밀번호 생성 (영문 대소문자 + 숫자 조합)
-  - 임시 비밀번호를 bcrypt로 암호화하여 `users.password` 업데이트
-  - `users.password_must_change = true` 설정
-  - 이메일로 임시 비밀번호 발송
+  - 6자리 난수 인증 코드 생성
+  - Redis에 인증 코드 저장 (TTL 5분)
+  - 이메일로 인증 코드 발송
+  - **기존 비밀번호는 유지됨** (변경 없음)
 - **Rate Limit**: 동일 이메일에 대해 1분당 1회 제한
-- **Response (200 OK)**: `{ "message": "임시 비밀번호가 이메일로 발송되었습니다." }`
+- **Response (200 OK)**: `{ "message": "인증 코드가 이메일로 발송되었습니다." }`
 - **에러 케이스**:
   - 미가입 이메일: `404 Not Found` (Code: `USER_NOT_FOUND`)
   - Google 계정: `400 Bad Request` (Code: `INVALID_AUTH_PROVIDER`, Message: "소셜 로그인 계정은 비밀번호 재설정이 불가합니다.")
   - Rate Limit 초과: `429 Too Many Requests` (Code: `RATE_LIMIT_EXCEEDED`)
 
-**2. 임시 비밀번호로 로그인 (`POST /api/v1/auth/login`)**
-- 기존 로그인 API 사용 (변경 없음)
-- **응답 필드 추가**: `mustChangePassword: boolean`
-  - `password_must_change = true`인 사용자 로그인 시 `mustChangePassword: true` 반환
-- **클라이언트 처리**: `mustChangePassword: true` 수신 시 비밀번호 변경 화면으로 강제 이동
+**2. 비밀번호 재설정 완료 (`POST /api/v1/auth/password/reset`)**
+- 인증 코드와 새 비밀번호를 함께 제출
+- **Request**:
+  ```json
+  {
+    "email": "user@example.com",
+    "code": "123456",
+    "newPassword": "newPassword123!"
+  }
+  ```
+- **서버 검증**:
+  - Redis에서 인증 코드 조회 및 일치 여부 확인
+  - 코드 만료 여부 확인
+  - 새 비밀번호 유효성 검증 (최소 8자, 영문+숫자 등)
+- **처리**:
+  - 인증 코드 일치 시 새 비밀번호를 bcrypt로 암호화하여 `users.password` 업데이트
+  - Redis에서 인증 코드 삭제 (일회용)
+- **Response (200 OK)**: `{ "message": "비밀번호가 성공적으로 변경되었습니다." }`
+- **에러 케이스**:
+  - 인증 코드 불일치: `400 Bad Request` (Code: `INVALID_VERIFICATION_CODE`)
+  - 인증 코드 만료: `400 Bad Request` (Code: `VERIFICATION_CODE_EXPIRED`)
+  - 시도 횟수 초과: `400 Bad Request` (Code: `MAX_ATTEMPTS_EXCEEDED`)
+  - 비밀번호 정책 미충족: `400 Bad Request` (Code: `INVALID_PASSWORD_FORMAT`)
 
-**3. 비밀번호 변경 (`PATCH /api/v1/users/me/password`)**
-- 기존 비밀번호 변경 API 활용
-- **Request**: `{ "currentPassword": "임시비밀번호", "newPassword": "새비밀번호123" }`
-- **추가 처리**: 비밀번호 변경 성공 시 `password_must_change = false` 자동 설정
-- 변경 완료 후 정상 서비스 이용 가능
-
-##### 로그인 응답 형식 (v2.5.19 변경)
-```json
-{
-  "userId": 123,
-  "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG...",
-  "isVerified": true,
-  "hasAgreedAllMandatory": true,
-  "hasBirthDate": true,
-  "mustChangePassword": false
-}
-```
-- `mustChangePassword`: 임시 비밀번호 사용 여부 (true인 경우 비밀번호 변경 화면 강제 이동)
-
-##### 데이터 모델 변경
-```sql
--- users 테이블에 컬럼 추가
-ALTER TABLE users ADD COLUMN password_must_change BOOLEAN DEFAULT FALSE;
-```
-
-##### 임시 비밀번호 이메일 템플릿
-```
-제목: [Nonstop] 임시 비밀번호 안내
-
-본문:
-비밀번호 재설정 요청에 따라 임시 비밀번호를 발급해드립니다.
-
-임시 비밀번호: {tempPassword}
-
-로그인 후 반드시 비밀번호를 변경해주세요.
-본인이 요청하지 않으셨다면 이 메일을 무시해주세요.
-```
+##### 인증 코드 시도 횟수 제한
+- 최대 5회까지 인증 코드 확인 시도 가능
+- 5회 초과 시 해당 인증 코드 즉시 무효화
+- 새로운 인증 코드를 다시 요청해야 함
 
 ##### Redis 키
 | Key Pattern | Value | TTL | 용도 |
 |-------------|-------|-----|------|
+| `password:reset:code:{email}` | 6자리 코드 | 5분 | 인증 코드 검증용 |
 | `password:reset:limit:{email}` | "1" | 60초 | 재요청 Rate Limiting |
+| `password:reset:attempt:{email}` | 시도 횟수 | 5분 | 브루트포스 방지 |
+
+##### 인증 코드 이메일 템플릿
+```
+제목: [Nonstop] 비밀번호 재설정 인증 코드
+
+본문:
+비밀번호 재설정을 위한 인증 코드입니다.
+
+인증 코드: {code}
+
+이 코드는 5분간 유효합니다.
+본인이 요청하지 않으셨다면 이 메일을 무시해주세요.
+```
 
 ##### 보안 고려사항
-- 임시 비밀번호는 8자리 영문+숫자 조합으로 충분한 엔트로피 확보
-- 평문 임시 비밀번호는 이메일 발송 후 메모리에서 즉시 폐기
-- 악용 방지를 위한 Rate Limiting 적용
-- 로그인 이력에 임시 비밀번호 사용 여부 기록 가능 (선택적)
+- **기존 비밀번호 유지**: 인증 코드 발송만으로는 비밀번호가 변경되지 않음
+- **인증 코드 일회용**: 성공적인 비밀번호 변경 후 코드 즉시 삭제
+- **브루트포스 방지**: 5회 시도 초과 시 코드 무효화
+- **Rate Limiting**: 1분당 1회 발송 제한
+- **짧은 유효 기간**: 인증 코드 5분 후 만료
 
 ##### 프론트엔드 구현 요구사항
-1. **비밀번호 찾기 화면**
+1. **비밀번호 찾기 화면 (Step 1)**
    - 이메일 입력 필드
-   - "임시 비밀번호 발송" 버튼
-   - 발송 완료/실패 안내 메시지
-2. **비밀번호 강제 변경 화면**
-   - 로그인 응답의 `mustChangePassword: true` 시 자동 이동
-   - 현재 비밀번호(임시) + 새 비밀번호 + 새 비밀번호 확인 입력
-   - 변경 완료 전까지 다른 화면 이동 차단 (뒤로가기 포함)
+   - "인증 코드 발송" 버튼
+   - 발송 완료 시 Step 2로 이동
+
+2. **인증 코드 및 새 비밀번호 입력 화면 (Step 2)**
+   - 인증 코드 입력 필드 (6자리)
+   - 새 비밀번호 입력 필드
+   - 새 비밀번호 확인 입력 필드
+   - "비밀번호 변경" 버튼
+   - 인증 코드 재발송 링크 (1분 후 활성화)
+   - 남은 시간 표시 (5분 카운트다운)
+
+##### 기존 방식과의 비교
+| 항목 | 기존 (임시 비밀번호) | 신규 (인증 코드) |
+|------|---------------------|------------------|
+| 요청만으로 비밀번호 변경 | ✅ 즉시 변경됨 | ❌ 변경 안 됨 |
+| 타인에 의한 계정 잠금 | ⚠️ 가능 | ✅ 불가능 |
+| DB 스키마 변경 | 필요 (password_must_change) | 불필요 |
+| 로그인 응답 변경 | 필요 (mustChangePassword) | 불필요 |
+| 사용자 경험 | 2단계 (로그인→변경) | 1단계 (바로 변경) |
 
 ### 3.2 User Management
 - 내 정보 조회·수정 (닉네임, 학교, 전공, 프로필 사진, 자기소개, 언어)
@@ -775,7 +795,7 @@ CREATE TABLE policies (
 );
 ```
 
-## 4. API Endpoint Summary – Golden Master v2.5.18 (완전 목록)
+## 4. API Endpoint Summary – Golden Master v2.5.20 (완전 목록)
 
 ### Authentication
 | Method | URI                                    | Description                     | Status |
@@ -785,6 +805,8 @@ CREATE TABLE policies (
 | POST   | /api/v1/auth/email/verify              | 회원가입 이메일 인증 코드 확인   | ✅ |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
 | POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
+| POST   | /api/v1/auth/password/send-code        | 비밀번호 재설정 인증 코드 발송   | ❌ |
+| POST   | /api/v1/auth/password/reset            | 비밀번호 재설정 완료             | ❌ |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             | ✅ |
 | POST   | /api/v1/auth/logout                    | Refresh Token 무효화            | ✅ |
 | POST   | /api/v1/auth/email/check               | 이메일 중복 체크                | ✅ |
@@ -1040,6 +1062,8 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.20 | 2026-01-30 | 비밀번호 재설정 로직을 '인증 코드 확인 후 비밀번호 변경' 방식으로 보안 강화. 기존 임시 비밀번호 방식의 계정 잠금 취약점 해결. |
+| v2.5.19 | 2026-01-30 | PM 관점 기능 검토, 정책 보완 사항 추가 (Section 9), 미구현 기능 목록 정리 (Section 10), Google OAuth 만 14세 체크/인증 코드 보안/탈퇴 처리/채팅 차단/익명 게시판 정책 명시 |
 | v2.5.18 | 2026-01-29 | 회원가입 이메일 인증 절차를 '선행 인증(Pre-verification)' 방식으로 개편. 가입 전 이메일 인증을 완료해야 하며, 인증 상태는 Redis에서 30분간 유지됨. |
 | v2.5.17 | 2026-01-24 | 회원가입 이메일 인증 기능(verify, resend) 구현, 미인증 사용자 정리 스케줄러 추가, 기존 사용자 마이그레이션 스크립트 작성 |
 | v2.5.16 | 2026-01-24 | 로그인 응답에 `hasAgreedAllMandatory` 필드 추가, `GET /api/v1/policies/status` API 추가, PolicyAgreementFilter 제외 경로 구체화 (로그아웃, 토큰 갱신), 전체 코드베이스 검증 및 PRD 동기화 |
