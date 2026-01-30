@@ -25,4 +25,6 @@ public interface AuthMapper {
     void updateBirthDate(@Param("userId") Long userId, @Param("birthDate") LocalDate birthDate);
 
     int deleteUnverifiedUsersBefore(@Param("threshold") LocalDateTime threshold);
+
+    void updatePassword(@Param("userId") Long userId, @Param("password") String password);
 }

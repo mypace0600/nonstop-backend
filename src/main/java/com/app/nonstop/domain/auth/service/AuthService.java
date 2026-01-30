@@ -22,4 +22,10 @@ public interface AuthService {
     void verifyEmail(SignupVerificationRequestDto request);
 
     void cleanupUnverifiedUsers();
+
+    void sendPasswordResetCode(String email);
+
+    void verifyPasswordResetCode(String email, String code);
+
+    void confirmPasswordReset(String email, String code, String newPassword);
 }

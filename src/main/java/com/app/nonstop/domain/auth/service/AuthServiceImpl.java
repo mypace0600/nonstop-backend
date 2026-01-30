@@ -310,5 +310,71 @@ public class AuthServiceImpl implements AuthService {
         int deletedCount = authMapper.deleteUnverifiedUsersBefore(threshold);
         log.info("Cleaned up {} unverified users before {}", deletedCount, threshold);
     }
+
+    private static final String PASSWORD_RESET_PREFIX = "password:reset:";
+    private static final String PASSWORD_RESET_LIMIT_PREFIX = "password:reset:limit:";
+    private static final long PASSWORD_RESET_TTL = 5; // 5분
+    private static final long PASSWORD_RESET_LIMIT_TTL = 1; // 1분
+
+    @Override
+    public void sendPasswordResetCode(String email) {
+        // 사용자 존재 여부 확인
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        // Rate Limit 체크
+        String rateLimitKey = PASSWORD_RESET_LIMIT_PREFIX + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(rateLimitKey))) {
+            throw new ResendRateLimitedException();
+        }
+
+        // 6자리 난수 생성
+        String code = String.valueOf(new Random().nextInt(900000) + 100000);
+
+        // Redis 저장
+        redisTemplate.opsForValue().set(PASSWORD_RESET_PREFIX + email, code, PASSWORD_RESET_TTL, TimeUnit.MINUTES);
+
+        // 이메일 발송
+        emailService.sendSimpleMessage(email, "[Nonstop] 비밀번호 재설정 코드",
+                "비밀번호 재설정을 위해 아래 인증 코드를 입력해주세요.\n\n인증 코드: " + code + "\n\n5분 내에 입력해주세요.");
+
+        // Rate Limit 설정
+        redisTemplate.opsForValue().set(rateLimitKey, "1", PASSWORD_RESET_LIMIT_TTL, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public void verifyPasswordResetCode(String email, String code) {
+        String redisKey = PASSWORD_RESET_PREFIX + email;
+        String storedCode = redisTemplate.opsForValue().get(redisKey);
+
+        if (storedCode == null) {
+            throw new VerificationCodeExpiredException();
+        }
+
+        if (!storedCode.equals(code)) {
+            throw new VerificationCodeMismatchException();
+        }
+
+        // 인증 성공 - 코드는 confirmPasswordReset에서 삭제
+    }
+
+    @Override
+    public void confirmPasswordReset(String email, String code, String newPassword) {
+        // 코드 재검증
+        verifyPasswordResetCode(email, code);
+
+        // 사용자 조회
+        User user = authMapper.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 비밀번호 업데이트
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        authMapper.updatePassword(user.getId(), encodedPassword);
+
+        // 인증 코드 삭제
+        redisTemplate.delete(PASSWORD_RESET_PREFIX + email);
+
+        log.info("Password reset successful for user: {}", email);
+    }
 }
 

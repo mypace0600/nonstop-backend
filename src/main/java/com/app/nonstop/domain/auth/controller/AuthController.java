@@ -98,4 +98,25 @@ public class AuthController {
         authService.checkNicknameDuplicate(request.getNickname());
         return ResponseEntity.ok(ApiResponse.success());
     }
+
+    @Operation(summary = "비밀번호 재설정 요청", description = "비밀번호 재설정을 위한 인증 코드를 이메일로 발송합니다.")
+    @PostMapping("/password/reset/request")
+    public ResponseEntity<ApiResponse<?>> requestPasswordReset(@RequestBody @Valid PasswordResetRequestDto request) {
+        authService.sendPasswordResetCode(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success("비밀번호 재설정 코드가 발송되었습니다."));
+    }
+
+    @Operation(summary = "비밀번호 재설정 코드 확인", description = "이메일로 전송된 비밀번호 재설정 코드를 확인합니다.")
+    @PostMapping("/password/reset/verify")
+    public ResponseEntity<ApiResponse<?>> verifyPasswordResetCode(@RequestBody @Valid PasswordResetVerifyDto request) {
+        authService.verifyPasswordResetCode(request.getEmail(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success("인증 코드가 확인되었습니다."));
+    }
+
+    @Operation(summary = "비밀번호 재설정 확정", description = "인증된 코드를 사용하여 새 비밀번호를 설정합니다.")
+    @PostMapping("/password/reset/confirm")
+    public ResponseEntity<ApiResponse<?>> confirmPasswordReset(@RequestBody @Valid PasswordResetConfirmDto request) {
+        authService.confirmPasswordReset(request.getEmail(), request.getCode(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success("비밀번호가 성공적으로 변경되었습니다."));
+    }
 }
