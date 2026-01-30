@@ -1286,6 +1286,182 @@ refresh_tokens (id, user_id, token, expires_at, revoked_at, ...)
 student_verification_requests (id, user_id, image_url, status, reject_reason, reviewed_by, ...)
 ```
 
+### 7.7 Infrastructure & Deployment
+
+#### 7.7.1 현재 배포 구조 (v2.5.20 기준)
+
+**CI/CD Pipeline - GitHub Actions**
+- **트리거**: `main` 브랜치 푸시 또는 수동 실행 (`workflow_dispatch`)
+- **레지스트리**: GitHub Container Registry (GHCR)
+- **배포 대상**: Azure VM (SSH 기반 배포)
+
+**배포 흐름**
+```
+[main push] → [Build Stage] → [Push to GHCR] → [SSH Deploy to Azure VM] → [Health Check]
+```
+
+| 단계 | 설명 |
+|------|------|
+| 1. Build | Gradle 8.5.0 + JDK 17 기반 Multi-stage Docker 빌드 |
+| 2. Push | GHCR에 `latest` 및 SHA 태그로 이미지 푸시 |
+| 3. Deploy | Azure VM에 SSH 접속 후 `docker compose pull` + `up -d` |
+| 4. Health Check | 30초 대기 후 `/actuator/health` 엔드포인트 확인 |
+
+**Docker 구성**
+
+| 파일 | 용도 |
+|------|------|
+| `Dockerfile` | Multi-stage 빌드 (build: gradle:8.5.0-jdk17 → run: eclipse-temurin:17-jre) |
+| `docker-compose.yml` | 로컬 개발 환경 (빌드 포함) |
+| `docker-compose.prod.yml` | 프로덕션 환경 (GHCR 이미지 기반) |
+
+**프로덕션 컨테이너 구성**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Azure VM (app-net)                       │
+├─────────────────┬─────────────┬─────────────┬───────────────┤
+│  nonstop-app    │ nonstop-db  │nonstop-redis│ nonstop-kafka │
+│  (Spring Boot)  │ (PostgreSQL)│  (Redis 7)  │ (Kafka 3.7.0) │
+│  :28080         │             │             │               │
+└─────────────────┴─────────────┴─────────────┴───────────────┘
+```
+
+| 서비스 | 이미지 | 역할 |
+|--------|--------|------|
+| `app` | `ghcr.io/mypace0600/nonstop-backend:latest` | Spring Boot 애플리케이션 |
+| `db` | `postgres:15-alpine` | Primary Database |
+| `redis` | `redis:7-alpine` | 캐시, 레이트 리밋, WebSocket 세션 |
+| `kafka` | `apache/kafka:3.7.0` | 채팅 메시지 처리 |
+
+**현재 방식의 한계점**
+| 문제 | 설명 |
+|------|------|
+| **다운타임 발생** | 컨테이너 재시작 중 약 10-30초 서비스 중단 |
+| **롤백 어려움** | 이전 버전으로 수동 롤백 필요 |
+| **단일 장애점** | 단일 컨테이너로 장애 시 전체 서비스 중단 |
+
+---
+
+#### 7.7.2 Blue-Green 무중단 배포 전환 계획 (Post-MVP)
+
+**목표**
+- 배포 시 **Zero Downtime** 달성
+- 문제 발생 시 **즉각적인 롤백** 가능
+- 새 버전 **사전 검증** 후 트래픽 전환
+
+**Blue-Green 배포 아키텍처**
+```
+                    ┌─────────────────┐
+                    │     Nginx       │
+                    │ (Reverse Proxy) │
+                    │    :80/:443     │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+              ▼                             ▼
+     ┌────────────────┐           ┌────────────────┐
+     │   Blue (app)   │           │  Green (app)   │
+     │    :28080      │           │    :28081      │
+     │   [Active]     │           │   [Standby]    │
+     └────────────────┘           └────────────────┘
+              │                             │
+              └──────────────┬──────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │     Shared Infrastructure   │
+              │  (DB, Redis, Kafka)         │
+              └─────────────────────────────┘
+```
+
+**구현 단계**
+
+| Phase | 작업 | 설명 |
+|-------|------|------|
+| **Phase 1** | Nginx 리버스 프록시 추가 | 트래픽 라우팅 제어 가능하도록 구성 |
+| **Phase 2** | 듀얼 컨테이너 구성 | Blue(28080), Green(28081) 두 개 앱 컨테이너 |
+| **Phase 3** | 배포 스크립트 개선 | 자동화된 Blue-Green 전환 로직 구현 |
+| **Phase 4** | Health Check 강화 | 애플리케이션 준비 완료 확인 후 전환 |
+
+**docker-compose.prod.yml 변경 (안)**
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app-blue
+      - app-green
+
+  app-blue:
+    image: ghcr.io/mypace0600/nonstop-backend:${BLUE_TAG:-latest}
+    container_name: nonstop-app-blue
+    ports:
+      - "28080:28080"
+    # ... (기존 설정 동일)
+
+  app-green:
+    image: ghcr.io/mypace0600/nonstop-backend:${GREEN_TAG:-latest}
+    container_name: nonstop-app-green
+    ports:
+      - "28081:28080"
+    # ... (기존 설정 동일)
+```
+
+**배포 스크립트 로직 (안)**
+```bash
+#!/bin/bash
+# deploy-blue-green.sh
+
+CURRENT=$(cat /var/run/nonstop-active)  # blue or green
+TARGET=$([[ "$CURRENT" == "blue" ]] && echo "green" || echo "blue")
+
+# 1. 새 버전 Pull & Start
+docker compose pull app-$TARGET
+docker compose up -d app-$TARGET
+
+# 2. Health Check (최대 60초 대기)
+for i in {1..12}; do
+  if curl -sf http://localhost:$([[ "$TARGET" == "blue" ]] && echo "28080" || echo "28081")/actuator/health; then
+    break
+  fi
+  sleep 5
+done
+
+# 3. Nginx 트래픽 전환
+sed -i "s/app-$CURRENT/app-$TARGET/g" /etc/nginx/conf.d/upstream.conf
+nginx -s reload
+
+# 4. Active 상태 업데이트
+echo $TARGET > /var/run/nonstop-active
+
+# 5. 이전 버전 유지 (롤백 대비)
+echo "Deployment complete. Previous version ($CURRENT) kept for rollback."
+```
+
+**롤백 절차**
+```bash
+# 즉시 롤백 (Nginx만 전환)
+./rollback.sh  # 이전 활성 컨테이너로 트래픽 전환
+```
+
+**의존성 및 선행 조건**
+- [ ] Nginx 또는 Traefik 리버스 프록시 설정
+- [ ] SSL 인증서 설정 (Let's Encrypt 등)
+- [ ] GitHub Actions 배포 스크립트 수정
+- [ ] 모니터링/알림 시스템 연동 (선택)
+
+**예상 효과**
+| 항목 | Before | After |
+|------|--------|-------|
+| 배포 다운타임 | 10-30초 | 0초 |
+| 롤백 소요 시간 | 수 분 (수동) | 수 초 (자동) |
+| 배포 리스크 | 높음 | 낮음 |
+
 ---
 
 ## 8. Appendix
@@ -1671,8 +1847,128 @@ Google 로그인 → 계정 생성 (birthDate=null) → hasBirthDate=false 응�
 
 ---
 
-## 11. 변경 이력 (계속)
+## 11. Frontend Implementation Status (v2.5.21 - 2026-01-30)
+
+### 11.1 Overview
+
+| Feature Domain | Implementation Status | Note |
+|---|---|---|
+| **Auth (Login/Signup)** | ✅ Implemented | 이메일/비밀번호 로그인, Google OAuth, 이메일 인증 |
+| **Password Reset** | ❌ Not Implemented | 화면 및 API 연동 미구현 |
+| **BirthDate Input** | ❌ Not Implemented | 회원가입/프로필에서 생년월일 입력 UI 없음 |
+| **University Verification** | ❌ Not Implemented | 학생증/웹메일 인증 화면 없음 |
+| **Board (Post/Comment)** | ✅ Implemented | CRUD, 좋아요, 익명/비밀글 |
+| **Board Report** | ❌ Not Implemented | 게시글/댓글 신고 기능 없음 |
+| **Board Search** | ❌ Not Implemented | UI만 있고 기능 미구현 |
+| **Chat** | ⚠️ Mock Only | Mock API 사용 중, 실제 WebSocket 미연동 |
+| **Chat Image** | ❌ Not Implemented | 이미지 전송 기능 없음 |
+| **Friends** | ✅ Implemented | 요청/수락/거절/삭제/검색 완전 구현 |
+| **Timetable** | ✅ Implemented | 시간표 CRUD, 수업 추가, 충돌 검증 |
+| **Profile** | ⚠️ Partial | 조회는 되나 수정 화면 미구현 |
+| **Notifications** | ⚠️ Partial | 설정만 있고, 알림 목록 화면 없음 |
+| **Settings** | ✅ Implemented | 알림/프라이버시 설정 |
+
+### 11.2 Feature Detail Analysis
+
+#### 11.2.1 Auth Module
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 이메일 로그인 | ✅ | 완전 구현 |
+| Google 로그인 | ✅ | Firebase 연동 완료 |
+| 회원가입 (이메일 인증) | ✅ | Pre-verification 방식 구현 |
+| 비밀번호 재설정 | ❌ | `forgotPassword` 라우트 주석 처리됨, API 엔드포인트 기존 방식(`/password/reset/request`) |
+| 생년월일 입력 | ❌ | 회원가입 시 `birthDate` 파라미터 누락 |
+| 정책 동의 | ✅ | `getPolicies`, `agreePolicies` 구현 |
+
+**비밀번호 재설정 프론트엔드 구현 요구사항:**
+1. `routes.dart`에서 `forgotPassword` 라우트 활성화
+2. 비밀번호 재설정 화면 (Step 1: 이메일 입력, Step 2: 인증코드+새 비밀번호)
+3. `auth_api.dart`에 `sendPasswordResetCode()`, `resetPassword()` 메서드 추가
+4. API 엔드포인트 변경: `/api/v1/auth/password/send-code`, `/api/v1/auth/password/reset`
+
+#### 11.2.2 Board Module
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 게시글 CRUD | ✅ | 작성/조회/수정/삭제 완전 구현 |
+| 댓글/대댓글 | ✅ | 완전 구현 |
+| 좋아요 | ✅ | 게시글/댓글 모두 |
+| 익명/비밀 게시 | ✅ | `isAnonymous`, `isSecret` 플래그 |
+| 이미지 첨부 | ⚠️ | API에 `imageUrls` 필드 있으나 UI 미구현 |
+| 게시글 신고 | ❌ | API/화면 모두 없음 |
+| 검색 | ❌ | 검색바 UI만 있음 |
+
+#### 11.2.3 Chat Module
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 채팅방 목록 | ⚠️ | Mock API 사용 중 |
+| 텍스트 메시지 | ⚠️ | Mock API 사용 중 |
+| 이미지 전송 | ❌ | `ChatMessage`에 image 타입 정의만 있음 |
+| 1:1 채팅방 생성 | ❌ | TODO 주석만 있음 |
+| 그룹 채팅 | ❌ | 미구현 |
+| WebSocket 연결 | ❌ | REST API 폴링 방식, 실시간 미지원 |
+
+**채팅 실제 구현 요구사항:**
+1. `chat_api_impl.dart` 생성 (현재 mock만 있음)
+2. STOMP/WebSocket 연동 (`/ws/v1/chat`)
+3. 이미지 전송 UI 및 SAS URL 연동
+
+#### 11.2.4 Profile Module
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 프로필 조회 | ✅ | 완전 구현 |
+| 프로필 수정 | ❌ | "Edit Profile - coming soon!" 표시 |
+| 아바타 업로드 | ⚠️ | API 있으나 UI 부분적 |
+| 생년월일 수정 | ❌ | UI 없음 |
+
+#### 11.2.5 Timetable Module
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 시간표 목록 | ✅ | 완전 구현 |
+| 수업 추가/삭제 | ✅ | 시간 충돌 검증 포함 |
+| GPA 계산기 | ✅ | 완전 구현 |
+| 공개 시간표 | ⚠️ | API 있으나 UI 미확인 |
+
+### 11.3 Frontend Tech Stack
+| Category | Technology |
+|----------|------------|
+| **Framework** | Flutter 3.x |
+| **State Management** | Riverpod |
+| **Architecture** | Clean Architecture (3 Layers) |
+| **HTTP Client** | Dio |
+| **Local Storage** | Secure Storage |
+| **Routing** | go_router |
+| **Code Generation** | freezed, json_serializable |
+
+### 11.4 프론트엔드 구현 우선순위 (P0-P2)
+
+#### P0 - Critical (즉시 구현 필요)
+| 기능 | 현재 상태 | 필요 작업 |
+|------|----------|----------|
+| 비밀번호 재설정 | 미구현 | 화면 2개 + API 연동 |
+| 생년월일 입력 | 미구현 | 회원가입 화면 수정 + 프로필 수정 화면 |
+| 게시글/댓글 신고 | 미구현 | 신고 모달 + API 연동 |
+
+#### P1 - Important (MVP 품질 향상)
+| 기능 | 현재 상태 | 필요 작업 |
+|------|----------|----------|
+| 프로필 수정 화면 | 미구현 | 프로필 편집 화면 전체 구현 |
+| 대학 인증 화면 | 미구현 | 학생증 업로드 + 웹메일 인증 화면 |
+| 채팅 실제 연동 | Mock | WebSocket 연동 + 실제 API |
+| 게시판 검색 | UI만 | 검색 기능 구현 |
+
+#### P2 - Nice-to-have
+| 기능 | 현재 상태 | 필요 작업 |
+|------|----------|----------|
+| 채팅 이미지 전송 | 미구현 | 이미지 선택 + SAS URL 업로드 |
+| 알림 목록 화면 | 미구현 | 알림 목록 + 읽음 처리 |
+| 게시글 이미지 첨부 | API만 | 이미지 선택 UI |
+
+---
+
+## 12. 변경 이력 (계속)
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.21 | 2026-01-30 | Frontend Implementation Status 추가 (Section 11), 프론트엔드 기능별 상세 분석, 구현 우선순위 정리 |
+| v2.5.20 | 2026-01-30 | 비밀번호 재설정 로직을 '인증 코드 확인 후 비밀번호 변경' 방식으로 보안 강화. 기존 임시 비밀번호 방식의 계정 잠금 취약점 해결. |
 | v2.5.19 | 2026-01-30 | PM 관점 기능 검토, 정책 보완 사항 추가 (Section 9), 미구현 기능 목록 정리 (Section 10), Google OAuth 만 14세 체크/인증 코드 보안/탈퇴 처리/채팅 차단/익명 게시판 정책 명시 |
