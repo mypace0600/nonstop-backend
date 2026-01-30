@@ -1,12 +1,12 @@
 # Nonstop MVP To-Do List
-**Last Updated: 2026-01-30 (v2)**
+**Last Updated: 2026-01-30 (v3)**
 
 ## Overview
 
 ### Backend Status
 | Priority | Total | Completed | Remaining |
 |----------|-------|-----------|-----------|
-| P0 (Critical) | 4 | 0 | 4 |
+| P0 (Critical) | 4 | 1 | 3 |
 | P1 (Important) | 4 | 0 | 4 |
 | P2 (Nice-to-have) | 3 | 0 | 3 |
 
@@ -24,29 +24,31 @@
 ## P0 - Critical (MVP 출시 필수)
 
 ### BE-1. 비밀번호 재설정 기능 (보안 강화형)
-- **Status**: ❌ Not Started
+- **Status**: ✅ Completed (2026-01-30)
 - **PRD Section**: 3.1.9
 - **Description**: 인증 코드 확인 후 비밀번호 변경 기능
 
-**Tasks:**
-- [ ] `POST /api/v1/auth/password/send-code` API 구현
+**Implemented APIs:**
+- [x] `POST /api/v1/auth/password/reset/request` - 인증 코드 발송
   - 이메일 유효성 검증 (가입 여부, authProvider 체크)
   - 6자리 인증 코드 생성 및 Redis 저장 (TTL 5분)
   - 이메일 발송
   - Rate Limit 적용 (1분당 1회)
-- [ ] `POST /api/v1/auth/password/reset` API 구현
+- [x] `POST /api/v1/auth/password/reset/verify` - 인증 코드 확인
   - 인증 코드 검증
   - 시도 횟수 체크 (5회 초과 시 무효화)
+- [x] `POST /api/v1/auth/password/reset/confirm` - 비밀번호 재설정 완료
+  - 인증 코드 재검증
   - 새 비밀번호 유효성 검증
   - 비밀번호 업데이트 (bcrypt 암호화)
   - Redis 인증 코드 삭제
-- [ ] Redis Key 설계
+- [x] Redis Key 설계
   - `password:reset:code:{email}` (TTL 5분)
   - `password:reset:limit:{email}` (TTL 60초)
   - `password:reset:attempt:{email}` (TTL 5분)
-- [ ] 이메일 템플릿 추가
+- [x] 이메일 템플릿 추가
 
-**Acceptance Criteria:**
+**Acceptance Criteria:** ✅ All Met
 - 이메일 가입 사용자만 요청 가능
 - Google OAuth 사용자 요청 시 적절한 에러 메시지 반환
 - 인증 코드 확인 전까지 기존 비밀번호 유지 (계정 잠금 방지)
@@ -238,9 +240,9 @@
   - 인증 코드 재발송 링크 (1분 쿨다운)
   - 남은 시간 표시 (5분 카운트다운)
 - [ ] `auth_api.dart`에 메서드 추가
-  - `sendPasswordResetCode(String email)`
-  - `resetPassword(String email, String code, String newPassword)`
-- [ ] API 엔드포인트 수정 (`/api/v1/auth/password/send-code`, `/api/v1/auth/password/reset`)
+  - `requestPasswordReset(String email)` → `/api/v1/auth/password/reset/request`
+  - `verifyPasswordResetCode(String email, String code)` → `/api/v1/auth/password/reset/verify`
+  - `confirmPasswordReset(String email, String code, String newPassword)` → `/api/v1/auth/password/reset/confirm`
 - [ ] 에러 처리 (Rate Limit, 코드 불일치, 만료 등)
 
 **Acceptance Criteria:**
@@ -510,7 +512,7 @@
 # Implementation Dependencies
 
 ```
-BE-1 (비밀번호 재설정 API) → FE-1 (비밀번호 재설정 화면)
+BE-1 (비밀번호 재설정 API) ✅ → FE-1 (비밀번호 재설정 화면) - 백엔드 완료, 프론트엔드 구현 가능
 BE-3 (OAuth 만 14세 체크) → FE-2 (생년월일 입력 UI)
 BE-4 (익명 게시판 제한) → FE-4 (대학 인증 화면)
 BE-6 (WebSocket 구현 확인) → FE-6 (채팅 실제 연동)

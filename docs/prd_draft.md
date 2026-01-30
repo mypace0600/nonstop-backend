@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.20 (2026.01 Backend Status: 95% Completed)**
+**Golden Master v2.5.21 (2026.01 Backend Status: 96% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -257,7 +257,7 @@ CREATE TABLE user_policy_agreements (
 1. 이메일 입력 → 2. 인증 코드 발송 → 3. 코드 + 새 비밀번호 입력 → 4. 비밀번호 변경 완료
 ```
 
-**1. 인증 코드 발송 요청 (`POST /api/v1/auth/password/send-code`)**
+**1. 인증 코드 발송 요청 (`POST /api/v1/auth/password/reset/request`)**
 - 사용자가 가입한 이메일 주소 입력
 - **Request**: `{ "email": "user@example.com" }`
 - **서버 검증**:
@@ -276,7 +276,16 @@ CREATE TABLE user_policy_agreements (
   - Google 계정: `400 Bad Request` (Code: `INVALID_AUTH_PROVIDER`, Message: "소셜 로그인 계정은 비밀번호 재설정이 불가합니다.")
   - Rate Limit 초과: `429 Too Many Requests` (Code: `RATE_LIMIT_EXCEEDED`)
 
-**2. 비밀번호 재설정 완료 (`POST /api/v1/auth/password/reset`)**
+**2. 인증 코드 확인 (`POST /api/v1/auth/password/reset/verify`)**
+- 이메일로 전송된 인증 코드 확인
+- **Request**: `{ "email": "user@example.com", "code": "123456" }`
+- **Response (200 OK)**: `{ "message": "인증 코드가 확인되었습니다." }`
+- **에러 케이스**:
+  - 인증 코드 불일치: `400 Bad Request` (Code: `INVALID_VERIFICATION_CODE`)
+  - 인증 코드 만료: `400 Bad Request` (Code: `VERIFICATION_CODE_EXPIRED`)
+  - 시도 횟수 초과: `400 Bad Request` (Code: `MAX_ATTEMPTS_EXCEEDED`)
+
+**3. 비밀번호 재설정 완료 (`POST /api/v1/auth/password/reset/confirm`)**
 - 인증 코드와 새 비밀번호를 함께 제출
 - **Request**:
   ```json
@@ -805,8 +814,9 @@ CREATE TABLE policies (
 | POST   | /api/v1/auth/email/verify              | 회원가입 이메일 인증 코드 확인   | ✅ |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
 | POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
-| POST   | /api/v1/auth/password/send-code        | 비밀번호 재설정 인증 코드 발송   | ❌ |
-| POST   | /api/v1/auth/password/reset            | 비밀번호 재설정 완료             | ❌ |
+| POST   | /api/v1/auth/password/reset/request    | 비밀번호 재설정 인증 코드 발송   | ✅ |
+| POST   | /api/v1/auth/password/reset/verify     | 비밀번호 재설정 코드 확인        | ✅ |
+| POST   | /api/v1/auth/password/reset/confirm    | 비밀번호 재설정 완료             | ✅ |
 | POST   | /api/v1/auth/refresh                   | Access Token 재발급             | ✅ |
 | POST   | /api/v1/auth/logout                    | Refresh Token 무효화            | ✅ |
 | POST   | /api/v1/auth/email/check               | 이메일 중복 체크                | ✅ |
@@ -960,12 +970,12 @@ CREATE TABLE policies (
 
 ---
 
-## 5. Backend Implementation Status (v2.5.18)
+## 5. Backend Implementation Status (v2.5.21)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
-| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Signup Email Pre-verification (v2.5.18) |
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Signup Email Pre-verification (v2.5.18), **Password Reset (v2.5.21)** |
 | **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search, **Birthdate registration** |
 | **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
@@ -1062,6 +1072,7 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.21 | 2026-01-30 | 비밀번호 재설정 API 구현 완료. 3단계 API 경로 확정: `/password/reset/request`, `/password/reset/verify`, `/password/reset/confirm`. PRD 문서와 TODO 동기화. |
 | v2.5.20 | 2026-01-30 | 비밀번호 재설정 로직을 '인증 코드 확인 후 비밀번호 변경' 방식으로 보안 강화. 기존 임시 비밀번호 방식의 계정 잠금 취약점 해결. |
 | v2.5.19 | 2026-01-30 | PM 관점 기능 검토, 정책 보완 사항 추가 (Section 9), 미구현 기능 목록 정리 (Section 10), Google OAuth 만 14세 체크/인증 코드 보안/탈퇴 처리/채팅 차단/익명 게시판 정책 명시 |
 | v2.5.18 | 2026-01-29 | 회원가입 이메일 인증 절차를 '선행 인증(Pre-verification)' 방식으로 개편. 가입 전 이메일 인증을 완료해야 하며, 인증 상태는 Redis에서 30분간 유지됨. |

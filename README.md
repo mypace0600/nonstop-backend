@@ -1,8 +1,8 @@
 # 🚀 Nonstop Backend
 
-**버전:** v2.5.18 (Golden Master)
-**진척도:** Backend Status 98% Completed
-**최종 업데이트:** 2026-01-24
+**버전:** v2.5.21 (Golden Master)
+**진척도:** Backend Status 96% Completed
+**최종 업데이트:** 2026-01-30
 
 대학생 전용 **실명 기반 커뮤니티 모바일 앱 _Nonstop_**의 백엔드 REST API 서버입니다.
 본 문서는 프로젝트 구조, 핵심 기능, 실행 방법, 아키텍처를 한눈에 이해할 수 있도록 구성된 종합 가이드입니다.
@@ -28,6 +28,7 @@
 - **로그인 방식**: 이메일/비밀번호, Google OAuth 2.0
 - **Auto Login**: Secure Storage 및 Interceptor 기반 자동 로그인/토큰 갱신 흐름 지원
 - **회원가입 이메일 인증**: 6자리 인증 코드 발송/검증 (Redis TTL 5분)
+- **비밀번호 재설정**: 3단계 인증 코드 기반 비밀번호 재설정 (request → verify → confirm)
 - **정책 동의 시스템**: 필수 약관 동의 검증 (PolicyAgreementFilter)
 - **로그인/로그아웃 이력 관리**: 보안 감사용 활동 기록
 - **연령 제한**: 만 14세 미만 가입 제한 (생년월일 검증)
