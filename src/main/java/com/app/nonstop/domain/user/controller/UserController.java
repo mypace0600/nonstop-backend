@@ -1,5 +1,7 @@
 package com.app.nonstop.domain.user.controller;
 
+import com.app.nonstop.domain.community.dto.PostDto;
+import com.app.nonstop.domain.community.service.PostService;
 import com.app.nonstop.domain.university.dto.UserUniversityRequestDto;
 import com.app.nonstop.domain.user.dto.BirthDateUpdateRequestDto;
 import com.app.nonstop.domain.user.dto.PasswordUpdateRequestDto;
@@ -39,6 +41,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final PostService postService;
 
     /**
      * 현재 로그인된 사용자의 상세 정보를 조회합니다.
@@ -172,5 +175,25 @@ public class UserController {
     ) {
         userService.registerBirthDate(customUserDetails.getUserId(), requestDto.getBirthDate());
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /**
+     * 현재 로그인된 사용자가 작성한 게시글 목록을 조회합니다.
+     *
+     * @param customUserDetails Spring Security에서 주입한 현재 인증된 사용자 정보
+     * @param page 페이지 번호 (1부터 시작)
+     * @param size 페이지 크기
+     * @return ApiResponse<List<PostDto.Response>> 게시글 목록 응답
+     */
+    @Operation(summary = "내 게시글 조회", description = "현재 로그인된 사용자가 작성한 게시글 목록을 조회합니다.", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/me/posts")
+    public ResponseEntity<ApiResponse<List<PostDto.Response>>> getMyPosts(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        List<PostDto.Response> posts = postService.getMyPosts(customUserDetails.getUserId(), page, size);
+        return ResponseEntity.ok(ApiResponse.success(posts));
     }
 }

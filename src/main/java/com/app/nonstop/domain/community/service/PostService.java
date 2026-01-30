@@ -204,6 +204,24 @@ public class PostService {
     }
 
     /**
+     * 현재 사용자가 작성한 게시글 목록을 조회합니다.
+     *
+     * @param userId 사용자 ID
+     * @param page   페이지 번호 (1부터 시작)
+     * @param size   페이지 크기
+     * @return 사용자가 작성한 게시글 목록
+     */
+    @Transactional(readOnly = true)
+    public List<PostDto.Response> getMyPosts(Long userId, int page, int size) {
+        int offset = (page - 1) * size;
+        List<PostDto.Response> posts = postMapper.findAllByUserIdWithDetail(userId, size, offset);
+
+        return posts.stream()
+                .map(this::maskPost)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 익명 작성자인 경우 닉네임을 마스킹 처리합니다.
      *
      * @param dto 게시글 응답 DTO

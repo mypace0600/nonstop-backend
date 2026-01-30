@@ -31,9 +31,15 @@ public interface PostMapper {
     Optional<PostDto.Response> findByIdWithDetail(@Param("id") Long id, @Param("currentUserId") Long currentUserId);
     
     List<PostDto.Response> findAllByBoardIdWithDetail(
-            @Param("boardId") Long boardId, 
-            @Param("limit") int limit, 
+            @Param("boardId") Long boardId,
+            @Param("limit") int limit,
             @Param("offset") int offset,
             @Param("currentUserId") Long currentUserId
+    );
+
+    List<PostDto.Response> findAllByUserIdWithDetail(
+            @Param("userId") Long userId,
+            @Param("limit") int limit,
+            @Param("offset") int offset
     );
 }
