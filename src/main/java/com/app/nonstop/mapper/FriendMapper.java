@@ -34,4 +34,8 @@ public interface FriendMapper {
     boolean existsBlockByUsers(@Param("blockerId") Long blockerId, @Param("blockedId") Long blockedId);
 
     Optional<UserBlock> findBlockByUsers(@Param("blockerId") Long blockerId, @Param("blockedId") Long blockedId);
+
+    void deleteUserBlock(@Param("blockerId") Long blockerId, @Param("blockedId") Long blockedId);
+
+    List<FriendDto.BlockedUserResponseDto> findBlockedUsersByBlockerId(@Param("blockerId") Long blockerId);
 }

@@ -38,6 +38,15 @@
         </association>
     </resultMap>
 
+    <resultMap id="blockedUserResponseResultMap" type="com.app.nonstop.domain.friend.dto.FriendDto$BlockedUserResponseDto">
+        <result property="blockedAt" column="blocked_at"/>
+        <association property="blockedUser" javaType="com.app.nonstop.domain.friend.dto.FriendDto$UserInfoDto">
+            <id property="userId" column="blocked_user_id"/>
+            <result property="nickname" column="blocked_nickname"/>
+            <result property="profileImageUrl" column="blocked_profile_image_url"/>
+        </association>
+    </resultMap>
+
     <!-- Friend -->
     <insert id="insertFriend" parameterType="com.app.nonstop.domain.friend.entity.Friend"
             useGeneratedKeys="true" keyProperty="id">
@@ -124,6 +133,23 @@
         SELECT blocker_id, blocked_id, created_at
         FROM user_blocks
         WHERE blocker_id = #{blockerId} AND blocked_id = #{blockedId}
+    </select>
+
+    <delete id="deleteUserBlock">
+        DELETE FROM user_blocks
+        WHERE blocker_id = #{blockerId} AND blocked_id = #{blockedId}
+    </delete>
+
+    <select id="findBlockedUsersByBlockerId" resultMap="blockedUserResponseResultMap">
+        SELECT
+            ub.created_at AS blocked_at,
+            u.id AS blocked_user_id,
+            u.nickname AS blocked_nickname,
+            u.profile_image_url AS blocked_profile_image_url
+        FROM user_blocks ub
+        JOIN users u ON ub.blocked_id = u.id
+        WHERE ub.blocker_id = #{blockerId}
+        ORDER BY ub.created_at DESC
     </select>
 
 </mapper>

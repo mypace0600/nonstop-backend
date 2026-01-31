@@ -162,6 +162,21 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     @Transactional
+    public void unblockUser(Long blockerId, Long blockedId) {
+        if (!friendMapper.existsBlockByUsers(blockerId, blockedId)) {
+            throw new NotBlockedException();
+        }
+        friendMapper.deleteUserBlock(blockerId, blockedId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendDto.BlockedUserResponseDto> getBlockedUsers(Long blockerId) {
+        return friendMapper.findBlockedUsersByBlockerId(blockerId);
+    }
+
+    @Override
+    @Transactional
     public void removeFriend(Long userId, Long friendId) {
         Friend friendship = friendMapper.findFriendByUsers(userId, friendId)
                 .orElseThrow(FriendRequestNotFoundException::new);
