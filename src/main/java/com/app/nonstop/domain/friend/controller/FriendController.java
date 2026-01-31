@@ -93,6 +93,25 @@ public class FriendController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    @Operation(summary = "사용자 차단 해제", description = "차단한 사용자의 차단을 해제합니다.")
+    @DeleteMapping("/block/{blockedId}")
+    public ResponseEntity<ApiResponse<?>> unblockUser(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "차단 해제할 사용자 ID", required = true) @PathVariable Long blockedId
+    ) {
+        friendService.unblockUser(userDetails.getUserId(), blockedId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @Operation(summary = "차단 목록 조회", description = "현재 사용자가 차단한 사용자 목록을 조회합니다.")
+    @GetMapping("/blocked")
+    public ResponseEntity<ApiResponse<List<FriendDto.BlockedUserResponseDto>>> getBlockedUsers(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        List<FriendDto.BlockedUserResponseDto> blockedUsers = friendService.getBlockedUsers(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(blockedUsers));
+    }
+
     @Operation(summary = "친구 삭제", description = "친구 관계를 해제합니다.")
     @DeleteMapping("/{friendId}")
     public ResponseEntity<ApiResponse<?>> removeFriend(

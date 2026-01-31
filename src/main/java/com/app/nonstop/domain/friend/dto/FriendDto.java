@@ -80,4 +80,18 @@ public class FriendDto {
         @Schema(description = "차단 대상 사용자 ID", example = "3")
         private Long targetUserId;
     }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "차단된 사용자 응답 DTO")
+    public static class BlockedUserResponseDto {
+        @Schema(description = "차단된 사용자 정보")
+        private UserInfoDto blockedUser;
+
+        @Schema(description = "차단 시각", example = "2025-12-21T10:00:00")
+        private LocalDateTime blockedAt;
+    }
 }
