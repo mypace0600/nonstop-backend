@@ -14,6 +14,7 @@ public class SecurityPathConfig {
             "/api/v1/auth/login",
             "/api/v1/auth/signup",
             "/api/v1/auth/google",
+            "/api/v1/auth/apple",
             "/api/v1/auth/email/check",
             "/api/v1/auth/nickname/check",
             "/api/v1/auth/email/send-verification",  // v2.5.18: 이메일 인증 요청 (토큰 없이 호출)
@@ -35,6 +36,7 @@ public class SecurityPathConfig {
             "/api/v1/auth/login",
             "/api/v1/auth/signup",
             "/api/v1/auth/google",
+            "/api/v1/auth/apple",
             "/api/v1/auth/email/check",
             "/api/v1/auth/nickname/check",
             "/api/v1/auth/email/send-verification",  // v2.5.18: 이메일 인증 요청
