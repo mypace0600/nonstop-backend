@@ -222,6 +222,62 @@ public class AuthServiceImpl implements AuthService {
         return issueTokens(user);
     }
 
+    @Override
+    public TokenResponseDto appleLogin(AppleLoginRequestDto appleLoginRequest, String ipAddress, String userAgent) {
+        FirebaseAuth auth = firebaseAuth.orElseThrow(() -> new IllegalStateException("Firebase not configured for this environment."));
+        FirebaseToken firebaseToken;
+        try {
+            firebaseToken = auth.verifyIdToken(appleLoginRequest.getIdToken());
+        } catch (Exception e) {
+            throw new InvalidTokenException("유효하지 않은 Apple ID 토큰입니다.");
+        }
+
+        String email = firebaseToken.getEmail();
+        // Apple은 프로필 이미지를 제공하지 않음
+        String appleUid = firebaseToken.getUid();
+
+        User user = authMapper.findByEmail(email)
+                .orElseGet(() -> {
+                    // 신규 사용자: 회원가입 처리
+                    // Apple은 이름을 최초 로그인 시에만 제공하므로 DTO에서 가져옴
+                    String nickname = buildAppleNickname(appleLoginRequest, firebaseToken);
+                    if (authMapper.existsByNickname(nickname)) {
+                        nickname = nickname + UUID.randomUUID().toString().substring(0, 4);
+                    }
+                    User newUser = User.builder()
+                            .email(email)
+                            .nickname(nickname)
+                            .authProvider(AuthProvider.APPLE)
+                            .emailVerified(true)
+                            .emailVerifiedAt(LocalDateTime.now())
+                            .build();
+                    authMapper.save(newUser);
+                    return newUser;
+                });
+
+        return issueTokens(user);
+    }
+
+    private String buildAppleNickname(AppleLoginRequestDto request, FirebaseToken firebaseToken) {
+        // 1순위: DTO에서 제공된 이름 사용
+        if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
+            String fullName = request.getFirstName();
+            if (request.getLastName() != null && !request.getLastName().isBlank()) {
+                fullName = fullName + " " + request.getLastName();
+            }
+            return fullName;
+        }
+        // 2순위: Firebase에서 제공된 이름 사용
+        if (firebaseToken.getName() != null && !firebaseToken.getName().isBlank()) {
+            return firebaseToken.getName();
+        }
+        // 3순위: 이메일 앞부분 사용
+        if (firebaseToken.getEmail() != null && firebaseToken.getEmail().contains("@")) {
+            return firebaseToken.getEmail().split("@")[0];
+        }
+        // 4순위: Apple User + 랜덤
+        return "AppleUser" + UUID.randomUUID().toString().substring(0, 4);
+    }
 
     private TokenResponseDto issueTokens(User user) {
         CustomUserDetails userDetails = new CustomUserDetails(

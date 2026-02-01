@@ -9,6 +9,8 @@ public interface AuthService {
 
     TokenResponseDto googleLogin(GoogleLoginRequestDto googleLoginRequest, String ipAddress, String userAgent);
 
+    TokenResponseDto appleLogin(AppleLoginRequestDto appleLoginRequest, String ipAddress, String userAgent);
+
     void logout(String refreshToken, String ipAddress, String userAgent);
 
     TokenResponseDto refresh(String refreshTokenValue);
