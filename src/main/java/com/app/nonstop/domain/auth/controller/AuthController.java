@@ -61,6 +61,15 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(tokenResponse));
     }
 
+    @Operation(summary = "Apple 로그인", description = "Apple ID 토큰으로 로그인 또는 회원가입을 진행합니다.")
+    @PostMapping("/apple")
+    public ResponseEntity<ApiResponse<TokenResponseDto>> appleLogin(@RequestBody @Valid AppleLoginRequestDto request, HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        TokenResponseDto tokenResponse = authService.appleLogin(request, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success(tokenResponse));
+    }
+
     @Operation(summary = "로그아웃", description = "사용자의 Refresh Token을 만료시켜 로그아웃 처리합니다.")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<?>> logout(@RequestBody @Valid RefreshRequestDto request, HttpServletRequest httpRequest) {
