@@ -1,5 +1,5 @@
 # Nonstop App – Product Requirements Document
-**Golden Master v2.5.21 (2026.01 Backend Status: 96% Completed)**
+**Golden Master v2.5.22 (2026.02 Backend Status: 97% Completed)**
 
 ## 1. Overview
 대학생 전용 실명 기반 커뮤니티 모바일 앱  
@@ -71,6 +71,10 @@
 - 이메일 + 비밀번호 (bcrypt)
 - Google OAuth 2.0 (모바일 SDK → credential → 백엔드 검증)
   - **프로필 동기화 (v2.5.11)**: 기존 사용자 재로그인 시 Google 프로필 이미지 변경 감지 및 자동 업데이트
+- **Apple Sign-In (v2.5.22)**: iOS 앱 필수 로그인 방식
+  - Apple ID Token을 백엔드로 전송하여 검증
+  - 최초 로그인 시 Apple에서 제공하는 이메일로 자동 회원가입
+  - Apple의 Private Email Relay 지원 (익명 이메일)
 
 #### 3.1.4 Access Token Payload (표준)
 ```
@@ -478,15 +482,18 @@ Community (커뮤니티)
 #### 3.6.2 사용자 차단
 사용자 차단은 친구 관계와 독립적으로 동작합니다.
 
-- **차단 (`POST /api/v1/users/{userId}/block`)**
+- **차단 (`POST /api/v1/friends/block`)**
   - 어디서든 (프로필, 채팅, 게시글 작성자 등) 특정 사용자를 차단
+  - Request: `{ "blockedId": 123 }`
   - 차단 시 효과:
     - 새 1:1 채팅방 생성 불가
     - 기존 채팅방은 유지되나 새 메시지 전송 시 `403 Forbidden`
     - 상대방의 게시글/댓글이 목록에서 숨김 처리 (선택적)
     - 상대방이 나를 친구 추가 불가
-- **차단 해제 (`DELETE /api/v1/users/{userId}/block`)**
-- **차단 목록 조회 (`GET /api/v1/users/me/blocked`)**
+- **차단 해제 (`DELETE /api/v1/friends/block/{blockedId}`)** - v2.5.22 구현 완료
+  - 차단한 사용자의 차단을 해제
+- **차단 목록 조회 (`GET /api/v1/friends/blocked`)** - v2.5.22 구현 완료
+  - 현재 사용자가 차단한 사용자 목록 조회
 
 #### 3.6.3 사용자 신고
 콘텐츠(게시글/댓글) 신고와 별개로, 사용자 자체를 신고하는 기능입니다.
@@ -814,6 +821,7 @@ CREATE TABLE policies (
 | POST   | /api/v1/auth/email/verify              | 회원가입 이메일 인증 코드 확인   | ✅ |
 | POST   | /api/v1/auth/login                     | 이메일 로그인                   | ✅ |
 | POST   | /api/v1/auth/google                    | Google 로그인                   | ✅ |
+| POST   | /api/v1/auth/apple                     | Apple 로그인 (v2.5.22)          | ✅ |
 | POST   | /api/v1/auth/password/reset/request    | 비밀번호 재설정 인증 코드 발송   | ✅ |
 | POST   | /api/v1/auth/password/reset/verify     | 비밀번호 재설정 코드 확인        | ✅ |
 | POST   | /api/v1/auth/password/reset/confirm    | 비밀번호 재설정 완료             | ✅ |
@@ -917,6 +925,8 @@ CREATE TABLE policies (
 | DELETE | /api/v1/friends/requests/{id}             | 요청 취소                          |
 | DELETE | /api/v1/friends/{friendId}                | 친구 삭제                          |
 | POST   | /api/v1/friends/block                     | 사용자 차단                        |
+| DELETE | /api/v1/friends/block/{blockedId}         | 사용자 차단 해제 (v2.5.22)         |
+| GET    | /api/v1/friends/blocked                   | 차단 목록 조회 (v2.5.22)           |
 
 ### Report
 | Method | URI                                       | Description                        |
@@ -970,12 +980,12 @@ CREATE TABLE policies (
 
 ---
 
-## 5. Backend Implementation Status (v2.5.21)
+## 5. Backend Implementation Status (v2.5.22)
 
 ### 5.1 Overview
 | Feature Domain | Implementation Status | Note |
 |---|---|---|
-| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google), Signup Email Pre-verification (v2.5.18), **Password Reset (v2.5.21)** |
+| **Authentication** | ✅ Fully Implemented | JWT, Refresh Token, Auto Login, OAuth (Google, **Apple v2.5.22**), Signup Email Pre-verification (v2.5.18), Password Reset (v2.5.21) |
 | **User & Device** | ✅ Fully Implemented | Profile, FCM Token, `universityId` nullable support, User Search, **Birthdate registration** |
 | **University** | ✅ Fully Implemented | Search, Paging (`/list`), Region Filter, Major validation |
 | **Verification** | ✅ Fully Implemented | Webmail (Code), Student ID (Upload), Status Check |
@@ -988,10 +998,10 @@ CREATE TABLE policies (
 | **Policy** | ✅ Fully Implemented | Policy list, User agreement, **PolicyAgreementFilter**, Status API, Login response integration |
 | **File** | ✅ Fully Implemented | Real Azure Blob Integration (SAS URL + Single Container + Purpose-based prefixes) |
 | **Notification** | ✅ Fully Implemented | FCM Push Logic (NotificationService + DeviceService), Multicast support |
-| **Friend** | ✅ Fully Implemented | Friend Request/Accept/Reject, Block/Unblock |
+| **Friend** | ✅ Fully Implemented | Friend Request/Accept/Reject, Block/Unblock (v2.5.22), Blocked List |
 | **Security** | ✅ Fully Implemented | JWT Filter, Policy Filter, WebSocket Auth, Rate Limiting (Bucket4j) |
 
-### 5.2 Detailed Verification Notes (2026-01-29)
+### 5.2 Detailed Verification Notes (2026-02-01)
 
 #### Community & Board
 - **Verified:** `CommunityController`, `PostController`, `CommentController` exist and function as expected.
@@ -1048,6 +1058,8 @@ CREATE TABLE policies (
 #### Friend & Block
 - **Verified:** `FriendController` provides friend request, accept, reject, cancel, and list endpoints.
 - **Verified:** Block/Unblock functionality with `UserBlock` entity.
+- **Verified:** `DELETE /api/v1/friends/block/{blockedId}` - 차단 해제 API (v2.5.22)
+- **Verified:** `GET /api/v1/friends/blocked` - 차단 목록 조회 API (v2.5.22)
 - **Verified:** Friend status: `PENDING`, `ACCEPTED`, `REJECTED`.
 
 #### Notification
@@ -1072,6 +1084,7 @@ CREATE TABLE policies (
 
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
+| v2.5.22 | 2026-02-01 | Apple Sign-In API 구현 (`POST /api/v1/auth/apple`), 사용자 차단 해제 API 추가 (`DELETE /api/v1/friends/block/{blockedId}`), 차단 목록 조회 API 추가 (`GET /api/v1/friends/blocked`), Azure Event Hubs(Kafka) 전환 완료 |
 | v2.5.21 | 2026-01-30 | 비밀번호 재설정 API 구현 완료. 3단계 API 경로 확정: `/password/reset/request`, `/password/reset/verify`, `/password/reset/confirm`. PRD 문서와 TODO 동기화. |
 | v2.5.20 | 2026-01-30 | 비밀번호 재설정 로직을 '인증 코드 확인 후 비밀번호 변경' 방식으로 보안 강화. 기존 임시 비밀번호 방식의 계정 잠금 취약점 해결. |
 | v2.5.19 | 2026-01-30 | PM 관점 기능 검토, 정책 보완 사항 추가 (Section 9), 미구현 기능 목록 정리 (Section 10), Google OAuth 만 14세 체크/인증 코드 보안/탈퇴 처리/채팅 차단/익명 게시판 정책 명시 |
@@ -1188,7 +1201,7 @@ CREATE TABLE course_metadata (
 | **Database** | PostgreSQL | - | Primary Database |
 | **ORM** | MyBatis | 3.0.5 | XML Mapper 기반 |
 | **Cache/Session** | Redis | - | 인증 코드, 레이트 리밋, WebSocket 세션 |
-| **Message Queue** | Apache Kafka | - | 채팅 메시지 처리 |
+| **Message Queue** | Azure Event Hubs (Kafka Protocol) | - | 채팅 메시지 처리 (v2.5.22 Azure 전환) |
 | **WebSocket** | Spring WebSocket + STOMP | - | 실시간 채팅 |
 | **Push Notification** | Firebase Cloud Messaging (FCM) | - | 모바일 푸시 알림 |
 | **File Storage** | Azure Blob Storage | - | SAS URL 기반 직접 업로드 |
@@ -1199,7 +1212,7 @@ CREATE TABLE course_metadata (
 |-----------|------------|-------|
 | **JWT Library** | jjwt | 0.12.6 |
 | **Password Encoding** | BCrypt | Spring Security 기본 |
-| **OAuth2 Provider** | Google | Firebase Admin SDK로 ID Token 검증 |
+| **OAuth2 Provider** | Google, Apple | Firebase Admin SDK로 ID Token 검증 (Google), Apple Sign-In (v2.5.22) |
 | **Rate Limiting** | Bucket4j + Redis | WebSocket 60 msg/min, API 분당 제한 |
 
 ### 7.3 External Services
@@ -1208,7 +1221,7 @@ CREATE TABLE course_metadata (
 | **Cloud Storage** | Azure Blob Storage | 파일 업로드 (프로필, 게시글 이미지, 학생증) |
 | **Push Notification** | Firebase Cloud Messaging | iOS/Android 푸시 알림 |
 | **Email** | Gmail SMTP | 인증 코드 발송 |
-| **OAuth** | Google OAuth 2.0 | 소셜 로그인 |
+| **OAuth** | Google OAuth 2.0, Apple Sign-In | 소셜 로그인 |
 
 ### 7.4 Project Structure
 ```
@@ -1326,23 +1339,30 @@ student_verification_requests (id, user_id, image_url, status, reject_reason, re
 | `docker-compose.yml` | 로컬 개발 환경 (빌드 포함) |
 | `docker-compose.prod.yml` | 프로덕션 환경 (GHCR 이미지 기반) |
 
-**프로덕션 컨테이너 구성**
+**프로덕션 컨테이너 구성 (v2.5.22 업데이트)**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Azure VM (app-net)                       │
-├─────────────────┬─────────────┬─────────────┬───────────────┤
-│  nonstop-app    │ nonstop-db  │nonstop-redis│ nonstop-kafka │
-│  (Spring Boot)  │ (PostgreSQL)│  (Redis 7)  │ (Kafka 3.7.0) │
-│  :28080         │             │             │               │
-└─────────────────┴─────────────┴─────────────┴───────────────┘
+├─────────────────┬─────────────┬─────────────────────────────┤
+│  nonstop-app    │ nonstop-db  │ nonstop-redis               │
+│  (Spring Boot)  │ (PostgreSQL)│  (Redis 7)                  │
+│  :28080         │             │                             │
+└─────────────────┴─────────────┴─────────────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │  Azure Event Hubs   │
+              │  (Kafka Protocol)   │
+              │  SASL_SSL :9093     │
+              └─────────────────────┘
 ```
 
-| 서비스 | 이미지 | 역할 |
-|--------|--------|------|
+| 서비스 | 이미지/서비스 | 역할 |
+|--------|---------------|------|
 | `app` | `ghcr.io/mypace0600/nonstop-backend:latest` | Spring Boot 애플리케이션 |
 | `db` | `postgres:15-alpine` | Primary Database |
 | `redis` | `redis:7-alpine` | 캐시, 레이트 리밋, WebSocket 세션 |
-| `kafka` | `apache/kafka:3.7.0` | 채팅 메시지 처리 |
+| `kafka` | **Azure Event Hubs** (v2.5.22) | 채팅 메시지 처리 (로컬 Kafka 컨테이너 제거) |
 
 **현재 방식의 한계점**
 | 문제 | 설명 |
