@@ -1,8 +1,10 @@
 package com.app.nonstop.domain.chat.dto;
 
 import com.app.nonstop.domain.chat.entity.ChatRoomType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
@@ -10,6 +12,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatRoomResponseDto {
     private Long roomId;
     private ChatRoomType type;
