@@ -28,17 +28,45 @@ public class TimetableService {
     private final TimetableEntryMapper timetableEntryMapper;
     private final SemesterMapper semesterMapper;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SemesterDto.Response> getSemesters(Long universityId) {
         if (universityId == null) {
-            // If no university, maybe return empty or global?
-            // PRD implies "학기별" and university linkage in DB.
-            // For now, return empty if no university ID.
             return List.of();
         }
-        return semesterMapper.findAllByUniversityId(universityId).stream()
+
+        List<Semester> semesters = semesterMapper.findAllByUniversityId(universityId);
+
+        // 학기가 없으면 현재 년도 기준으로 기본 학기 자동 생성
+        if (semesters.isEmpty()) {
+            semesters = createDefaultSemesters(universityId);
+        }
+
+        return semesters.stream()
                 .map(semester -> SemesterDto.Response.from(semester, isCurrentSemester(semester)))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 기본 학기 자동 생성 (현재 년도의 1학기, 2학기)
+     */
+    private List<Semester> createDefaultSemesters(Long universityId) {
+        int currentYear = java.time.LocalDate.now().getYear();
+
+        Semester firstSemester = Semester.builder()
+                .universityId(universityId)
+                .year(currentYear)
+                .type(SemesterType.FIRST)
+                .build();
+        semesterMapper.insert(firstSemester);
+
+        Semester secondSemester = Semester.builder()
+                .universityId(universityId)
+                .year(currentYear)
+                .type(SemesterType.SECOND)
+                .build();
+        semesterMapper.insert(secondSemester);
+
+        return List.of(firstSemester, secondSemester);
     }
 
     private boolean isCurrentSemester(Semester semester) {
