@@ -40,7 +40,11 @@ public class TimetableController {
             @RequestBody @Valid TimetableDto.Request request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        return ApiResponse.success(timetableService.createTimetable(userDetails.getUserId(), request));
+        return ApiResponse.success(timetableService.createTimetable(
+                userDetails.getUserId(),
+                userDetails.getUniversityId(),
+                request
+        ));
     }
 
     @GetMapping("/timetables/{id}")

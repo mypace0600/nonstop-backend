@@ -4,6 +4,7 @@ import com.app.nonstop.domain.timetable.dto.SemesterDto;
 import com.app.nonstop.domain.timetable.dto.TimetableDto;
 import com.app.nonstop.domain.timetable.dto.TimetableEntryDto;
 import com.app.nonstop.domain.timetable.entity.Semester;
+import com.app.nonstop.domain.timetable.entity.SemesterType;
 import com.app.nonstop.domain.timetable.entity.Timetable;
 import com.app.nonstop.domain.timetable.entity.TimetableEntry;
 import com.app.nonstop.mapper.SemesterMapper;
@@ -58,17 +59,55 @@ public class TimetableService {
     }
 
     @Transactional
-    public TimetableDto.Response createTimetable(Long userId, TimetableDto.Request request) {
+    public TimetableDto.Response createTimetable(Long userId, Long universityId, TimetableDto.Request request) {
+        // 1. universityId 검증
+        if (universityId == null) {
+            throw new BusinessException("대학 인증이 필요합니다.");
+        }
+
+        // 2. 학기 조회 또는 생성
+        Long semesterId = getOrCreateSemester(universityId, request.getYear(), request.getSemesterType());
+
+        // 3. 중복 시간표 체크 (같은 학기에 이미 시간표가 있는지)
+        if (timetableMapper.existsByUserIdAndSemesterId(userId, semesterId)) {
+            throw new BusinessException("해당 학기에 이미 시간표가 존재합니다.");
+        }
+
+        // 4. 시간표 생성
         Timetable timetable = Timetable.builder()
                 .userId(userId)
-                .semesterId(request.getSemesterId())
+                .semesterId(semesterId)
                 .title(request.getTitle())
                 .isPublic(request.getIsPublic())
                 .build();
-        
+
         timetableMapper.insert(timetable);
 
         return toResponse(timetable);
+    }
+
+    /**
+     * 학기 조회 또는 자동 생성
+     */
+    private Long getOrCreateSemester(Long universityId, Integer year, SemesterType type) {
+        // 1. 기존 학기 조회
+        Semester semester = semesterMapper.findByUniversityIdAndYearAndType(universityId, year, type);
+
+        // 2. 있으면 ID 반환
+        if (semester != null) {
+            return semester.getId();
+        }
+
+        // 3. 없으면 새로 생성
+        Semester newSemester = Semester.builder()
+                .universityId(universityId)
+                .year(year)
+                .type(type)
+                .build();
+
+        semesterMapper.insert(newSemester);
+
+        return newSemester.getId();
     }
 
     @Transactional(readOnly = true)

@@ -16,9 +16,13 @@ public class TimetableDto {
     @Getter
     @Setter
     public static class Request {
-        // Create only
-        private Long semesterId;
-        
+        // Create only - 년도와 학기 타입으로 학기 자동 생성/조회
+        @NotNull(message = "년도는 필수입니다")
+        private Integer year;
+
+        @NotNull(message = "학기 타입은 필수입니다")
+        private SemesterType semesterType;
+
         // Create & Update
         private String title;
         private Boolean isPublic;
