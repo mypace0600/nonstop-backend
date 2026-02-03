@@ -22,4 +22,16 @@
         SELECT * FROM semesters WHERE id = #{id}
     </select>
 
+    <select id="findByUniversityIdAndYearAndType" resultMap="semesterMap">
+        SELECT * FROM semesters
+        WHERE university_id = #{universityId}
+          AND year = #{year}
+          AND type = #{type}::semester_type
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO semesters (university_id, year, type, created_at)
+        VALUES (#{universityId}, #{year}, #{type}::semester_type, NOW())
+    </insert>
+
 </mapper>
