@@ -163,4 +163,38 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <select id="findAllByUserIdWithDetail" resultMap="postResponseMap">
+        SELECT
+            p.id,
+            p.board_id,
+            p.user_id AS writer_id,
+            p.title,
+            p.content,
+            p.view_count,
+            p.is_secret,
+            p.created_at,
+            p.updated_at,
+            p.is_anonymous AS is_writer_anonymous,
+            u.nickname AS writer_nickname,
+            (SELECT COUNT(*) FROM user_post_likes l WHERE l.post_id = p.id AND l.deleted_at IS NULL) AS like_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS comment_count,
+            <choose>
+                <when test="currentUserId != null">
+                    EXISTS(
+                        SELECT 1 FROM user_post_likes l
+                        WHERE l.post_id = p.id AND l.user_id = #{currentUserId} AND l.deleted_at IS NULL
+                    )
+                </when>
+                <otherwise>
+                    FALSE
+                </otherwise>
+            </choose> AS is_liked,
+            TRUE AS is_mine
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.user_id = #{userId} AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
 </mapper>
