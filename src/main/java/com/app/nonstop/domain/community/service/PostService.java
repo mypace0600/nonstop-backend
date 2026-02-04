@@ -110,6 +110,25 @@ public class PostService {
     }
 
     /**
+     * 특정 사용자가 작성한 게시글 목록을 페이징하여 조회합니다.
+     *
+     * @param userId        작성자 ID
+     * @param page          페이지 번호 (1부터 시작)
+     * @param size          페이지 크기
+     * @param currentUserId 현재 조회하는 사용자 ID
+     * @return 게시글 목록 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<PostDto.Response> getUserPosts(Long userId, int page, int size, Long currentUserId) {
+        int offset = (page - 1) * size;
+        List<PostDto.Response> posts = postMapper.findAllByUserIdWithDetail(userId, size, offset, currentUserId);
+
+        return posts.stream()
+                .map(this::maskPost)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 게시글을 수정합니다.
      * 작성자 본인만 수정 가능합니다.
      *
