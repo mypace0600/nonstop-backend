@@ -16,51 +16,6 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
-  kafka:
-    admin:
-      auto-create: false
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
-    properties:
-      allow.auto.create.topics: false
-      security.protocol: SASL_SSL
-      sasl.mechanism: PLAIN
-      sasl.jaas.config: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="$ConnectionString"
-        password="${KAFKA_CONNECTION_STRING}";
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      properties:
-        enable.idempotence: true
-        max.in.flight.requests.per.connection: 5
-        security.protocol: SASL_SSL
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: >
-          org.apache.kafka.common.security.plain.PlainLoginModule required
-          username="$ConnectionString"
-          password="${KAFKA_CONNECTION_STRING}";
-    consumer:
-      group-id: nonstop-chat
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: com.app.nonstop.domain.chat.dto
-        spring.json.use.type.headers: false
-        isolation.level: read_committed
-        security.protocol: SASL_SSL
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: >
-          org.apache.kafka.common.security.plain.PlainLoginModule required
-          username="$ConnectionString"
-          password="${KAFKA_CONNECTION_STRING}";
-    listener:
-      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
-      ack-mode: record
-
 logging:
   level:
     com.app.nonstop: info
