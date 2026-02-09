@@ -1,8 +1,7 @@
 package com.app.nonstop.domain.chat.controller;
 
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
-import com.app.nonstop.domain.chat.service.ChatKafkaProducer;
-import com.app.nonstop.global.config.KafkaTopicConfig;
+import com.app.nonstop.domain.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -16,7 +15,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class WebSocketChatController {
 
-    private final ChatKafkaProducer chatKafkaProducer;
+    private final ChatService chatService;
 
     @MessageMapping("/chat/message")
     public void handleMessage(@Payload ChatMessageDto message) {
@@ -25,7 +24,7 @@ public class WebSocketChatController {
         // 메시지 시간 설정
         message.setSentAt(LocalDateTime.now());
 
-        // Kafka로 메시지 전송
-        chatKafkaProducer.sendMessage(KafkaTopicConfig.Topics.CHAT_MESSAGES, message);
+        // 직접 메시지 저장 및 브로드캐스트
+        chatService.saveAndBroadcastMessage(message);
     }
 }

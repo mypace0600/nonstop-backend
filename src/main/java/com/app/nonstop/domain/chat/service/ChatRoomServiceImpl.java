@@ -1,7 +1,7 @@
 package com.app.nonstop.domain.chat.service;
 
 import com.app.nonstop.domain.chat.dto.ChatMessageDto;
-import com.app.nonstop.domain.chat.dto.ChatReadEventDto;
+import com.app.nonstop.domain.chat.dto.ChatReadStatusDto;
 import com.app.nonstop.domain.chat.dto.ChatRoomMemberResponseDto;
 import com.app.nonstop.domain.chat.dto.ChatRoomResponseDto;
 import com.app.nonstop.domain.chat.entity.ChatRoom;
@@ -11,10 +11,11 @@ import com.app.nonstop.domain.chat.entity.MessageType;
 import com.app.nonstop.domain.user.entity.User;
 import com.app.nonstop.global.common.exception.AccessDeniedException;
 import com.app.nonstop.global.common.exception.ResourceNotFoundException;
-import com.app.nonstop.global.config.KafkaTopicConfig;
 import com.app.nonstop.mapper.ChatRoomMapper;
 import com.app.nonstop.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,14 +24,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatRoomServiceImpl implements ChatRoomService {
 
     private final ChatRoomMapper chatRoomMapper;
     private final UserMapper userMapper;
-    private final ChatKafkaProducer chatKafkaProducer;
-    private final ChatReadEventProducer chatReadEventProducer;
+    private final ChatService chatService;
+    private final SimpMessageSendingOperations messagingTemplate;
 
     @Override
     public List<ChatRoomResponseDto> getMyChatRooms(Long userId) {
@@ -117,22 +119,29 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     }
 
     @Override
+    @Transactional
     public void markAsRead(Long roomId, Long userId, Long messageId) {
-        // 멤버 여부 검증 (간단한 검증만 수행하고 실제 업데이트는 비동기로 처리)
+        // 멤버 여부 검증
         if (!chatRoomMapper.isMemberOfRoom(roomId, userId)) {
             throw new AccessDeniedException("You are not a member of this chat room");
         }
 
-        // Kafka로 읽음 이벤트 발행 (비동기 처리)
-        // DB 부하를 줄이고 WebSocket 브로드캐스팅을 Consumer에서 처리
-        ChatReadEventDto event = ChatReadEventDto.builder()
+        // DB 업데이트 (last_read_message_id) - 멱등성 보장
+        chatRoomMapper.updateLastReadMessageIdIfGreater(roomId, userId, messageId);
+
+        // WebSocket으로 읽음 상태 브로드캐스트
+        LocalDateTime now = LocalDateTime.now();
+        ChatReadStatusDto status = ChatReadStatusDto.builder()
                 .roomId(roomId)
                 .userId(userId)
-                .messageId(messageId)
-                .timestamp(LocalDateTime.now())
+                .lastReadMessageId(messageId)
+                .readAt(now)
                 .build();
 
-        chatReadEventProducer.sendReadEvent(event);
+        messagingTemplate.convertAndSend("/sub/chat/room/" + roomId + "/read", status);
+
+        log.debug("Read status updated and broadcasted: roomId={}, userId={}, messageId={}",
+                roomId, userId, messageId);
     }
 
     @Override
@@ -293,6 +302,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         systemMessage.setSenderId(senderId);
         systemMessage.setType(type);
         systemMessage.setContent(content);
-        chatKafkaProducer.sendMessage(KafkaTopicConfig.Topics.CHAT_MESSAGES, systemMessage);
+        systemMessage.setSentAt(LocalDateTime.now());
+        chatService.saveAndBroadcastMessage(systemMessage);
     }
 }
